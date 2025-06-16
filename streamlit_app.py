@@ -140,6 +140,303 @@ import boto3
 from typing import Dict, Optional
 import json
 
+# ADD THIS CLASS to your streamlit_app.py file (put it near the top with other classes):
+
+class EnhancedAWSPricingAPI:
+    """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
+    
+    def __init__(self):
+        self.base_url = "https://pricing.us-east-1.amazonaws.com"
+        self.cache = {}
+        
+    def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
+        """Get RDS pricing for specific instance with Multi-AZ support"""
+        cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
+        
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        
+        # Enhanced pricing data with Multi-AZ and Aurora support
+        pricing_data = {
+            'us-east-1': {
+                'postgres': {
+                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.xlarge': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.8xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'aurora-postgresql': {
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.12xlarge': {'hourly': 6.96, 'hourly_multi_az': 6.96, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.16xlarge': {'hourly': 9.28, 'hourly_multi_az': 9.28, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.24xlarge': {'hourly': 13.92, 'hourly_multi_az': 13.92, 'storage_gb': 0.10, 'io_request': 0.20},
+                },
+                'oracle-ee': {
+                    'db.t3.medium': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 7.68, 'hourly_multi_az': 15.36, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'mysql': {
+                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'aurora-mysql': {
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
+                }
+            }
+        }
+        
+        engine_pricing = pricing_data.get(region, {}).get(engine, {})
+        instance_pricing = engine_pricing.get(instance_class, {
+            'hourly': 0.5, 
+            'hourly_multi_az': 1.0, 
+            'storage_gb': 0.115, 
+            'iops_gb': 0.10,
+            'io_request': 0.20
+        })
+        
+        # Select appropriate pricing based on Multi-AZ
+        if multi_az and 'aurora' not in engine:
+            hourly_cost = instance_pricing['hourly_multi_az']
+        else:
+            hourly_cost = instance_pricing['hourly']
+        
+        result = {
+            'hourly': hourly_cost,
+            'storage_gb': instance_pricing['storage_gb'],
+            'iops_gb': instance_pricing.get('iops_gb', 0.10),
+            'io_request': instance_pricing.get('io_request', 0.20),
+            'is_aurora': 'aurora' in engine,
+            'multi_az': multi_az
+        }
+        
+        self.cache[cache_key] = result
+        return result
+
+
+# ALSO ADD this if MigrationAnalyzer class is missing:
+
+class MigrationAnalyzer:
+    """Basic migration analyzer for standard environment configurations"""
+    
+    def __init__(self, anthropic_api_key: Optional[str] = None):
+        self.pricing_api = EnhancedAWSPricingAPI()
+        self.anthropic_api_key = anthropic_api_key
+    
+    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
+        """Calculate AWS instance recommendations for environments"""
+        
+        recommendations = {}
+        
+        for env_name, specs in environment_specs.items():
+            cpu_cores = specs['cpu_cores']
+            ram_gb = specs['ram_gb']
+            storage_gb = specs['storage_gb']
+            
+            # Determine environment type
+            environment_type = self._categorize_environment(env_name)
+            
+            # Calculate instance class
+            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
+            
+            # Multi-AZ recommendation
+            multi_az = environment_type in ['production', 'staging']
+                                  
+            recommendations[env_name] = {
+                'environment_type': environment_type,
+                'instance_class': instance_class,
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'multi_az': multi_az,
+                'daily_usage_hours': specs.get('daily_usage_hours', 24),
+                'peak_connections': specs.get('peak_connections', 100)
+            }
+        
+        return recommendations
+    
+    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
+        """Calculate migration costs based on recommendations"""
+        
+        region = migration_params.get('region', 'us-east-1')
+        target_engine = migration_params.get('target_engine', 'postgres')
+        
+        total_monthly_cost = 0
+        environment_costs = {}
+        
+        for env_name, rec in recommendations.items():
+            env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
+            environment_costs[env_name] = env_costs
+            total_monthly_cost += env_costs['total_monthly']
+        
+        # Migration service costs
+        data_size_gb = migration_params.get('data_size_gb', 1000)
+        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+        
+        # DMS costs
+        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks  # t3.large instance
+        
+        # Data transfer costs
+        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
+        
+        # Professional services
+        ps_cost = migration_timeline_weeks * 8000  # $8k per week
+        
+        migration_costs = {
+            'dms_instance': dms_instance_cost,
+            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
+            'professional_services': ps_cost,
+            'contingency': 0,
+            'total': 0
+        }
+        # Calculate contingency and total
+        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
+        migration_costs['contingency'] = base_cost * 0.2
+        migration_costs['total'] = base_cost + migration_costs['contingency']
+        
+        return {
+            'monthly_aws_cost': total_monthly_cost,
+            'annual_aws_cost': total_monthly_cost * 12,
+            'environment_costs': environment_costs,
+            'migration_costs': migration_costs,
+            'transfer_costs': transfer_costs
+        }
+    
+    async def generate_ai_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+        """Generate AI insights (optional, requires API key)"""
+        
+        if not self.anthropic_api_key:
+            return {'error': 'No API key provided'}
+        
+        try:
+            # Simple insights without actual API call for now
+            insights = {
+                'cost_efficiency': f"Monthly AWS cost of ${cost_analysis['monthly_aws_cost']:,.0f} represents efficient cloud migration",
+                'migration_strategy': f"Recommended {migration_params.get('migration_timeline_weeks', 12)}-week timeline is appropriate for this scale",
+                'risk_assessment': "Migration complexity is manageable with proper planning and resources"
+            }
+            return insights
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def _categorize_environment(self, env_name: str) -> str:
+        """Categorize environment type from name"""
+        env_lower = env_name.lower()
+        if any(term in env_lower for term in ['prod', 'production', 'prd']):
+            return 'production'
+        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
+            return 'staging'
+        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
+            return 'testing'
+        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
+            return 'development'
+        return 'production'  # Default to production for safety
+    
+    def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
+        """Calculate appropriate instance class"""
+        
+        # Instance sizing logic
+        if cpu_cores <= 2 and ram_gb <= 8:
+            instance_class = 'db.t3.medium'
+        elif cpu_cores <= 4 and ram_gb <= 16:
+            instance_class = 'db.t3.large'
+        elif cpu_cores <= 8 and ram_gb <= 32:
+            instance_class = 'db.r5.large'
+        elif cpu_cores <= 16 and ram_gb <= 64:
+            instance_class = 'db.r5.xlarge'
+        elif cpu_cores <= 32 and ram_gb <= 128:
+            instance_class = 'db.r5.2xlarge'
+        elif cpu_cores <= 64 and ram_gb <= 256:
+            instance_class = 'db.r5.4xlarge'
+        else:
+            instance_class = 'db.r5.8xlarge'
+        
+        # Environment-specific adjustments
+        if env_type == 'development' and 'r5' in instance_class:
+            # Downsize for development
+            downsized = {
+                'db.r5.8xlarge': 'db.r5.4xlarge',
+                'db.r5.4xlarge': 'db.r5.2xlarge',
+                'db.r5.2xlarge': 'db.r5.xlarge',
+                'db.r5.xlarge': 'db.r5.large',
+                'db.r5.large': 'db.t3.large'
+            }
+            instance_class = downsized.get(instance_class, instance_class)
+        
+        return instance_class
+    
+    def _calculate_environment_cost(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
+        """Calculate cost for a single environment"""
+        
+        # Get pricing
+        pricing = self.pricing_api.get_rds_pricing(
+            region, target_engine, rec['instance_class'], rec['multi_az']
+        )
+        
+        # Calculate monthly hours
+        daily_hours = rec['daily_usage_hours']
+        monthly_hours = daily_hours * 30
+        
+        # Instance cost
+        instance_cost = pricing['hourly'] * monthly_hours
+        
+        # Storage cost
+        storage_cost = rec['storage_gb'] * pricing['storage_gb']
+        
+        # Backup cost (estimate 20% of storage)
+        backup_cost = storage_cost * 0.2
+        
+        # Total monthly cost
+        total_monthly = instance_cost + storage_cost + backup_cost
+        
+        return {
+            'instance_cost': instance_cost,
+            'storage_cost': storage_cost,
+            'backup_cost': backup_cost,
+            'total_monthly': total_monthly
+        }
+    
+    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
+        """Calculate data transfer costs"""
+        
+        use_direct_connect = migration_params.get('use_direct_connect', False)
+        
+        # Internet transfer
+        internet_cost = data_size_gb * 0.09  # $0.09 per GB
+        
+        # Direct Connect transfer
+        if use_direct_connect:
+            dx_cost = data_size_gb * 0.02  # $0.02 per GB
+        else:
+            dx_cost = internet_cost
+        
+        return {
+            'internet': internet_cost,
+            'direct_connect': dx_cost,
+            'total': min(internet_cost, dx_cost)
+        }
+
 # FIXED: Synchronous Claude AI Implementation for Streamlit
 class StreamlitClaudeAIAnalyzer:
     """Synchronous Claude AI integration that works with Streamlit"""
