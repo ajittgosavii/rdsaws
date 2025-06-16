@@ -5365,7 +5365,19 @@ def main():
                 "📄 Reports & Export"
             ]
         )
-        
+def show_debug_info():
+    """Show debug information in sidebar"""
+    with st.sidebar:
+        if st.checkbox("🐛 Show Debug Info"):
+            st.markdown("### Debug Information")
+            st.write("Environment specs:", bool(st.session_state.environment_specs))
+            st.write("Migration params:", bool(st.session_state.migration_params))
+            st.write("Analysis results:", bool(st.session_state.analysis_results))
+            st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
+            
+            if st.session_state.environment_specs:
+                st.write("Num environments:", len(st.session_state.environment_specs))
+                st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
         # Status indicators
         st.markdown("### 📋 Status")
         
@@ -5379,8 +5391,67 @@ def main():
         else:
             st.warning("⚠️ Set migration parameters")
         
-        if st.session_state.analysis_results:
+        # FIXED: Check for both regular and enhanced analysis results
+        has_regular_results = st.session_state.analysis_results is not None
+        has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        
+        if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
+
+              # Show metrics from whichever analysis was completed
+            if has_enhanced_results:
+                results = st.session_state.enhanced_analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("🔬 Enhanced Analysis")
+            elif has_regular_results:
+                results = st.session_state.analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("📊 Standard Analysis")
+        else:
+            st.info("ℹ️ Analysis pending")
+        
+        # Network analysis status
+        if st.session_state.transfer_analysis:
+            st.success("✅ Network analysis complete")
+            recommendations = st.session_state.transfer_analysis.get('recommendations', {})
+            primary = recommendations.get('primary_recommendation', {})
+            if primary:
+                st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
+        else:
+            st.info("ℹ️ Network analysis pending")
+        
+        # vROps analysis status
+        if st.session_state.vrops_analysis:
+            st.success("✅ vROps analysis complete")
+            
+            health_scores = []
+            for env_name, analysis in st.session_state.vrops_analysis.items():
+                if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+            
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+            else:
+                st.info("ℹ️ vROps analysis pending")
+    
+    # Main content
+            if page == "🔧 Migration Configuration":
+                show_migration_configuration()
+            elif page == "📊 Environment Setup":
+                show_enhanced_environment_setup_with_cluster_config()
+            elif page == "🌐 Network Analysis":
+                show_network_transfer_analysis()
+            elif page == "🚀 Analysis & Recommendations":
+                show_analysis_section()
+            elif page == "📈 Results Dashboard":
+                show_results_dashboard()
+            elif page == "📄 Reports & Export":
+                show_reports_section()
+                    
+       
             # Quick metrics
             results = st.session_state.analysis_results
             st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
@@ -5699,10 +5770,12 @@ def show_analysis_section():
     # Check prerequisites
     if not st.session_state.migration_params:
         st.error("❌ Migration configuration required")
+        st.info("👆 Please complete the 'Migration Configuration' section first")
         return
     
     if not st.session_state.environment_specs:
         st.error("❌ Environment configuration required")
+        st.info("👆 Please complete the 'Environment Setup' section first")
         return
     
     # Display current configuration
@@ -5723,15 +5796,35 @@ def show_analysis_section():
     with col2:
         envs = st.session_state.environment_specs
         st.markdown(f"**Environments:** {len(envs)}")
+        
+        # Show first few environments
+        count = 0
         for env_name, specs in envs.items():
-            cpu_cores = specs.get('cpu_cores', 'N/A')
-            ram_gb = specs.get('ram_gb', 'N/A')
-            st.markdown(f"• **{env_name}:** {specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM")
+            if count < 4:  # Show max 4 environments
+                cpu_cores = specs.get('cpu_cores', 'N/A')
+                ram_gb = specs.get('ram_gb', 'N/A')
+                st.markdown(f"• **{env_name}:** {cpu_cores} cores, {ram_gb} GB RAM")
+                count += 1
+        
+        if len(envs) > 4:
+            st.markdown(f"• ... and {len(envs) - 4} more environments")
+    
+    # Detect configuration type
+    is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
+    
+    if is_enhanced:
+        st.info("🔬 Enhanced cluster configuration detected - Writer/Reader analysis will be performed")
+    else:
+        st.info("📊 Standard configuration detected - Basic RDS analysis will be performed")
     
     # Run analysis
     if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+        # Clear any previous results
+        st.session_state.analysis_results = None
+        st.session_state.enhanced_analysis_results = None
+        
         with st.spinner("🔄 Analyzing migration requirements..."):
-            if is_enhanced_environment_data(st.session_state.environment_specs):
+            if is_enhanced:
                 run_enhanced_migration_analysis()
             else:
                 run_migration_analysis()
@@ -5773,19 +5866,77 @@ def run_migration_analysis():
                 st.warning(f"AI insights generation failed: {str(e)}")
                 st.session_state.ai_insights = {'error': str(e)}
         
-        st.success("✅ Analysis complete! Check the Results Dashboard.")
-        st.balloons()
+        st.success("✅ Standard analysis complete!")
+        
+        # Provide navigation hint
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
         st.code(str(e))
+        
+        # Provide troubleshooting info
+        st.markdown("### 🔧 Troubleshooting")
+        st.markdown("If the error persists:")
+        st.markdown("1. Check that all environment fields are properly filled")
+        st.markdown("2. Verify that numerical values are within valid ranges")  
+        st.markdown("3. Check the Migration Configuration parameters")
+                
+def run_enhanced_migration_analysis():
+    """Run enhanced migration analysis with Writer/Reader support"""
+    
+    try:
+        # Initialize enhanced analyzer
+        analyzer = EnhancedMigrationAnalyzer()
+        
+         # Step 1: Calculate enhanced recommendations
+        st.write("📊 Calculating cluster recommendations...")
+        recommendations = analyzer.calculate_enhanced_instance_recommendations(st.session_state.environment_specs)
+        st.session_state.enhanced_recommendations = recommendations
+        
+        # Step 2: Calculate enhanced costs
+        st.write("💰 Analyzing cluster costs...")
+        cost_analysis = analyzer.calculate_enhanced_migration_costs(recommendations, st.session_state.migration_params)
+        st.session_state.enhanced_analysis_results = cost_analysis
+        
+        # Step 3: Generate risk assessment using enhanced data
+        st.write("⚠️ Assessing risks...")
+        risk_assessment = calculate_migration_risks(st.session_state.migration_params, recommendations)
+        st.session_state.risk_assessment = risk_assessment
+        
+        # Step 4: Generate cost comparison
+        st.write("📈 Generating cost comparisons...")
+        generate_enhanced_cost_visualizations()
+        
+        st.success("✅ Enhanced cluster analysis complete!")
+        
+        # Show summary
+        show_enhanced_analysis_summary()
+        
+        # Provide navigation hint
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        
+    except Exception as e:
+        st.error(f"❌ Enhanced analysis failed: {str(e)}")
+        st.code(str(e))
+        
+        # Provide troubleshooting info
+        st.markdown("### 🔧 Troubleshooting")
+        st.markdown("If the error persists:")
+        st.markdown("1. Check that all environment fields are properly filled")
+        st.markdown("2. Verify that numerical values are within valid ranges")
+        st.markdown("3. Try using the 'Simple Configuration' option instead")
 
 def show_results_dashboard():
     """Show comprehensive results dashboard"""
     
     st.markdown("## 📈 Migration Analysis Results")
     
-    if not st.session_state.analysis_results:
+    # Check for both regular and enhanced analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+    
+    if not has_regular_results and not has_enhanced_results:
         st.warning("⚠️ Please run the analysis first.")
         return
     
