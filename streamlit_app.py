@@ -5551,6 +5551,104 @@ def show_migration_configuration():
         st.success("✅ Configuration saved! Proceed to Environment Setup.")
         st.balloons()
 
+def show_environment_analysis():
+    """Show environment analysis dashboard"""
+    
+    st.markdown("### 🏢 Environment Analysis")
+    
+    # Check for enhanced recommendations first
+    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
+        show_enhanced_environment_analysis()
+        return
+    
+    if not hasattr(st.session_state, 'recommendations') or not st.session_state.recommendations:
+        st.warning("Environment analysis not available. Please run the analysis first.")
+        return
+    
+    recommendations = st.session_state.recommendations
+    environment_specs = st.session_state.environment_specs
+    
+    if not environment_specs:
+        st.warning("No environment specifications available.")
+        return
+    
+    # Environment comparison
+    env_comparison_data = []
+    
+    for env_name, rec in recommendations.items():
+        specs = environment_specs.get(env_name, {})
+        
+        env_comparison_data.append({
+            'Environment': env_name,
+            'Type': rec.get('environment_type', 'Unknown').title(),
+            'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
+            'Recommended Instance': rec.get('instance_class', 'N/A'),
+            'Storage': f"{specs.get('storage_gb', 'N/A')} GB",
+            'Multi-AZ': 'Yes' if rec.get('multi_az', False) else 'No',
+            'Daily Usage': f"{specs.get('daily_usage_hours', 'N/A')} hours"
+        })
+    
+    if env_comparison_data:
+        env_df = pd.DataFrame(env_comparison_data)
+        st.dataframe(env_df, use_container_width=True)
+    else:
+        st.warning("No environment comparison data available.")
+    
+    # Environment-specific insights
+    st.markdown("#### 💡 Environment Insights")
+    
+    for env_name, rec in recommendations.items():
+        with st.expander(f"🔍 {env_name} Environment Details"):
+            specs = environment_specs.get(env_name, {})
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**Current Configuration**")
+                st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                st.write(f"Daily Usage: {specs.get('daily_usage_hours', 'N/A')} hours")
+            
+            with col2:
+                st.markdown("**AWS Recommendation**")
+                st.write(f"Instance: {rec.get('instance_class', 'N/A')}")
+                st.write(f"Environment Type: {rec.get('environment_type', 'Unknown').title()}")
+                st.write(f"Multi-AZ: {'Yes' if rec.get('multi_az', False) else 'No'}")
+                
+                # Get instance specs (simplified)
+                instance_class = rec.get('instance_class', '')
+                if 'xlarge' in instance_class:
+                    aws_cpu = 16 if '4xlarge' in instance_class else 8 if '2xlarge' in instance_class else 4
+                    aws_ram = aws_cpu * 8
+                elif 'large' in instance_class:
+                    aws_cpu = 2
+                    aws_ram = 8
+                else:
+                    aws_cpu = 1
+                    aws_ram = 4
+                
+                st.write(f"AWS vCPUs: {aws_cpu}")
+                st.write(f"AWS RAM: {aws_ram} GB")
+            
+            with col3:
+                st.markdown("**Optimization Notes**")
+                
+                # Generate optimization suggestions
+                env_type = rec.get('environment_type', '')
+                if env_type == 'production':
+                    st.write("✅ Production-grade configuration")
+                    st.write("✅ Multi-AZ for high availability")
+                elif env_type == 'development':
+                    st.write("💡 Cost-optimized for development")
+                    st.write("💡 Single-AZ to reduce costs")
+                
+                daily_hours = specs.get('daily_usage_hours', 24)
+                if daily_hours < 12:
+                    st.write("⚡ Consider Aurora Serverless for variable workloads")
+
+
+
 def show_environment_setup():
     """Show environment setup interface"""
     
@@ -5894,12 +5992,13 @@ def show_results_dashboard():
     
     if not has_regular_results and not has_enhanced_results:
         st.warning("⚠️ Please run the analysis first.")
+        st.info("👆 Go to 'Analysis & Recommendations' section to run the analysis.")
         return
     
     # Create tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "💰 Cost Summary",
-        "💎 Enhanced Cost Analysis",  # NEW TAB
+        "💎 Enhanced Cost Analysis",
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
         "📊 Visualizations",
@@ -5911,7 +6010,7 @@ def show_results_dashboard():
         show_cost_summary()
         
     with tab2:
-        if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
+        if has_enhanced_results:
             show_enhanced_cost_analysis()
         else:
             st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
@@ -6030,14 +6129,14 @@ def show_risk_assessment():
     
     st.markdown("### ⚠️ Migration Risk Assessment")
     
-    if not st.session_state.risk_assessment:
-        st.warning("Risk assessment not available")
+    if not hasattr(st.session_state, 'risk_assessment') or not st.session_state.risk_assessment:
+        st.warning("Risk assessment not available. Please run the analysis first.")
         return
     
     risk_assessment = st.session_state.risk_assessment
     
     # Overall risk level
-    risk_level = risk_assessment['risk_level']
+    risk_level = risk_assessment.get('risk_level', {'level': 'Unknown', 'color': '#666666', 'action': 'Assessment needed'})
     
     st.markdown(f"""
     <div class="metric-card risk-{risk_level['level'].lower()}">
@@ -6056,172 +6155,257 @@ def show_risk_assessment():
     
     with col1:
         st.markdown("#### 🔧 Technical Risks")
-        tech_risks = risk_assessment['technical_risks']
+        tech_risks = risk_assessment.get('technical_risks', {})
         
-        for risk_name, score in tech_risks.items():
-            risk_level_detail = 'High' if score > 60 else 'Medium' if score > 30 else 'Low'
-            color = '#e53e3e' if score > 60 else '#d69e2e' if score > 30 else '#38a169'
-            
-            st.markdown(f"""
-            **{risk_name.replace('_', ' ').title()}**  
-            <div style="background: {color}; color: white; padding: 5px 10px; border-radius: 5px; display: inline-block;">
-                {score:.0f}/100 - {risk_level_detail}
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("---")
+        if tech_risks:
+            for risk_name, score in tech_risks.items():
+                risk_level_detail = 'High' if score > 60 else 'Medium' if score > 30 else 'Low'
+                color = '#e53e3e' if score > 60 else '#d69e2e' if score > 30 else '#38a169'
+                
+                st.markdown(f"""
+                **{risk_name.replace('_', ' ').title()}**  
+                <div style="background: {color}; color: white; padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                    {score:.0f}/100 - {risk_level_detail}
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("---")
+        else:
+            st.info("No technical risk data available.")
     
     with col2:
         st.markdown("#### 💼 Business Risks")
-        business_risks = risk_assessment['business_risks']
+        business_risks = risk_assessment.get('business_risks', {})
         
-        for risk_name, score in business_risks.items():
-            risk_level_detail = 'High' if score > 60 else 'Medium' if score > 30 else 'Low'
-            color = '#e53e3e' if score > 60 else '#d69e2e' if score > 30 else '#38a169'
-            
-            st.markdown(f"""
-            **{risk_name.replace('_', ' ').title()}**  
-            <div style="background: {color}; color: white; padding: 5px 10px; border-radius: 5px; display: inline-block;">
-                {score:.0f}/100 - {risk_level_detail}
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("---")
+        if business_risks:
+            for risk_name, score in business_risks.items():
+                risk_level_detail = 'High' if score > 60 else 'Medium' if score > 30 else 'Low'
+                color = '#e53e3e' if score > 60 else '#d69e2e' if score > 30 else '#38a169'
+                
+                st.markdown(f"""
+                **{risk_name.replace('_', ' ').title()}**  
+                <div style="background: {color}; color: white; padding: 5px 10px; border-radius: 5px; display: inline-block;">
+                    {score:.0f}/100 - {risk_level_detail}
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("---")
+        else:
+            st.info("No business risk data available.")
     
     # Risk mitigation strategies
     st.markdown("#### 🛡️ Risk Mitigation Strategies")
     
-    mitigation_strategies = risk_assessment['mitigation_strategies']
+    mitigation_strategies = risk_assessment.get('mitigation_strategies', [])
     
     if mitigation_strategies:
         for strategy in mitigation_strategies:
-            with st.expander(f"🎯 {strategy['risk']} Mitigation"):
-                st.markdown(f"**Strategy:** {strategy['strategy']}")
-                st.markdown(f"**Timeline:** {strategy['timeline']}")
-                st.markdown(f"**Cost Impact:** {strategy['cost_impact']}")
+            with st.expander(f"🎯 {strategy.get('risk', 'Unknown Risk')} Mitigation"):
+                st.markdown(f"**Strategy:** {strategy.get('strategy', 'Not specified')}")
+                st.markdown(f"**Timeline:** {strategy.get('timeline', 'Not specified')}")
+                st.markdown(f"**Cost Impact:** {strategy.get('cost_impact', 'Not specified')}")
     else:
         st.info("No specific mitigation strategies required - risk levels are manageable with standard best practices.")
 
-def show_environment_analysis():
-    """Show environment analysis dashboard"""
+
+def show_cost_summary():
+    """Show cost summary dashboard"""
     
-    st.markdown("### 🏢 Environment Analysis")
+    st.markdown("### 💰 Cost Analysis Summary")
     
-    # CHECK for enhanced recommendations first
-    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
-        show_enhanced_environment_analysis()
+    # Check if we have any analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+    
+    if not has_regular_results and not has_enhanced_results:
+        st.warning("⚠️ No analysis results available. Please run the analysis first.")
+        st.info("👆 Go to 'Analysis & Recommendations' section to run the analysis.")
         return
     
-    #if not st.session_state.recommendations:
-     #   st.warning("Environment analysis not available")
-     #   return
+    # Use enhanced results if available, otherwise use regular results
+    if has_enhanced_results:
+        results = st.session_state.enhanced_analysis_results
+        st.info("🔬 Showing Enhanced Analysis Results")
+    else:
+        results = st.session_state.analysis_results
+        st.info("📊 Showing Standard Analysis Results")
     
-    recommendations = st.session_state.recommendations
-    environment_specs = st.session_state.environment_specs
+    # Ensure results is not None and has required keys
+    if not results or 'monthly_aws_cost' not in results:
+        st.error("❌ Invalid analysis results. Please re-run the analysis.")
+        return
     
-    # Environment comparison
-    env_comparison_data = []
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
     
-    for env_name, rec in recommendations.items():
-        specs = environment_specs[env_name]
+    with col1:
+        st.metric(
+            "Monthly AWS Cost",
+            f"${results['monthly_aws_cost']:,.0f}",
+            delta=f"${results['monthly_aws_cost']*12:,.0f}/year"
+        )
+    
+    with col2:
+        migration_cost = results.get('migration_costs', {}).get('total', 0)
+        st.metric(
+            "Migration Investment",
+            f"${migration_cost:,.0f}",
+            delta="One-time cost"
+        )
+    
+    with col3:
+        # Calculate simple ROI based on current vs new costs
+        current_estimated = results['monthly_aws_cost'] * 1.8  # Assume 80% higher current costs
+        annual_savings = (current_estimated - results['monthly_aws_cost']) * 12
+        roi_years = migration_cost / max(annual_savings, 1) if migration_cost > 0 else 0
         
-        env_comparison_data.append({
+        st.metric(
+            "ROI Timeline",
+            f"{roi_years:.1f} years" if roi_years > 0 else "N/A",
+            delta=f"${annual_savings:,.0f}/year savings" if annual_savings > 0 else "No savings estimated"
+        )
+    
+    with col4:
+        annual_cost = results.get('annual_aws_cost', results['monthly_aws_cost'] * 12)
+        total_3_year = migration_cost + (annual_cost * 3)
+        st.metric(
+            "3-Year Total Investment",
+            f"${total_3_year:,.0f}",
+            delta="Including migration"
+        )
+    
+    # Environment cost breakdown
+    st.markdown("### 🏢 Environment Cost Breakdown")
+    
+    env_costs = results.get('environment_costs', {})
+    if not env_costs:
+        st.warning("No environment cost data available.")
+        return
+    
+    env_data = []
+    
+    for env_name, costs in env_costs.items():
+        # Handle both enhanced and regular cost structures
+        if isinstance(costs, dict):
+            instance_cost = costs.get('instance_cost', costs.get('writer_instance_cost', 0))
+            storage_cost = costs.get('storage_cost', 0)
+            backup_cost = costs.get('backup_cost', 0)
+            total_monthly = costs.get('total_monthly', 0)
+        else:
+            # Fallback for unexpected data structure
+            instance_cost = storage_cost = backup_cost = total_monthly = 0
+        
+        env_data.append({
             'Environment': env_name,
-            'Type': rec['environment_type'].title(),
-            'Current Resources': f"{specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM",
-            'Recommended Instance': rec['instance_class'],
-            'Storage': f"{specs['storage_gb']} GB",
-            'Multi-AZ': 'Yes' if rec['multi_az'] else 'No',
-            'Daily Usage': f"{specs['daily_usage_hours']} hours"
+            'Instance Cost': f"${instance_cost:,.0f}",
+            'Storage Cost': f"${storage_cost:,.0f}",
+            'Backup Cost': f"${backup_cost:,.0f}",
+            'Monthly Total': f"${total_monthly:,.0f}",
+            'Annual Total': f"${total_monthly*12:,.0f}"
         })
     
-    env_df = pd.DataFrame(env_comparison_data)
-    st.dataframe(env_df, use_container_width=True)
+    if env_data:
+        env_df = pd.DataFrame(env_data)
+        st.dataframe(env_df, use_container_width=True)
+    else:
+        st.warning("No environment data to display.")
     
-    # Environment-specific insights
-    st.markdown("#### 💡 Environment Insights")
+    # Migration cost breakdown
+    st.markdown("### 🚀 Migration Cost Breakdown")
     
-    for env_name, rec in recommendations.items():
-        with st.expander(f"🔍 {env_name} Environment Details"):
-            specs = environment_specs[env_name]
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.markdown("**Current Configuration**")
-                st.write(f"CPU Cores: {specs['cpu_cores']}")
-                st.write(f"RAM: {specs['ram_gb']} GB")
-                st.write(f"Storage: {specs['storage_gb']} GB")
-                st.write(f"Daily Usage: {specs['daily_usage_hours']} hours")
-            
-            with col2:
-                st.markdown("**AWS Recommendation**")
-                st.write(f"Instance: {rec['instance_class']}")
-                st.write(f"Environment Type: {rec['environment_type'].title()}")
-                st.write(f"Multi-AZ: {'Yes' if rec['multi_az'] else 'No'}")
-                
-                # Get instance specs (simplified)
-                if 'xlarge' in rec['instance_class']:
-                    aws_cpu = 16 if '4xlarge' in rec['instance_class'] else 8 if '2xlarge' in rec['instance_class'] else 4
-                    aws_ram = aws_cpu * 8
-                elif 'large' in rec['instance_class']:
-                    aws_cpu = 2
-                    aws_ram = 8
-                else:
-                    aws_cpu = 1
-                    aws_ram = 4
-                
-                st.write(f"AWS vCPUs: {aws_cpu}")
-                st.write(f"AWS RAM: {aws_ram} GB")
-            
-            with col3:
-                st.markdown("**Optimization Notes**")
-                
-                # Generate optimization suggestions
-                if rec['environment_type'] == 'production':
-                    st.write("✅ Production-grade configuration")
-                    st.write("✅ Multi-AZ for high availability")
-                elif rec['environment_type'] == 'development':
-                    st.write("💡 Cost-optimized for development")
-                    st.write("💡 Single-AZ to reduce costs")
-                
-                if specs['daily_usage_hours'] < 12:
-                    st.write("⚡ Consider Aurora Serverless for variable workloads")
+    migration_costs = results.get('migration_costs', {})
+    if migration_costs:
+        migration_data = {
+            'Cost Component': [
+                'DMS Instance',
+                'Data Transfer',
+                'Professional Services',
+                'Contingency (20%)',
+                'Total Migration Cost'
+            ],
+            'Amount': [
+                f"${migration_costs.get('dms_instance', 0):,.0f}",
+                f"${migration_costs.get('data_transfer', 0):,.0f}",
+                f"${migration_costs.get('professional_services', 0):,.0f}",
+                f"${migration_costs.get('contingency', 0):,.0f}",
+                f"${migration_costs.get('total', 0):,.0f}"
+            ],
+            'Description': [
+                'DMS replication instance for data migration',
+                'Network costs for data transfer to AWS',
+                'Migration team and project management',
+                'Risk buffer for unexpected costs',
+                'Total one-time migration investment'
+            ]
+        }
+        
+        migration_df = pd.DataFrame(migration_data)
+        st.dataframe(migration_df, use_container_width=True)
+    else:
+        st.warning("No migration cost data available.")
 
 def show_visualizations():
     """Show visualization dashboard"""
     
     st.markdown("### 📊 Migration Analysis Visualizations")
     
-    results = st.session_state.analysis_results
+    # Check for analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
     
-    # Cost waterfall chart
-    st.markdown("#### 💧 Cost Transformation Analysis")
+    if not has_regular_results and not has_enhanced_results:
+        st.warning("⚠️ No analysis results available for visualization.")
+        return
     
-    # Create mock current costs for comparison
-    current_total_cost = results['annual_aws_cost'] * 1.8  # Assume 80% higher current costs
-    results['current_total_cost'] = current_total_cost
+    # Use enhanced results if available, otherwise use regular results
+    if has_enhanced_results:
+        results = st.session_state.enhanced_analysis_results
+        # Show enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True)
+    else:
+        results = st.session_state.analysis_results
     
-    waterfall_fig = create_cost_waterfall_chart(results)
-    st.plotly_chart(waterfall_fig, use_container_width=True)
-    
-    # Environment cost comparison
-    st.markdown("#### 🏢 Environment Cost Comparison")
-    
-    env_comparison_fig = create_environment_comparison_chart(results['environment_costs'])
-    st.plotly_chart(env_comparison_fig, use_container_width=True)
-    
-    # Risk heatmap
-    if st.session_state.risk_assessment:
-        st.markdown("#### 🔥 Risk Assessment Heatmap")
+    try:
+        # Cost waterfall chart
+        st.markdown("#### 💧 Cost Transformation Analysis")
         
-        risk_heatmap_fig = create_risk_heatmap(st.session_state.risk_assessment)
-        st.plotly_chart(risk_heatmap_fig, use_container_width=True)
+        # Create mock current costs for comparison
+        monthly_cost = results.get('monthly_aws_cost', 0)
+        if monthly_cost > 0:
+            current_total_cost = results.get('annual_aws_cost', monthly_cost * 12) * 1.8  # Assume 80% higher current costs
+            results['current_total_cost'] = current_total_cost
+            
+            waterfall_fig = create_cost_waterfall_chart(results)
+            st.plotly_chart(waterfall_fig, use_container_width=True)
+        else:
+            st.info("Cost data not available for waterfall chart.")
+        
+        # Environment cost comparison
+        env_costs = results.get('environment_costs', {})
+        if env_costs:
+            st.markdown("#### 🏢 Environment Cost Comparison")
+            env_comparison_fig = create_environment_comparison_chart(env_costs)
+            st.plotly_chart(env_comparison_fig, use_container_width=True)
+        else:
+            st.info("Environment cost data not available.")
+        
+        # Risk heatmap
+        if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+            st.markdown("#### 🔥 Risk Assessment Heatmap")
+            risk_heatmap_fig = create_risk_heatmap(st.session_state.risk_assessment)
+            st.plotly_chart(risk_heatmap_fig, use_container_width=True)
+        else:
+            st.info("Risk assessment data not available.")
+            
+    except Exception as e:
+        st.error(f"Error generating visualizations: {str(e)}")
+        st.info("Some visualization features may not be available yet.")
 
 def show_ai_insights():
     """Show AI insights dashboard"""
     
     st.markdown("### 🤖 AI-Powered Insights")
     
-    ai_insights = st.session_state.ai_insights
+    ai_insights = getattr(st.session_state, 'ai_insights', None)
     
     if not ai_insights:
         st.info("💡 AI insights not available. Provide an Anthropic API key in the configuration to enable AI analysis.")
@@ -6257,14 +6441,22 @@ def show_timeline_analysis():
     
     st.markdown("### 📅 Migration Timeline Analysis")
     
+    if not st.session_state.migration_params:
+        st.warning("Migration parameters not available. Please complete the configuration first.")
+        return
+    
     migration_params = st.session_state.migration_params
     
-    # Timeline Gantt chart
-    gantt_fig = create_migration_timeline_gantt(migration_params)
-    st.plotly_chart(gantt_fig, use_container_width=True)
+    try:
+        # Timeline Gantt chart
+        gantt_fig = create_migration_timeline_gantt(migration_params)
+        st.plotly_chart(gantt_fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating timeline chart: {str(e)}")
     
     # Timeline summary
-    timeline_weeks = migration_params['migration_timeline_weeks']
+    timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+    team_size = migration_params.get('team_size', 5)
     
     col1, col2, col3 = st.columns(3)
     
@@ -6278,7 +6470,7 @@ def show_timeline_analysis():
     
     with col3:
         st.metric("Go-Live Phase", "1-2 weeks")
-        st.metric("Team Size", f"{migration_params['team_size']} members")
+        st.metric("Team Size", f"{team_size} members")
     
     # Critical path analysis
     st.markdown("#### 🎯 Critical Path & Dependencies")
@@ -7133,6 +7325,118 @@ def is_enhanced_environment_data(environment_specs):
     enhanced_fields = ['workload_pattern', 'read_write_ratio', 'multi_az_writer']
     
     return any(field in sample_spec for field in enhanced_fields)
+
+
+def show_enhanced_environment_analysis():
+    """Show enhanced environment analysis with Writer/Reader details"""
+    
+    st.markdown("### 🏢 Enhanced Environment Analysis")
+    
+    if not hasattr(st.session_state, 'enhanced_recommendations') or not st.session_state.enhanced_recommendations:
+        st.warning("Enhanced recommendations not available.")
+        return
+    
+    recommendations = st.session_state.enhanced_recommendations
+    environment_specs = st.session_state.environment_specs
+    
+    # Environment comparison with cluster details
+    env_comparison_data = []
+    
+    for env_name, rec in recommendations.items():
+        specs = environment_specs.get(env_name, {})
+        
+        # Writer configuration
+        writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
+        
+        # Reader configuration
+        reader_count = rec['readers']['count']
+        if reader_count > 0:
+            reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
+        else:
+            reader_config = "No readers"
+        
+        env_comparison_data.append({
+            'Environment': env_name,
+            'Type': rec['environment_type'].title(),
+            'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
+            'Writer Instance': writer_config,
+            'Read Replicas': reader_config,
+            'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
+            'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
+        })
+    
+    env_df = pd.DataFrame(env_comparison_data)
+    st.dataframe(env_df, use_container_width=True)
+    
+    # Detailed environment insights
+    st.markdown("#### 💡 Environment Insights")
+    
+    for env_name, rec in recommendations.items():
+        with st.expander(f"🔍 {env_name} Environment Details"):
+            specs = environment_specs.get(env_name, {})
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**Current Configuration**")
+                st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                st.write(f"IOPS Requirement: {specs.get('iops_requirement', 'N/A')}")
+                st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
+            
+            with col2:
+                st.markdown("**Writer Configuration**")
+                writer = rec['writer']
+                st.write(f"Instance: {writer['instance_class']}")
+                st.write(f"Multi-AZ: {'Yes' if writer['multi_az'] else 'No'}")
+                st.write(f"CPU Cores: {writer['cpu_cores']}")
+                st.write(f"RAM: {writer['ram_gb']} GB")
+                
+                st.markdown("**Reader Configuration**")
+                readers = rec['readers']
+                if readers['count'] > 0:
+                    st.write(f"Count: {readers['count']}")
+                    st.write(f"Instance: {readers['instance_class']}")
+                    st.write(f"Multi-AZ: {'Yes' if readers['multi_az'] else 'No'}")
+                else:
+                    st.write("No read replicas")
+            
+            with col3:
+                st.markdown("**Storage Configuration**")
+                storage = rec['storage']
+                st.write(f"Size: {storage['size_gb']} GB")
+                st.write(f"Type: {storage['type'].upper()}")
+                st.write(f"IOPS: {storage['iops']:,}")
+                st.write(f"Encrypted: {'Yes' if storage['encrypted'] else 'No'}")
+                st.write(f"Backup Retention: {storage['backup_retention_days']} days")
+                
+                st.markdown("**Workload Characteristics**")
+                st.write(f"Pattern: {rec['workload_pattern']}")
+                st.write(f"Read/Write Ratio: {rec['read_write_ratio']}% reads")
+                st.write(f"Peak Connections: {rec['connections']}")
+            
+            # Optimization recommendations
+            st.markdown("**💡 Optimization Notes**")
+            
+            if rec['environment_type'] == 'production':
+                st.success("✅ Production-grade configuration with high availability")
+                if readers['count'] > 0:
+                    st.info(f"📊 {readers['count']} read replicas will help distribute read load")
+            elif rec['environment_type'] == 'development':
+                st.info("💡 Cost-optimized configuration for development")
+                if readers['count'] == 0:
+                    st.info("💰 No read replicas to minimize development costs")
+            
+            if rec['workload_pattern'] == 'read_heavy' and readers['count'] > 0:
+                st.success(f"📈 Read-heavy workload well-suited for {readers['count']} read replicas")
+            elif rec['workload_pattern'] == 'read_heavy' and readers['count'] == 0:
+                st.warning("⚠️ Read-heavy workload might benefit from read replicas")
+            
+            if storage['type'] == 'io2':
+                st.info("⚡ High-performance io2 storage for demanding IOPS requirements")
+            elif storage['type'] == 'gp3':
+                st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
 
 
 if __name__ == "__main__":
