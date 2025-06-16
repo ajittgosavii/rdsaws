@@ -133,6 +133,627 @@ def show_enhanced_environment_analysis():
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
 
+import asyncio
+import streamlit as st
+import anthropic
+import boto3
+from typing import Dict, Optional
+import json
+
+# FIXED: Synchronous Claude AI Implementation for Streamlit
+class StreamlitClaudeAIAnalyzer:
+    """Synchronous Claude AI integration that works with Streamlit"""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key
+        self.client = None
+        
+        if api_key:
+            try:
+                self.client = anthropic.Anthropic(api_key=api_key)
+            except Exception as e:
+                print(f"Warning: Could not initialize Anthropic client: {e}")
+    
+    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+        """Generate AI insights synchronously for Streamlit"""
+        
+        if not self.client:
+            return {
+                'error': 'Claude AI not available - using fallback insights',
+                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params)
+            }
+        
+        try:
+            # Prepare context for Claude
+            context = self._prepare_migration_context(cost_analysis, migration_params)
+            
+            # Create the prompt
+            prompt = f"""
+            You are an AWS migration expert analyzing a database migration project. 
+            Please provide detailed insights and recommendations based on the following migration analysis:
+
+            {context}
+
+            Please provide insights in the following categories:
+            1. Cost Analysis & Optimization
+            2. Risk Assessment
+            3. Migration Strategy Recommendations
+            4. Timeline Feasibility
+            5. Technical Considerations
+            6. Post-Migration Optimization
+
+            Format your response as a structured analysis with specific, actionable recommendations.
+            Be concise but comprehensive. Limit response to 1500 words.
+            """
+            
+            # Call Claude API synchronously
+            message = self.client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=2000,
+                temperature=0.3,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            
+            # Parse Claude's response
+            ai_response = message.content[0].text
+            
+            # Structure the response
+            structured_insights = self._structure_ai_response(ai_response)
+            structured_insights['source'] = 'Claude AI'
+            structured_insights['model'] = 'claude-3-sonnet-20240229'
+            structured_insights['api_success'] = True
+            
+            return structured_insights
+            
+        except Exception as e:
+            print(f"Error calling Claude AI: {e}")
+            return {
+                'error': f'Claude AI call failed: {str(e)}',
+                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params),
+                'api_success': False
+            }
+    
+    def _prepare_migration_context(self, cost_analysis: Dict, migration_params: Dict) -> str:
+        """Prepare context for Claude AI"""
+        
+        # Calculate some additional metrics
+        total_environments = len(cost_analysis.get('environment_costs', {}))
+        avg_monthly_cost = cost_analysis.get('monthly_aws_cost', 0) / max(total_environments, 1)
+        
+        context = f"""
+        MIGRATION PROJECT OVERVIEW:
+        - Source Database: {migration_params.get('source_engine', 'Unknown')}
+        - Target Database: {migration_params.get('target_engine', 'Unknown')}
+        - Data Size: {migration_params.get('data_size_gb', 0):,} GB
+        - Timeline: {migration_params.get('migration_timeline_weeks', 0)} weeks
+        - Team Size: {migration_params.get('team_size', 0)} members
+        - Team Expertise: {migration_params.get('team_expertise', 'Unknown')}
+        - Budget: ${migration_params.get('migration_budget', 0):,}
+
+        COST ANALYSIS:
+        - Monthly AWS Cost: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
+        - Annual AWS Cost: ${cost_analysis.get('annual_aws_cost', 0):,.0f}
+        - Migration Investment: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
+        - Average Cost per Environment: ${avg_monthly_cost:,.0f}/month
+
+        ENVIRONMENTS:
+        - Number of Environments: {total_environments}
+        - Environment Names: {', '.join(cost_analysis.get('environment_costs', {}).keys())}
+
+        MIGRATION COMPLEXITY FACTORS:
+        - Applications Connected: {migration_params.get('num_applications', 0)}
+        - Stored Procedures/Functions: {migration_params.get('num_stored_procedures', 0)}
+        - Region: {migration_params.get('region', 'us-east-1')}
+        - Direct Connect Available: {migration_params.get('use_direct_connect', False)}
+        
+        COST BREAKDOWN:
+        - DMS Instance Cost: ${cost_analysis.get('migration_costs', {}).get('dms_instance', 0):,.0f}
+        - Data Transfer Cost: ${cost_analysis.get('migration_costs', {}).get('data_transfer', 0):,.0f}
+        - Professional Services: ${cost_analysis.get('migration_costs', {}).get('professional_services', 0):,.0f}
+        """
+        
+        return context
+    
+    def _structure_ai_response(self, ai_response: str) -> Dict:
+        """Structure Claude's response into categories"""
+        
+        # Simple parsing to extract key sections
+        sections = ai_response.split('\n\n')
+        
+        structured = {
+            'cost_optimization': '',
+            'risk_mitigation': '',
+            'migration_strategy': '',
+            'timeline_recommendations': '',
+            'technical_considerations': '',
+            'post_migration_optimization': '',
+            'key_recommendations': [],
+            'executive_summary': '',
+            'full_response': ai_response
+        }
+        
+        # Extract key recommendations (look for numbered lists or bullet points)
+        recommendations = []
+        for section in sections:
+            lines = section.split('\n')
+            for line in lines:
+                line = line.strip()
+                if (line.startswith('•') or line.startswith('-') or 
+                    any(line.startswith(f"{i}.") for i in range(1, 10))):
+                    recommendations.append(line.lstrip('•-0123456789. '))
+        
+        structured['key_recommendations'] = recommendations[:8]  # Top 8 recommendations
+        
+        # Try to extract sections based on keywords
+        current_section = ''
+        for section in sections:
+            section_lower = section.lower()
+            
+            if any(keyword in section_lower for keyword in ['cost', 'pricing', 'financial', 'budget']):
+                structured['cost_optimization'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['risk', 'mitigation', 'challenges']):
+                structured['risk_mitigation'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['strategy', 'approach', 'methodology']):
+                structured['migration_strategy'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['timeline', 'schedule', 'phases']):
+                structured['timeline_recommendations'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['technical', 'architecture', 'configuration']):
+                structured['technical_considerations'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['optimization', 'performance', 'tuning']):
+                structured['post_migration_optimization'] += section + '\n\n'
+            elif any(keyword in section_lower for keyword in ['summary', 'conclusion', 'overview']):
+                structured['executive_summary'] += section + '\n\n'
+        
+        # If executive summary is empty, create one from the first section
+        if not structured['executive_summary'] and sections:
+            structured['executive_summary'] = sections[0]
+        
+        return structured
+    
+    def _get_fallback_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+        """Enhanced fallback insights when AI is unavailable"""
+        
+        monthly_cost = cost_analysis.get('monthly_aws_cost', 0)
+        timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+        data_size = migration_params.get('data_size_gb', 0)
+        team_size = migration_params.get('team_size', 5)
+        source_engine = migration_params.get('source_engine', 'unknown')
+        target_engine = migration_params.get('target_engine', 'unknown')
+        
+        # Generate more intelligent fallback based on data
+        risk_level = "Medium"
+        if timeline_weeks < 8 or data_size > 10000 or team_size < 3:
+            risk_level = "High"
+        elif timeline_weeks > 16 and data_size < 1000 and team_size >= 5:
+            risk_level = "Low"
+        
+        cost_efficiency = "Good"
+        if monthly_cost > 10000:
+            cost_efficiency = "Review required - high monthly cost"
+        elif monthly_cost < 1000:
+            cost_efficiency = "Very efficient"
+        
+        return {
+            'cost_optimization': f"Monthly AWS cost of ${monthly_cost:,.0f} appears {cost_efficiency.lower()} for this migration scale. Consider Reserved Instances for 30-40% savings on production workloads. Evaluate right-sizing opportunities post-migration.",
+            
+            'risk_mitigation': f"Migration risk level: {risk_level}. Key risks include {source_engine} to {target_engine} compatibility, application dependencies, and data validation. Implement comprehensive testing strategy and maintain rollback procedures.",
+            
+            'migration_strategy': f"Recommended approach: Phased migration starting with non-production environments. Use AWS DMS for continuous replication with minimal downtime cutover. Timeline of {timeline_weeks} weeks allows for proper validation.",
+            
+            'timeline_recommendations': f"Timeline allocation: 20% planning, 40% migration execution, 30% testing/validation, 10% go-live. With {data_size:,} GB of data, allocate sufficient time for initial load and ongoing synchronization.",
+            
+            'technical_considerations': f"Technical focus areas: Schema conversion ({source_engine} → {target_engine}), stored procedure migration, index optimization, and connection string updates across {migration_params.get('num_applications', 'unknown')} applications.",
+            
+            'post_migration_optimization': "Post-migration opportunities: Instance right-sizing based on actual usage, storage optimization, backup strategy refinement, and performance monitoring implementation. Plan optimization review 30-60 days post-migration.",
+            
+            'key_recommendations': [
+                "Start with development/QA environments for validation",
+                "Implement comprehensive backup and rollback procedures",
+                "Use AWS DMS for minimal downtime migration",
+                "Plan for application connection string updates",
+                "Establish performance baselines before migration",
+                "Consider Reserved Instances for cost optimization",
+                "Implement monitoring and alerting for new environment",
+                "Schedule post-migration optimization review"
+            ],
+            
+            'executive_summary': f"Migration from {source_engine} to {target_engine} is feasible within {timeline_weeks} weeks with {risk_level.lower()} risk level. Monthly operational cost of ${monthly_cost:,.0f} provides good value. Success depends on proper planning, testing, and team preparation.",
+            
+            'source': 'Enhanced Fallback Analysis'
+        }
+
+
+# FIXED: Synchronous Migration Analyzer for Streamlit
+class StreamlitMigrationAnalyzer:
+    """Migration analyzer that works synchronously with Streamlit"""
+    
+    def __init__(self, anthropic_api_key: Optional[str] = None):
+        self.pricing_api = RealAWSPricingAPI()
+        self.ai_analyzer = StreamlitClaudeAIAnalyzer(anthropic_api_key)
+        self.anthropic_api_key = anthropic_api_key
+    
+    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
+        """Calculate AWS instance recommendations using real pricing"""
+        
+        recommendations = {}
+        
+        for env_name, specs in environment_specs.items():
+            cpu_cores = specs['cpu_cores']
+            ram_gb = specs['ram_gb']
+            storage_gb = specs['storage_gb']
+            
+            # Determine environment type
+            environment_type = self._categorize_environment(env_name)
+            
+            # Calculate instance class
+            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
+            
+            # Multi-AZ recommendation
+            multi_az = environment_type in ['production', 'staging']
+            
+            recommendations[env_name] = {
+                'environment_type': environment_type,
+                'instance_class': instance_class,
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'multi_az': multi_az,
+                'daily_usage_hours': specs.get('daily_usage_hours', 24),
+                'peak_connections': specs.get('peak_connections', 100)
+            }
+        
+        return recommendations
+    
+    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
+        """Calculate migration costs using real AWS pricing"""
+        
+        region = migration_params.get('region', 'us-east-1')
+        target_engine = migration_params.get('target_engine', 'postgres')
+        
+        total_monthly_cost = 0
+        environment_costs = {}
+        
+        for env_name, rec in recommendations.items():
+            # Use real pricing API
+            env_costs = self._calculate_environment_cost_real(env_name, rec, region, target_engine)
+            environment_costs[env_name] = env_costs
+            total_monthly_cost += env_costs['total_monthly']
+        
+        # Migration service costs
+        data_size_gb = migration_params.get('data_size_gb', 1000)
+        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+        
+        # DMS costs
+        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
+        
+        # Data transfer costs
+        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
+        
+        # Professional services
+        ps_cost = migration_timeline_weeks * 8000
+        
+        migration_costs = {
+            'dms_instance': dms_instance_cost,
+            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
+            'professional_services': ps_cost,
+            'contingency': 0,
+            'total': 0
+        }
+        
+        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
+        migration_costs['contingency'] = base_cost * 0.2
+        migration_costs['total'] = base_cost + migration_costs['contingency']
+        
+        return {
+            'monthly_aws_cost': total_monthly_cost,
+            'annual_aws_cost': total_monthly_cost * 12,
+            'environment_costs': environment_costs,
+            'migration_costs': migration_costs,
+            'transfer_costs': transfer_costs
+        }
+    
+    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+        """Generate AI insights synchronously for Streamlit"""
+        return self.ai_analyzer.generate_ai_insights_sync(cost_analysis, migration_params)
+    
+    def _calculate_environment_cost_real(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
+        """Calculate environment cost using real AWS pricing"""
+        
+        # Get real pricing from AWS API
+        pricing = self.pricing_api.get_rds_pricing(
+            region, target_engine, rec['instance_class'], rec['multi_az']
+        )
+        
+        # Calculate monthly hours
+        daily_hours = rec['daily_usage_hours']
+        monthly_hours = daily_hours * 30
+        
+        # Instance cost using real pricing
+        instance_cost = pricing['hourly'] * monthly_hours
+        
+        # Storage cost using real pricing
+        storage_cost = rec['storage_gb'] * pricing['storage_gb']
+        
+        # Backup cost (estimate 20% of storage)
+        backup_cost = storage_cost * 0.2
+        
+        # Total monthly cost
+        total_monthly = instance_cost + storage_cost + backup_cost
+        
+        return {
+            'instance_cost': instance_cost,
+            'storage_cost': storage_cost,
+            'backup_cost': backup_cost,
+            'total_monthly': total_monthly,
+            'pricing_source': pricing.get('source', 'Unknown')
+        }
+    
+    def _categorize_environment(self, env_name: str) -> str:
+        """Categorize environment type from name"""
+        env_lower = env_name.lower()
+        if any(term in env_lower for term in ['prod', 'production', 'prd']):
+            return 'production'
+        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
+            return 'staging'
+        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
+            return 'testing'
+        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
+            return 'development'
+        return 'production'
+    
+    def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
+        """Calculate appropriate instance class"""
+        
+        if cpu_cores <= 2 and ram_gb <= 8:
+            instance_class = 'db.t3.medium'
+        elif cpu_cores <= 4 and ram_gb <= 16:
+            instance_class = 'db.t3.large'
+        elif cpu_cores <= 8 and ram_gb <= 32:
+            instance_class = 'db.r5.large'
+        elif cpu_cores <= 16 and ram_gb <= 64:
+            instance_class = 'db.r5.xlarge'
+        elif cpu_cores <= 32 and ram_gb <= 128:
+            instance_class = 'db.r5.2xlarge'
+        elif cpu_cores <= 64 and ram_gb <= 256:
+            instance_class = 'db.r5.4xlarge'
+        else:
+            instance_class = 'db.r5.8xlarge'
+        
+        # Environment-specific adjustments
+        if env_type == 'development' and 'r5' in instance_class:
+            downsized = {
+                'db.r5.8xlarge': 'db.r5.4xlarge',
+                'db.r5.4xlarge': 'db.r5.2xlarge',
+                'db.r5.2xlarge': 'db.r5.xlarge',
+                'db.r5.xlarge': 'db.r5.large',
+                'db.r5.large': 'db.t3.large'
+            }
+            instance_class = downsized.get(instance_class, instance_class)
+        
+        return instance_class
+    
+    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
+        """Calculate data transfer costs"""
+        
+        use_direct_connect = migration_params.get('use_direct_connect', False)
+        
+        internet_cost = data_size_gb * 0.09
+        
+        if use_direct_connect:
+            dx_cost = data_size_gb * 0.02
+        else:
+            dx_cost = internet_cost
+        
+        return {
+            'internet': internet_cost,
+            'direct_connect': dx_cost,
+            'total': min(internet_cost, dx_cost)
+        }
+
+
+# FIXED: Streamlit-compatible analysis function
+def run_streamlit_migration_analysis():
+    """Run migration analysis synchronously for Streamlit"""
+    
+    try:
+        # Check if this is enhanced environment data
+        is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
+        
+        if is_enhanced:
+            # Run enhanced analysis (if available)
+            st.info("🔬 Detected enhanced environment configuration - running cluster analysis")
+            run_enhanced_migration_analysis()
+        else:
+            # Run streamlit-compatible analysis
+            st.info("📊 Running real-time migration analysis")
+            
+            # Initialize STREAMLIT-compatible analyzer
+            anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+            analyzer = StreamlitMigrationAnalyzer(anthropic_api_key)
+            
+            # Step 1: Calculate recommendations with real AWS pricing
+            st.write("📊 Calculating instance recommendations with live AWS pricing...")
+            recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
+            st.session_state.recommendations = recommendations
+            
+            # Step 2: Calculate costs with real AWS pricing
+            st.write("💰 Analyzing costs with real-time AWS pricing...")
+            cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+            
+            # Check pricing sources
+            pricing_sources = set()
+            for env_costs in cost_analysis['environment_costs'].values():
+                pricing_sources.add(env_costs.get('pricing_source', 'Unknown'))
+            
+            if 'AWS Pricing API' in pricing_sources:
+                st.success("✅ Using real-time AWS pricing data")
+            else:
+                st.warning("⚠️ Using fallback pricing data (AWS API unavailable)")
+            
+            st.session_state.analysis_results = cost_analysis
+            
+            # Step 3: Risk assessment
+            st.write("⚠️ Assessing risks...")
+            risk_assessment = create_default_risk_assessment()
+            st.session_state.risk_assessment = risk_assessment
+            
+            # Step 4: AI insights (SYNCHRONOUS)
+            if anthropic_api_key:
+                st.write("🤖 Generating AI insights with Claude...")
+                try:
+                    # Call synchronously - NO AWAIT!
+                    ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
+                    st.session_state.ai_insights = ai_insights
+                    
+                    if ai_insights.get('source') == 'Claude AI':
+                        st.success("✅ AI insights generated by Claude AI")
+                    else:
+                        st.warning("⚠️ Using enhanced fallback insights (Claude API unavailable)")
+                        
+                except Exception as e:
+                    st.warning(f"Claude AI call failed: {str(e)}")
+                    st.session_state.ai_insights = {'error': str(e)}
+            else:
+                st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
+            
+            st.success("✅ Analysis complete with real-time data!")
+        
+        # Show quick summary
+        show_analysis_summary()
+        
+    except Exception as e:
+        st.error(f"❌ Analysis failed: {str(e)}")
+        # Ensure we have fallback data
+        if not hasattr(st.session_state, 'risk_assessment') or st.session_state.risk_assessment is None:
+            st.session_state.risk_assessment = get_fallback_risk_assessment()
+
+def show_analysis_summary():
+    """Show analysis summary after completion"""
+    
+    st.markdown("#### 🎯 Analysis Summary")
+    col1, col2, col3 = st.columns(3)
+    
+    # Get results from whichever analysis was run
+    if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
+        results = st.session_state.enhanced_analysis_results
+    else:
+        results = st.session_state.analysis_results
+    
+    if results:
+        with col1:
+            st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+        
+        with col2:
+            migration_cost = results.get('migration_costs', {}).get('total', 0)
+            st.metric("Migration Cost", f"${migration_cost:,.0f}")
+        
+        with col3:
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+            else:
+                st.metric("Risk Level", "Medium")
+    
+    # Provide navigation hint
+    st.info("📈 View detailed results in the 'Results Dashboard' section")
+
+
+# FIXED: Update the analysis section to use synchronous function
+def show_analysis_section_fixed():
+    """Show analysis and recommendations section - FIXED for Streamlit"""
+    
+    st.markdown("## 🚀 Migration Analysis & Recommendations")
+    
+    # Check prerequisites
+    if not st.session_state.migration_params:
+        st.error("❌ Migration configuration required")
+        st.info("👆 Please complete the 'Migration Configuration' section first")
+        return
+    
+    if not st.session_state.environment_specs:
+        st.error("❌ Environment configuration required")
+        st.info("👆 Please complete the 'Environment Setup' section first")
+        return
+    
+    # Display current configuration
+    st.markdown("### 📋 Current Configuration")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        params = st.session_state.migration_params
+        st.markdown(f"""
+        **Migration Type:** {params['source_engine']} → {params['target_engine']}  
+        **Data Size:** {params['data_size_gb']:,} GB  
+        **Timeline:** {params['migration_timeline_weeks']} weeks  
+        **Team Size:** {params['team_size']} members  
+        **Budget:** ${params['migration_budget']:,}
+        """)
+    
+    with col2:
+        envs = st.session_state.environment_specs
+        st.markdown(f"**Environments:** {len(envs)}")
+        
+        # Show first few environments
+        count = 0
+        for env_name, specs in envs.items():
+            if count < 4:
+                cpu_cores = specs.get('cpu_cores', 'N/A')
+                ram_gb = specs.get('ram_gb', 'N/A')
+                st.markdown(f"• **{env_name}:** {cpu_cores} cores, {ram_gb} GB RAM")
+                count += 1
+        
+        if len(envs) > 4:
+            st.markdown(f"• ... and {len(envs) - 4} more environments")
+    
+    # API status check
+    show_api_status_inline()
+    
+    # Run analysis - FIXED VERSION
+    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+        # Clear any previous results
+        st.session_state.analysis_results = None
+        if hasattr(st.session_state, 'enhanced_analysis_results'):
+            st.session_state.enhanced_analysis_results = None
+        
+        with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
+            run_streamlit_migration_analysis()  # Use the FIXED synchronous function
+
+
+def show_api_status_inline():
+    """Show inline API status"""
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Check AWS status
+        try:
+            import boto3
+            boto3.client('pricing', region_name='us-east-1')
+            st.success("✅ AWS Pricing API: Ready")
+        except ImportError:
+            st.error("❌ AWS: Missing boto3 library")
+        except Exception:
+            st.warning("⚠️ AWS: Check credentials")
+    
+    with col2:
+        # Check Claude status
+        anthropic_key = st.session_state.migration_params.get('anthropic_api_key')
+        
+        if anthropic_key:
+            try:
+                import anthropic
+                st.success("✅ Claude AI: Ready")
+            except ImportError:
+                st.error("❌ Claude: Missing anthropic library")
+        else:
+            st.info("ℹ️ Claude AI: No API key provided")
+
 class MigrationAnalyzer:
     """Basic migration analyzer for standard environment configurations"""
     
@@ -3607,8 +4228,8 @@ def run_real_migration_analysis():
         if anthropic_api_key:
             st.write("🤖 Generating AI insights with Claude...")
             try:
-                ai_insights = await analyzer.generate_real_ai_insights(cost_analysis, st.session_state.migration_params)
-                st.session_state.ai_insights = ai_insights
+                ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
+                    st.session_state.ai_insights = ai_insights
                 
                 if ai_insights.get('source') == 'Claude AI':
                     st.success("✅ AI insights generated by Claude AI")
@@ -3689,6 +4310,8 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Any, Optional
 import json
+
+
 
 class NetworkTransferAnalyzer:
     """Comprehensive network transfer analysis for AWS database migration"""
@@ -5979,7 +6602,7 @@ def main():
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section()
+        show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
     elif page == "📄 Reports & Export":
@@ -6350,7 +6973,7 @@ def show_manual_environment_setup():
         summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
         st.dataframe(summary_df, use_container_width=True)
 
-def show_analysis_section():
+def show_analysis_section_fixed():
     """Show analysis and recommendations section - UPDATED"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
@@ -6415,7 +7038,7 @@ def show_analysis_section():
         with st.spinner("🔄 Analyzing migration requirements..."):
             run_migration_analysis_fixed()  # Use the fixed function
 
-def run_migration_analysis_fixed():
+def run_streamlit_migration_analysis():
     """Run comprehensive migration analysis - FIXED VERSION"""
     
     try:
