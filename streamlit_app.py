@@ -8117,12 +8117,12 @@ def main():
                 avg_health = sum(health_scores) / len(health_scores)
                 st.metric("Avg Health Score", f"{avg_health:.1f}/100")
             else:
-            st.info("ℹ️ vROps analysis pending")
+                st.info("ℹ️ vROps analysis pending")
     
         # Status indicators
-        st.markdown("### 📋 Status")
+                st.markdown("### 📋 Status")
         
-        env_specs = getattr(st.session_state, 'environment_specs', {})
+    env_specs = getattr(st.session_state, 'environment_specs', {})
         if env_specs and len(env_specs) > 0:
             st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
         else:
