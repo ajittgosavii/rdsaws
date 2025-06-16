@@ -1154,7 +1154,7 @@ def _create_migration_strategy(self):
        
        return story
    
-   def _create_ai_insights_section(self, ai_insights):
+def _create_ai_insights_section(self, ai_insights):
        """Create improved AI insights section"""
        story = []
        
@@ -1187,7 +1187,7 @@ def _create_migration_strategy(self):
        
        return story
    
-   def _create_implementation_roadmap(self):
+def _create_implementation_roadmap(self):
        """Create implementation roadmap section"""
        story = []
        
