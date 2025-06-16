@@ -2454,6 +2454,232 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+class GrowthAwareCostAnalyzer:
+    """Cost analyzer with 3-year growth projections"""
+    
+    def __init__(self):
+        self.growth_factors = self._initialize_growth_factors()
+    
+    def _initialize_growth_factors(self):
+        """Initialize growth impact factors for different cost components"""
+        return {
+            'compute': {
+                'user_growth_factor': 0.8,      # 80% correlation with user growth
+                'transaction_factor': 0.9,      # 90% correlation with transactions
+                'data_factor': 0.3               # 30% correlation with data size
+            },
+            'storage': {
+                'data_growth_factor': 1.0,      # 100% correlation with data growth
+                'user_growth_factor': 0.2,      # 20% correlation with users
+                'transaction_factor': 0.4       # 40% correlation with transactions
+            },
+            'iops': {
+                'transaction_factor': 0.95,     # 95% correlation with transactions
+                'user_growth_factor': 0.7,      # 70% correlation with users
+                'data_factor': 0.5               # 50% correlation with data size
+            },
+            'network': {
+                'user_growth_factor': 0.8,      # 80% correlation with users
+                'transaction_factor': 0.6,      # 60% correlation with transactions
+                'data_factor': 0.4               # 40% correlation with data size
+            }
+        }
+    
+    def calculate_3_year_growth_projection(self, base_costs: Dict, migration_params: Dict) -> Dict:
+        """Calculate 3-year cost projection with growth"""
+        
+        # Extract growth parameters
+        data_growth = migration_params.get('annual_data_growth', 15) / 100
+        user_growth = migration_params.get('annual_user_growth', 25) / 100
+        transaction_growth = migration_params.get('annual_transaction_growth', 20) / 100
+        seasonality = migration_params.get('seasonality_factor', 1.2)
+        scaling_strategy = migration_params.get('scaling_strategy', 'Auto-scaling')
+        
+        projections = {}
+        
+        for year in range(4):  # Year 0 (current) through Year 3
+            year_multiplier = {
+                'data': (1 + data_growth) ** year,
+                'users': (1 + user_growth) ** year,
+                'transactions': (1 + transaction_growth) ** year
+            }
+            
+            year_costs = self._calculate_year_costs(
+                base_costs, year_multiplier, seasonality, scaling_strategy, year
+            )
+            
+            projections[f'year_{year}'] = year_costs
+        
+        # Calculate scaling recommendations
+        scaling_recommendations = self._generate_scaling_recommendations(
+            projections, migration_params
+        )
+        
+        return {
+            'yearly_projections': projections,
+            'scaling_recommendations': scaling_recommendations,
+            'growth_summary': self._generate_growth_summary(projections),
+            'cost_optimization_opportunities': self._identify_growth_optimizations(projections)
+        }
+    
+    def _calculate_year_costs(self, base_costs: Dict, multipliers: Dict, 
+                            seasonality: float, scaling_strategy: str, year: int) -> Dict:
+        """Calculate costs for a specific year with growth factors"""
+        
+        year_costs = {}
+        
+        for env_name, env_costs in base_costs['environment_costs'].items():
+            # Calculate growth-adjusted resource requirements
+            compute_multiplier = (
+                multipliers['users'] * self.growth_factors['compute']['user_growth_factor'] +
+                multipliers['transactions'] * self.growth_factors['compute']['transaction_factor'] +
+                multipliers['data'] * self.growth_factors['compute']['data_factor']
+            ) / 3
+            
+            storage_multiplier = (
+                multipliers['data'] * self.growth_factors['storage']['data_growth_factor'] +
+                multipliers['users'] * self.growth_factors['storage']['user_growth_factor'] +
+                multipliers['transactions'] * self.growth_factors['storage']['transaction_factor']
+            ) / 3
+            
+            iops_multiplier = (
+                multipliers['transactions'] * self.growth_factors['iops']['transaction_factor'] +
+                multipliers['users'] * self.growth_factors['iops']['user_growth_factor'] +
+                multipliers['data'] * self.growth_factors['iops']['data_factor']
+            ) / 3
+            
+            # Apply scaling strategy adjustments
+            if scaling_strategy == "Over-provision":
+                compute_multiplier *= 1.3  # 30% over-provisioning
+                iops_multiplier *= 1.2     # 20% over-provisioning
+            elif scaling_strategy == "Auto-scaling":
+                # More gradual scaling with auto-scaling
+                compute_multiplier = min(compute_multiplier, 1 + (year * 0.5))
+            
+            # Apply seasonality to peak requirements
+            peak_compute = compute_multiplier * seasonality
+            peak_iops = iops_multiplier * seasonality
+            
+            # Calculate adjusted costs
+            base_instance_cost = env_costs.get('instance_cost', env_costs.get('writer_instance_cost', 0))
+            base_storage_cost = env_costs.get('storage_cost', 0)
+            base_reader_cost = env_costs.get('reader_costs', 0)
+            
+            adjusted_costs = {
+                'instance_cost': base_instance_cost * compute_multiplier,
+                'storage_cost': base_storage_cost * storage_multiplier,
+                'iops_cost': (base_storage_cost * 0.3) * iops_multiplier,  # Estimate IOPS as 30% of storage
+                'reader_costs': base_reader_cost * compute_multiplier,
+                'backup_cost': (base_storage_cost * storage_multiplier) * 0.2,
+                'monitoring_cost': 50 * compute_multiplier,  # Base monitoring cost
+                'total_monthly': 0,
+                'peak_monthly': 0,  # Peak cost with seasonality
+                'resource_scaling': {
+                    'compute_scaling': compute_multiplier,
+                    'storage_scaling': storage_multiplier,
+                    'iops_scaling': iops_multiplier,
+                    'recommended_reader_scaling': max(1, int(compute_multiplier))
+                }
+            }
+            
+            adjusted_costs['total_monthly'] = sum([
+                adjusted_costs['instance_cost'],
+                adjusted_costs['storage_cost'],
+                adjusted_costs['iops_cost'],
+                adjusted_costs['reader_costs'],
+                adjusted_costs['backup_cost'],
+                adjusted_costs['monitoring_cost']
+            ])
+            
+            adjusted_costs['peak_monthly'] = adjusted_costs['total_monthly'] * seasonality
+            
+            year_costs[env_name] = adjusted_costs
+        
+        # Calculate totals
+        total_monthly = sum([env['total_monthly'] for env in year_costs.values()])
+        total_peak = sum([env['peak_monthly'] for env in year_costs.values()])
+        
+        return {
+            'environment_costs': year_costs,
+            'total_monthly': total_monthly,
+            'total_annual': total_monthly * 12,
+            'peak_monthly': total_peak,
+            'peak_annual': total_peak * 12,
+            'year': year,
+            'growth_multipliers': multipliers
+        }
+    
+    def _generate_scaling_recommendations(self, projections: Dict, migration_params: Dict) -> List[Dict]:
+        """Generate scaling recommendations based on growth projections"""
+        
+        recommendations = []
+        
+        # Analyze year-over-year growth
+        for year in range(1, 4):
+            current_year = projections[f'year_{year}']
+            previous_year = projections[f'year_{year-1}']
+            
+            cost_increase = ((current_year['total_annual'] / previous_year['total_annual']) - 1) * 100
+            
+            if cost_increase > 50:
+                recommendations.append({
+                    'year': year,
+                    'type': 'Critical Scaling',
+                    'description': f"Year {year} shows {cost_increase:.1f}% cost increase",
+                    'action': 'Consider Reserved Instances and architecture optimization',
+                    'priority': 'High',
+                    'estimated_savings': current_year['total_annual'] * 0.3
+                })
+            elif cost_increase > 25:
+                recommendations.append({
+                    'year': year,
+                    'type': 'Moderate Scaling',
+                    'description': f"Year {year} shows {cost_increase:.1f}% cost increase",
+                    'action': 'Plan for capacity increases and evaluate read replicas',
+                    'priority': 'Medium',
+                    'estimated_savings': current_year['total_annual'] * 0.15
+                })
+        
+        # Storage growth recommendations
+        year_3_storage_growth = sum([
+            env['resource_scaling']['storage_scaling'] 
+            for env in projections['year_3']['environment_costs'].values()
+        ]) / len(projections['year_3']['environment_costs'])
+        
+        if year_3_storage_growth > 3:
+            recommendations.append({
+                'year': 3,
+                'type': 'Storage Optimization',
+                'description': f"Storage requirements projected to grow {year_3_storage_growth:.1f}x",
+                'action': 'Implement data lifecycle policies and archiving strategy',
+                'priority': 'Medium',
+                'estimated_savings': projections['year_3']['total_annual'] * 0.2
+            })
+        
+        return recommendations
+    
+    def _generate_growth_summary(self, projections: Dict) -> Dict:
+        """Generate growth summary statistics"""
+        
+        year_0 = projections['year_0']['total_annual']
+        year_3 = projections['year_3']['total_annual']
+        
+        total_growth = ((year_3 / year_0) - 1) * 100
+        cagr = ((year_3 / year_0) ** (1/3) - 1) * 100
+        
+        return {
+            'total_3_year_growth_percent': total_growth,
+            'compound_annual_growth_rate': cagr,
+            'year_0_cost': year_0,
+            'year_3_cost': year_3,
+            'total_3_year_investment': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]),
+            'average_annual_cost': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]) / 4
+        }
+
 class VRopsMetricsAnalyzer:
     """Comprehensive vROps metrics analysis for accurate AWS sizing"""
     
@@ -6540,7 +6766,213 @@ def create_risk_heatmap(risk_assessment: Dict) -> go.Figure:
     )
     
     return fig
+def create_growth_projection_charts(growth_analysis: Dict) -> List[go.Figure]:
+    """Create comprehensive growth projection visualizations"""
+    
+    charts = []
+    projections = growth_analysis['yearly_projections']
+    
+    # 1. 3-Year Cost Projection Chart
+    years = ['Current', 'Year 1', 'Year 2', 'Year 3']
+    annual_costs = [projections[f'year_{i}']['total_annual'] for i in range(4)]
+    peak_costs = [projections[f'year_{i}']['peak_annual'] for i in range(4)]
+    
+    fig1 = go.Figure()
+    
+    fig1.add_trace(go.Scatter(
+        x=years, y=annual_costs,
+        mode='lines+markers',
+        name='Average Annual Cost',
+        line=dict(color='#3182ce', width=3),
+        marker=dict(size=10)
+    ))
+    
+    fig1.add_trace(go.Scatter(
+        x=years, y=peak_costs,
+        mode='lines+markers',
+        name='Peak Annual Cost (with seasonality)',
+        line=dict(color='#e53e3e', width=3, dash='dash'),
+        marker=dict(size=10)
+    ))
+    
+    fig1.update_layout(
+        title='3-Year Cost Projection with Growth',
+        xaxis_title='Timeline',
+        yaxis_title='Annual Cost ($)',
+        height=500,
+        hovermode='x unified'
+    )
+    
+    charts.append(fig1)
+    
+    # 2. Cost Component Growth Breakdown
+    components = ['Compute', 'Storage', 'I/O', 'Backup', 'Monitoring']
+    year_3_env = list(projections['year_3']['environment_costs'].values())[0]
+    
+    component_costs = [
+        year_3_env['instance_cost'] + year_3_env['reader_costs'],
+        year_3_env['storage_cost'],
+        year_3_env['iops_cost'],
+        year_3_env['backup_cost'],
+        year_3_env['monitoring_cost']
+    ]
+    
+    fig2 = go.Figure(data=[go.Pie(
+        labels=components,
+        values=component_costs,
+        hole=0.4,
+        textinfo='label+percent+value',
+        texttemplate='%{label}<br>%{percent}<br>$%{value:,.0f}',
+        marker=dict(colors=['#3182ce', '#38a169', '#d69e2e', '#e53e3e', '#805ad5'])
+    )])
+    
+    fig2.update_layout(
+        title='Year 3 Cost Distribution by Component',
+        height=500
+    )
+    
+    charts.append(fig2)
+    
+    # 3. Resource Scaling Requirements
+    environments = list(projections['year_0']['environment_costs'].keys())
+    compute_scaling = []
+    storage_scaling = []
+    
+    for env in environments:
+        year_3_scaling = projections['year_3']['environment_costs'][env]['resource_scaling']
+        compute_scaling.append(year_3_scaling['compute_scaling'])
+        storage_scaling.append(year_3_scaling['storage_scaling'])
+    
+    fig3 = go.Figure()
+    
+    fig3.add_trace(go.Bar(
+        name='Compute Scaling',
+        x=environments,
+        y=compute_scaling,
+        marker_color='#3182ce'
+    ))
+    
+    fig3.add_trace(go.Bar(
+        name='Storage Scaling',
+        x=environments,
+        y=storage_scaling,
+        marker_color='#38a169'
+    ))
+    
+    fig3.update_layout(
+        title='3-Year Resource Scaling Requirements by Environment',
+        xaxis_title='Environment',
+        yaxis_title='Scaling Factor (1.0 = no scaling)',
+        barmode='group',
+        height=500
+    )
+    
+    charts.append(fig3)
+    
+    return charts
 
+def show_growth_analysis_dashboard():
+    """Show comprehensive growth analysis dashboard"""
+    
+    st.markdown("### 📈 3-Year Growth Analysis & Projections")
+    
+    # Check if growth analysis exists
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
+        return
+    
+    growth_analysis = st.session_state.growth_analysis
+    growth_summary = growth_analysis['growth_summary']
+    
+    # Key Growth Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "3-Year Growth",
+            f"{growth_summary['total_3_year_growth_percent']:.1f}%",
+            delta=f"CAGR: {growth_summary['compound_annual_growth_rate']:.1f}%"
+        )
+    
+    with col2:
+        st.metric(
+            "Current Annual Cost",
+            f"${growth_summary['year_0_cost']:,.0f}",
+            delta="Baseline"
+        )
+    
+    with col3:
+        st.metric(
+            "Year 3 Projected Cost",
+            f"${growth_summary['year_3_cost']:,.0f}",
+            delta=f"+${growth_summary['year_3_cost'] - growth_summary['year_0_cost']:,.0f}"
+        )
+    
+    with col4:
+        st.metric(
+            "Total 3-Year Investment",
+            f"${growth_summary['total_3_year_investment']:,.0f}",
+            delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
+        )
+    
+    # Growth Projection Charts
+    st.markdown("#### 📊 Growth Projections")
+    
+    charts = create_growth_projection_charts(growth_analysis)
+    
+    for chart in charts:
+        st.plotly_chart(chart, use_container_width=True)
+    
+    # Scaling Recommendations
+    st.markdown("#### 🎯 Scaling Recommendations")
+    
+    recommendations = growth_analysis['scaling_recommendations']
+    
+    if recommendations:
+        for rec in recommendations:
+            priority_color = {
+                'High': '#e53e3e',
+                'Medium': '#d69e2e',
+                'Low': '#38a169'
+            }.get(rec['priority'], '#666666')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {priority_color}; padding: 15px; margin: 10px 0; background: {priority_color}22;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: {priority_color};">{rec['type']} (Year {rec['year']})</strong><br>
+                        {rec['description']}<br>
+                        <em>Action: {rec['action']}</em>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Priority: {rec['priority']}</strong><br>
+                        <span style="color: #38a169;">Potential Savings: ${rec['estimated_savings']:,.0f}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical scaling issues identified in the 3-year projection.")
+    
+    # Cost Optimization Opportunities
+    st.markdown("#### 💡 Growth-Based Cost Optimization")
+    
+    optimizations = growth_analysis.get('cost_optimization_opportunities', [])
+    
+    if optimizations:
+        for opt in optimizations:
+            st.markdown(f"• **{opt['opportunity']}**: {opt['description']} - *Potential savings: ${opt['estimated_savings']:,.0f}*")
+    else:
+        default_optimizations = [
+            "Consider Reserved Instances for predictable workloads (30-40% savings)",
+            "Implement data lifecycle policies for storage cost optimization",
+            "Use Aurora Serverless for variable workload environments",
+            "Plan reader replica scaling based on growth patterns"
+        ]
+        
+        for opt in default_optimizations:
+            st.markdown(f"• {opt}")
+            
 def create_environment_comparison_chart(environment_costs: Dict) -> go.Figure:
     """Create environment cost comparison chart"""
     
@@ -6826,6 +7258,8 @@ def initialize_session_state():
         'enhanced_recommendations': None,
         'enhanced_analysis_results': None,
         'enhanced_cost_chart': None
+        'growth_analysis': None,  # ADD THIS LINE
+        'growth_projections': None  # ADD THIS LINE
     }
     
     for key, default_value in defaults.items():
@@ -6989,7 +7423,7 @@ def main():
         st.markdown("Please select a section from the sidebar to get started.")
 
 def show_migration_configuration():
-    """Show migration configuration interface"""
+    """Show migration configuration interface with growth planning"""
     
     st.markdown("## 🔧 Migration Configuration")
     
@@ -7053,7 +7487,70 @@ def show_migration_configuration():
         use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
         bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
         migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
+
+    # ADD NEW GROWTH PLANNING SECTION:
+    st.markdown("### 📈 Growth Planning & Forecasting")
     
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📊 Workload Growth")
+        annual_data_growth = st.slider(
+            "Annual Data Growth Rate (%)", 
+            min_value=0, max_value=100, value=15,
+            help="Expected annual growth in database size"
+        )
+        
+        annual_user_growth = st.slider(
+            "Annual User Growth Rate (%)", 
+            min_value=0, max_value=200, value=25,
+            help="Expected annual growth in concurrent users"
+        )
+        
+        annual_transaction_growth = st.slider(
+            "Annual Transaction Growth Rate (%)", 
+            min_value=0, max_value=150, value=20,
+            help="Expected annual growth in transaction volume"
+        )
+    
+    with col2:
+        st.markdown("#### 🎯 Growth Scenarios")
+        growth_scenario = st.selectbox(
+            "Growth Scenario",
+            ["Conservative", "Moderate", "Aggressive", "Custom"],
+            index=1,
+            help="Predefined growth scenarios or custom settings"
+        )
+        
+        if growth_scenario != "Custom":
+            # Auto-adjust growth rates based on scenario
+            scenario_multipliers = {
+                "Conservative": 0.7,
+                "Moderate": 1.0,
+                "Aggressive": 1.5
+            }
+            multiplier = scenario_multipliers[growth_scenario]
+            annual_data_growth = int(annual_data_growth * multiplier)
+            annual_user_growth = int(annual_user_growth * multiplier)
+            annual_transaction_growth = int(annual_transaction_growth * multiplier)
+            
+            st.info(f"**{growth_scenario} Scenario Applied:**")
+            st.write(f"Data Growth: {annual_data_growth}%")
+            st.write(f"User Growth: {annual_user_growth}%")
+            st.write(f"Transaction Growth: {annual_transaction_growth}%")
+        
+        seasonality_factor = st.slider(
+            "Seasonality Factor", 
+            min_value=1.0, max_value=3.0, value=1.2, step=0.1,
+            help="Peak season multiplier (1.0 = no seasonality)"
+        )
+        
+        scaling_strategy = st.selectbox(
+            "Scaling Strategy",
+            ["Auto-scaling", "Manual scaling", "Over-provision"],
+            help="How to handle growth in infrastructure"
+        )
+
     # AI Configuration
     st.markdown("### 🤖 AI Integration")
     
@@ -7078,7 +7575,14 @@ def show_migration_configuration():
             'bandwidth_mbps': bandwidth_mbps,
             'migration_budget': migration_budget,
             'anthropic_api_key': anthropic_api_key,
-            'estimated_migration_cost': 0  # Will be calculated
+            'estimated_migration_cost': 0,
+            # ADD THESE NEW GROWTH PARAMETERS:
+            'annual_data_growth': annual_data_growth,
+            'annual_user_growth': annual_user_growth,
+            'annual_transaction_growth': annual_transaction_growth,
+            'growth_scenario': growth_scenario,
+            'seasonality_factor': seasonality_factor,
+            'scaling_strategy': scaling_strategy
         }
         
         st.success("✅ Configuration saved! Proceed to Environment Setup.")
@@ -7417,13 +7921,11 @@ def show_analysis_section_fixed():
 # ADD THIS FUNCTION to your streamlit_app.py file:
 
 def run_streamlit_migration_analysis():
-    """Run migration analysis synchronously for Streamlit - SIMPLE VERSION"""
+    """Run migration analysis with growth projections - ENHANCED VERSION"""
     
     try:
         # Initialize analyzer
         anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-        
-        # Use original analyzer (no async issues)
         analyzer = MigrationAnalyzer(anthropic_api_key)
         
         # Step 1: Calculate recommendations
@@ -7441,17 +7943,23 @@ def run_streamlit_migration_analysis():
         risk_assessment = create_default_risk_assessment()
         st.session_state.risk_assessment = risk_assessment
         
-        # Step 4: AI insights (FIXED - no async)
+        # Step 4: Growth Analysis (NEW)
+        st.write("📈 Calculating 3-year growth projections...")
+        growth_analyzer = GrowthAwareCostAnalyzer()
+        growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
+            cost_analysis, st.session_state.migration_params
+        )
+        st.session_state.growth_analysis = growth_analysis
+        
+        # Step 5: AI insights
         if anthropic_api_key:
             st.write("🤖 Generating AI insights...")
             try:
-                # Use asyncio.run to handle the async function
                 ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
                 st.session_state.ai_insights = ai_insights
                 st.success("✅ AI insights generated")
             except Exception as e:
                 st.warning(f"AI insights failed: {str(e)}")
-                # Create simple fallback
                 st.session_state.ai_insights = {
                     'summary': f"Migration analysis complete. Monthly cost: ${cost_analysis['monthly_aws_cost']:,.0f}",
                     'error': str(e)
@@ -7459,16 +7967,48 @@ def run_streamlit_migration_analysis():
         else:
             st.info("ℹ️ Provide Anthropic API key for AI insights")
         
-        st.success("✅ Analysis complete!")
+        st.success("✅ Analysis complete with growth projections!")
         
-        # Show summary
-        show_simple_summary()
+        # Show enhanced summary
+        show_analysis_summary_with_growth()
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
-        # Create basic fallback so app doesn't crash
         create_basic_fallback()
 
+def show_analysis_summary_with_growth():
+    """Enhanced analysis summary including growth metrics"""
+    
+    st.markdown("#### 🎯 Analysis Summary with Growth Projections")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    results = st.session_state.analysis_results
+    
+    with col1:
+        st.metric("Current Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+    
+    with col2:
+        migration_cost = results.get('migration_costs', {}).get('total', 0)
+        st.metric("Migration Cost", f"${migration_cost:,.0f}")
+    
+    with col3:
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            growth_percent = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+            st.metric("3-Year Growth", f"{growth_percent:.1f}%")
+        else:
+            st.metric("3-Year Growth", "Calculating...")
+    
+    with col4:
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            total_investment = st.session_state.growth_analysis['growth_summary']['total_3_year_investment']
+            st.metric("3-Year Investment", f"${total_investment:,.0f}")
+        else:
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+    
+    st.info("📈 View detailed growth projections in the 'Results Dashboard' section")
 
 def show_simple_summary():
     """Show simple analysis summary"""
@@ -7590,39 +8130,44 @@ def show_results_dashboard():
         return
     
     # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-        "💰 Cost Summary",
-        "💎 Enhanced Cost Analysis",
-        "⚠️ Risk Assessment", 
-        "🏢 Environment Analysis",
-        "📊 Visualizations",
-        "🤖 AI Insights",
-        "📅 Timeline"
-    ])
+    # Create tabs for different views
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    "💰 Cost Summary",
+    "📈 Growth Projections",  # NEW TAB
+    "💎 Enhanced Cost Analysis",
+    "⚠️ Risk Assessment", 
+    "🏢 Environment Analysis",
+    "📊 Visualizations",
+    "🤖 AI Insights",
+    "📅 Timeline"
+])
+
+with tab1:
+    show_cost_summary()
     
-    with tab1:
-        show_cost_summary()
-        
-    with tab2:
-        if has_enhanced_results:
-            show_enhanced_cost_analysis()
-        else:
-            st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
+with tab2:  # NEW TAB CONTENT
+    show_growth_analysis_dashboard()
     
-    with tab3:
-        show_risk_assessment_robust()
-    
-    with tab4:
-        show_environment_analysis()
-    
-    with tab5:
-        show_visualizations()
-    
-    with tab6:
-        show_ai_insights()
-    
-    with tab7:
-        show_timeline_analysis()
+with tab3:  # SHIFT ALL SUBSEQUENT TABS
+    if has_enhanced_results:
+        show_enhanced_cost_analysis()
+    else:
+        st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
+
+with tab4:  # CONTINUE SHIFTING...
+    show_risk_assessment_robust()
+
+with tab5:
+    show_environment_analysis()
+
+with tab6:
+    show_visualizations()
+
+with tab7:
+    show_ai_insights()
+
+with tab8:
+    show_timeline_analysis()
 
 def show_cost_summary():
     """Show cost summary dashboard"""
