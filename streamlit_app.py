@@ -8151,7 +8151,7 @@ def main():
                 st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
                 st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
                 st.info("📊 Standard Analysis")
-        else:
+    else:
             st.info("ℹ️ Analysis pending")
         
         # Network analysis status
