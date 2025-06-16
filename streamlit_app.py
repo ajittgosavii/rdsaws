@@ -5741,36 +5741,6 @@ def integrate_enhanced_cluster_features():
     
     pass
 
-# Usage example for the enhanced features:
-"""
-To integrate these enhancements into your main application:
-
-1. Replace the environment setup section with:
-   show_enhanced_environment_setup_with_cluster_config()
-
-2. Update the analysis section to use:
-   run_enhanced_migration_analysis()
-
-3. Add enhanced cost analysis to results dashboard:
-   show_enhanced_cost_analysis()
-
-4. The enhanced features include:
-   - Writer/Reader instance configuration
-   - Multi-AZ checkbox options for both writers and readers
-   - Detailed storage cost calculations (base, IOPS, I/O requests)
-   - Aurora cluster support with I/O request pricing
-   - Automatic reader sizing based on workload patterns
-   - Cross-AZ data transfer cost calculations
-   - Enhanced cost breakdowns and visualizations
-
-Key improvements:
-- Separate pricing for Multi-AZ deployments
-- Read replica count optimization based on workload
-- Storage type selection (gp2, gp3, io1, io2) with appropriate cost calculations
-- Aurora-specific pricing including I/O request costs
-- Enhanced cost visualization showing writer vs reader vs storage costs
-"""
-
 # ADD this helper function to check data compatibility:
 
 def is_enhanced_environment_data(environment_specs):
