@@ -8109,9 +8109,9 @@ def main():
         st.success("✅ vROps analysis complete")
     
     health_scores = []
-    for env_name, analysis in st.session_state.vrops_analysis.items():
-        if isinstance(analysis, dict) and 'performance_scores' in analysis:
-            health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+    vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
+    if vrops_analysis is not None and isinstance(vrops_analysis, dict):
+        for env_name, analysis in vrops_analysis.items():
     
     if health_scores:
         avg_health = sum(health_scores) / len(health_scores)
@@ -8122,7 +8122,8 @@ def main():
         # Status indicators
         st.markdown("### 📋 Status")
         
-        if st.session_state.environment_specs:
+        env_specs = getattr(st.session_state, 'environment_specs', {})
+        if env_specs and len(env_specs) > 0:
             st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
         else:
             st.warning("⚠️ Configure environments")
@@ -8476,7 +8477,7 @@ def show_environment_setup():
     """Show environment setup interface with vROps support"""
             #show_enhanced_environment_setup_with_vrops()
     
-    st.markdown("## 📊 Environment Configuration")
+            st.markdown("## 📊 Environment Configuration")
     
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
