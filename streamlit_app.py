@@ -17,6 +17,9 @@ import asyncio
 import hashlib
 import tempfile
 import os
+import anthropic  # For Claude AI
+import boto3      # For AWS pricing
+from reportlab    # For PDF generation
 
 # PDF Generation imports
 from reportlab.lib import colors
@@ -8028,9 +8031,7 @@ def initialize_session_state():
         'growth_analysis': None,  # ADD THIS LINE
         'growth_projections': None,  # ADD THIS LINE
         'vrops_analysis': None,
-        'vrops_analyzer': None,
-        'enhanced_recommendations': None,
-        'enhanced_analysis_results': None,
+        'vrops_analyzer': None,        
         'enhanced_cost_chart': None,
         'growth_analysis': None,
         'growth_projections': None
