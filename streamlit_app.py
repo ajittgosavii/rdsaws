@@ -8113,10 +8113,10 @@ def main():
     if vrops_analysis is not None and isinstance(vrops_analysis, dict):
         for env_name, analysis in vrops_analysis.items():
     
-    if health_scores:
-        avg_health = sum(health_scores) / len(health_scores)
-        st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-    else:
+        if health_scores:
+            avg_health = sum(health_scores) / len(health_scores)
+            st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+        else:
         st.info("ℹ️ vROps analysis pending")
     
         # Status indicators
