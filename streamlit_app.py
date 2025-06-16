@@ -3362,7 +3362,7 @@ class VRopsMetricsAnalyzer:
         
         return scores
     
-     def _generate_overall_recommendations(self, analysis_results: Dict) -> Dict:
+    def _generate_overall_recommendations(self, analysis_results: Dict) -> Dict:
         """Generate overall migration recommendations based on all environments"""
         
         return {
