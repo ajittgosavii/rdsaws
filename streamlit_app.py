@@ -8474,7 +8474,7 @@ def show_environment_analysis():
 
 def show_environment_setup():
  """Show environment setup interface with vROps support"""
-    show_enhanced_environment_setup_with_vrops()
+        show_enhanced_environment_setup_with_vrops()
     
     st.markdown("## 📊 Environment Configuration")
     
