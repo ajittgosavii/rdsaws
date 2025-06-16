@@ -4419,7 +4419,7 @@ def show_results_dashboard():
     with tab2:
         if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
             show_enhanced_cost_analysis()
-    else:
+        else:
         st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
     
     with tab3:
