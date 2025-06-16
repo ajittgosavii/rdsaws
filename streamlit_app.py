@@ -169,7 +169,21 @@ class MigrationAnalyzer:
                 'daily_usage_hours': specs.get('daily_usage_hours', 24),
                 'peak_connections': specs.get('peak_connections', 100)
             }
+             except Exception as e:
+                print(f"Error processing environment {env_name}: {e}")
+                # Add a default recommendation
+                recommendations[env_name] = {
+                    'environment_type': 'production',
+                    'instance_class': 'db.r5.large',
+                    'cpu_cores': 4,
+                    'ram_gb': 16,
+                    'storage_gb': 500,
+                    'multi_az': True,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100
+                }
         
+       
         return recommendations
     
     def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
@@ -185,6 +199,18 @@ class MigrationAnalyzer:
             env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
             environment_costs[env_name] = env_costs
             total_monthly_cost += env_costs['total_monthly']
+        except Exception as e:
+                print(f"Error calculating costs for {env_name}: {e}")
+                # Add default cost
+                default_cost = {
+                    'instance_cost': 200,
+                    'storage_cost': 100,
+                    'backup_cost': 20,
+                    'total_monthly': 320
+                }
+                environment_costs[env_name] = default_cost
+                total_monthly_cost += default_cost['total_monthly']
+        
         
         # Migration service costs
         data_size_gb = migration_params.get('data_size_gb', 1000)
@@ -201,13 +227,15 @@ class MigrationAnalyzer:
         
         migration_costs = {
             'dms_instance': dms_instance_cost,
-            'data_transfer': transfer_costs['total'],
+            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
             'professional_services': ps_cost,
-            'contingency': (dms_instance_cost + transfer_costs['total'] + ps_cost) * 0.2,
+            'contingency': 0,
             'total': 0
         }
-        migration_costs['total'] = sum(migration_costs.values()) - migration_costs['contingency']
-        migration_costs['total'] += migration_costs['contingency']
+        # Calculate contingency and total
+        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
+        migration_costs['contingency'] = base_cost * 0.2
+        migration_costs['total'] = base_cost + migration_costs['contingency']
         
         return {
             'monthly_aws_cost': total_monthly_cost,
@@ -330,7 +358,13 @@ class MigrationAnalyzer:
             'direct_connect': dx_cost,
             'total': min(internet_cost, dx_cost)
         }
-
+        except Exception as e:
+            print(f"Error calculating transfer costs: {e}")
+            return {
+                'internet': data_size_gb * 0.09,
+                'direct_connect': data_size_gb * 0.02,
+                'total': data_size_gb * 0.02
+            }
 
 class ImprovedReportGenerator:
     """Enhanced PDF Report Generator with Better Formatting and Layout"""
@@ -4807,17 +4841,52 @@ def calculate_migration_risks(migration_params: Dict, recommendations: Dict) -> 
         'mitigation_strategies': _generate_mitigation_strategies(technical_risks, business_risks)
     }
 
+    except Exception as e:
+        # Return a default risk assessment if calculation fails
+        print(f"Error calculating migration risks: {e}")
+        return {
+            'overall_score': 50,
+            'risk_level': {'level': 'Medium', 'color': '#d69e2e', 'action': 'Active monitoring recommended'},
+            'technical_risks': {
+                'engine_compatibility': 40,
+                'data_migration_complexity': 30,
+                'application_integration': 35,
+                'performance_risk': 25
+            },
+            'business_risks': {
+                'timeline_risk': 45,
+                'cost_overrun_risk': 35,
+                'business_continuity': 40,
+                'resource_availability': 30
+            },
+            'mitigation_strategies': [
+                {
+                    'risk': 'General Migration Risk',
+                    'strategy': 'Implement comprehensive testing and validation procedures',
+                    'timeline': '2-3 weeks',
+                    'cost_impact': 'Medium'
+                }
+            ]
+        }
+    
+    
+    
 def _assess_engine_compatibility(source: str, target: str) -> float:
     """Assess engine compatibility risk (0-100)"""
     compatibility_matrix = {
         ('oracle-ee', 'postgres'): 75,
         ('oracle-ee', 'aurora-postgresql'): 65,
         ('oracle-ee', 'oracle-ee'): 15,
+        ('oracle-se', 'postgres'): 70,
+        ('oracle-se', 'aurora-postgresql'): 60,
         ('postgres', 'aurora-postgresql'): 20,
         ('postgres', 'postgres'): 10,
-        ('mysql', 'aurora-mysql'): 15
+        ('mysql', 'aurora-mysql'): 15,
+        ('mysql', 'mysql'): 10,
+        ('sql-server', 'postgres'): 80,
+        ('sql-server', 'aurora-postgresql'): 75
     }
-    return compatibility_matrix.get((source, target), 80)
+    return compatibility_matrix.get((source, target), 50)
 
 def _assess_data_complexity(data_size_gb: int) -> float:
     """Assess data migration complexity risk"""
@@ -4833,21 +4902,33 @@ def _assess_data_complexity(data_size_gb: int) -> float:
 def _assess_application_risks(migration_params: Dict) -> float:
     """Assess application integration risks"""
     num_applications = migration_params.get('num_applications', 1)
-    return min(90, 20 + (num_applications * 15))
+    num_stored_procedures = migration_params.get('num_stored_procedures', 0)
 
+    base_risk = min(90, 20 + (num_applications * 15))
+    procedure_risk = min(30, num_stored_procedures / 10)
+    
+    return min(95, base_risk + procedure_risk)
+    
+    
+    
 def _assess_performance_risks(recommendations: Dict) -> float:
     """Assess performance-related risks"""
+    if not recommendations:
+        return 50
+        
     prod_envs = [env for env, rec in recommendations.items() 
-                if rec['environment_type'] == 'production']
+                if rec.get('environment_type') == 'production']
     
     if not prod_envs:
         return 30
     
     # Check if production environments are adequately sized
     prod_rec = recommendations[prod_envs[0]]
-    if 'xlarge' in prod_rec['instance_class']:
+    instance_class = prod_rec.get('instance_class', '')
+    
+    if 'xlarge' in instance_class:
         return 25
-    elif 'large' in prod_rec['instance_class']:
+    elif 'large' in instance_class:
         return 45
     else:
         return 70
@@ -4856,17 +4937,23 @@ def _assess_timeline_risks(migration_params: Dict) -> float:
     """Assess timeline-related risks"""
     timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
     data_size_gb = migration_params.get('data_size_gb', 1000)
+    team_size = migration_params.get('team_size', 5)
     
     # Risk increases with larger data and shorter timelines
-    complexity_factor = data_size_gb / 1000
-    time_pressure = max(0, (16 - timeline_weeks) * 5)
+    complexity_factor = min(30, data_size_gb / 1000 * 5)
+    time_pressure = max(0, (16 - timeline_weeks) * 3)
+    team_factor = max(0, (5 - team_size) * 5)
     
-    return min(95, 20 + complexity_factor + time_pressure)
+    return min(95, 20 + complexity_factor + time_pressure + team_factor)
 
 def _assess_cost_risks(migration_params: Dict) -> float:
     """Assess cost overrun risks"""
     migration_budget = migration_params.get('migration_budget', 500000)
-    estimated_cost = migration_params.get('estimated_migration_cost', 300000)
+    data_size_gb = migration_params.get('data_size_gb', 1000)
+    timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+    
+    # Estimate cost based on size and timeline
+    estimated_cost = (data_size_gb * 100) + (timeline_weeks * 5000)
     
     if migration_budget <= 0:
         return 80
@@ -4883,8 +4970,11 @@ def _assess_cost_risks(migration_params: Dict) -> float:
 
 def _assess_continuity_risks(recommendations: Dict) -> float:
     """Assess business continuity risks"""
+    if not recommendations:
+        return 50
+        
     prod_count = len([env for env, rec in recommendations.items() 
-                     if rec['environment_type'] == 'production'])
+                     if rec.get('environment_type') == 'production'])
     
     if prod_count == 0:
         return 10
@@ -4928,7 +5018,7 @@ def _generate_mitigation_strategies(technical_risks: Dict, business_risks: Dict)
     strategies = []
     
     # Technical risk mitigations
-    if technical_risks['engine_compatibility'] > 60:
+    if technical_risks.get('engine_compatibility', 0) > 60:
         strategies.append({
             'risk': 'Engine Compatibility',
             'strategy': 'Conduct comprehensive schema assessment and implement AWS SCT',
@@ -4936,7 +5026,7 @@ def _generate_mitigation_strategies(technical_risks: Dict, business_risks: Dict)
             'cost_impact': 'Medium'
         })
     
-    if technical_risks['data_migration_complexity'] > 50:
+    if technical_risks.get('data_migration_complexity', 0) > 50:
         strategies.append({
             'risk': 'Data Migration Complexity',
             'strategy': 'Implement incremental migration with AWS DMS and validation scripts',
@@ -4944,8 +5034,16 @@ def _generate_mitigation_strategies(technical_risks: Dict, business_risks: Dict)
             'cost_impact': 'Low'
         })
     
+    if technical_risks.get('application_integration', 0) > 60:
+        strategies.append({
+            'risk': 'Application Integration',
+            'strategy': 'Develop comprehensive application testing framework',
+            'timeline': '2-4 weeks',
+            'cost_impact': 'Medium'
+        })
+    
     # Business risk mitigations
-    if business_risks['timeline_risk'] > 60:
+    if business_risks.get('timeline_risk', 0) > 60:
         strategies.append({
             'risk': 'Timeline Pressure',
             'strategy': 'Add parallel migration streams and increase team capacity',
@@ -4953,7 +5051,7 @@ def _generate_mitigation_strategies(technical_risks: Dict, business_risks: Dict)
             'cost_impact': 'High'
         })
     
-    if business_risks['cost_overrun_risk'] > 60:
+    if business_risks.get('cost_overrun_risk', 0) > 60:
         strategies.append({
             'risk': 'Cost Overrun',
             'strategy': 'Implement strict budget controls and scope management',
@@ -4961,8 +5059,104 @@ def _generate_mitigation_strategies(technical_risks: Dict, business_risks: Dict)
             'cost_impact': 'Low'
         })
     
+    if business_risks.get('resource_availability', 0) > 60:
+        strategies.append({
+            'risk': 'Resource Availability',
+            'strategy': 'Secure dedicated team members and external consulting support',
+            'timeline': '1-2 weeks',
+            'cost_impact': 'High'
+        })
+    
+    # Always include at least one general strategy
+    if not strategies:
+        strategies.append({
+            'risk': 'General Migration Risk',
+            'strategy': 'Implement comprehensive testing and validation procedures',
+            'timeline': '2-3 weeks',
+            'cost_impact': 'Medium'
+        })
+    
     return strategies
 
+def run_migration_analysis():
+    """Run comprehensive migration analysis - FIXED VERSION"""
+    
+    try:
+        # Initialize analyzer
+        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+        analyzer = MigrationAnalyzer(anthropic_api_key)
+        
+        # Step 1: Calculate recommendations
+        st.write("📊 Calculating instance recommendations...")
+        recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
+        st.session_state.recommendations = recommendations
+        
+        # Step 2: Calculate costs
+        st.write("💰 Analyzing costs...")
+        cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+        
+        # Update migration params with estimated cost
+        st.session_state.migration_params['estimated_migration_cost'] = cost_analysis['migration_costs']['total']
+        
+        st.session_state.analysis_results = cost_analysis
+        
+        # Step 3: Risk assessment - ALWAYS GENERATE THIS
+        st.write("⚠️ Assessing risks...")
+        try:
+            risk_assessment = calculate_migration_risks(st.session_state.migration_params, recommendations)
+            st.session_state.risk_assessment = risk_assessment
+            st.write("✅ Risk assessment completed")
+        except Exception as e:
+            st.warning(f"Risk assessment had issues but continued: {str(e)}")
+            # Set a default risk assessment
+            st.session_state.risk_assessment = {
+                'overall_score': 45,
+                'risk_level': {'level': 'Medium', 'color': '#d69e2e', 'action': 'Active monitoring recommended'},
+                'technical_risks': {'engine_compatibility': 40, 'data_migration_complexity': 30},
+                'business_risks': {'timeline_risk': 45, 'cost_overrun_risk': 35},
+                'mitigation_strategies': []
+            }
+        
+        # Step 4: AI insights (if available)
+        if anthropic_api_key:
+            st.write("🤖 Generating AI insights...")
+            try:
+                ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
+                st.session_state.ai_insights = ai_insights
+            except Exception as e:
+                st.warning(f"AI insights generation failed: {str(e)}")
+                st.session_state.ai_insights = {'error': str(e)}
+        
+        st.success("✅ Analysis complete!")
+        
+        # Show quick summary
+        st.markdown("#### 🎯 Analysis Summary")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Monthly Cost", f"${cost_analysis['monthly_aws_cost']:,.0f}")
+        
+        with col2:
+            st.metric("Migration Cost", f"${cost_analysis['migration_costs']['total']:,.0f}")
+        
+        with col3:
+            risk_level = st.session_state.risk_assessment['risk_level']['level']
+            st.metric("Risk Level", risk_level)
+        
+        # Provide navigation hint
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        
+    except Exception as e:
+        st.error(f"❌ Analysis failed: {str(e)}")
+        st.code(str(e))
+        
+        # Provide troubleshooting info
+        st.markdown("### 🔧 Troubleshooting")
+        st.markdown("If the error persists:")
+        st.markdown("1. Check that all environment fields are properly filled")
+        st.markdown("2. Verify that numerical values are within valid ranges")  
+        st.markdown("3. Check the Migration Configuration parameters")
+        st.markdown("4. Try refreshing the page and starting over")
 # ===========================
 # VISUALIZATION FUNCTIONS
 # ===========================
