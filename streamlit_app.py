@@ -158,7 +158,7 @@ class MigrationAnalyzer:
             
             # Multi-AZ recommendation
             multi_az = environment_type in ['production', 'staging']
-            
+                                  
             recommendations[env_name] = {
                 'environment_type': environment_type,
                 'instance_class': instance_class,
@@ -169,19 +169,8 @@ class MigrationAnalyzer:
                 'daily_usage_hours': specs.get('daily_usage_hours', 24),
                 'peak_connections': specs.get('peak_connections', 100)
             }
-            except Exception as e:
-                print(f"Error processing environment {env_name}: {e}")
-                # Add a default recommendation
-                recommendations[env_name] = {
-                    'environment_type': 'production',
-                    'instance_class': 'db.r5.large',
-                    'cpu_cores': 4,
-                    'ram_gb': 16,
-                    'storage_gb': 500,
-                    'multi_az': True,
-                    'daily_usage_hours': 24,
-                    'peak_connections': 100
-                }
+        
+        
         
        
         return recommendations
