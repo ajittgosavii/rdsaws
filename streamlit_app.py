@@ -8682,7 +8682,7 @@ def show_results_dashboard():
         "📅 Timeline"
     ])
 
-     with tab1:
+    with tab1:
         show_basic_cost_summary()
             
     with tab2:
