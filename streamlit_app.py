@@ -7036,95 +7036,123 @@ def show_analysis_section_fixed():
             st.session_state.enhanced_analysis_results = None
         
         with st.spinner("🔄 Analyzing migration requirements..."):
-            run_migration_analysis_fixed()  # Use the fixed function
+            run_streamlit_migration_analysis()  # Use the fixed function
+
+# ADD THIS FUNCTION to your streamlit_app.py file:
 
 def run_streamlit_migration_analysis():
-    """Run comprehensive migration analysis - FIXED VERSION"""
+    """Run migration analysis synchronously for Streamlit - SIMPLE VERSION"""
     
     try:
-        # Check if this is enhanced environment data
-        is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
+        # Initialize analyzer
+        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
         
-        if is_enhanced:
-            # Run enhanced analysis
-            st.info("🔬 Detected enhanced environment configuration - running cluster analysis")
-            run_enhanced_migration_analysis()
+        # Use original analyzer (no async issues)
+        analyzer = MigrationAnalyzer(anthropic_api_key)
+        
+        # Step 1: Calculate recommendations
+        st.write("📊 Calculating instance recommendations...")
+        recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
+        st.session_state.recommendations = recommendations
+        
+        # Step 2: Calculate costs
+        st.write("💰 Analyzing costs...")
+        cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+        st.session_state.analysis_results = cost_analysis
+        
+        # Step 3: Risk assessment
+        st.write("⚠️ Assessing risks...")
+        risk_assessment = create_default_risk_assessment()
+        st.session_state.risk_assessment = risk_assessment
+        
+        # Step 4: AI insights (FIXED - no async)
+        if anthropic_api_key:
+            st.write("🤖 Generating AI insights...")
+            try:
+                # Use asyncio.run to handle the async function
+                ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
+                st.session_state.ai_insights = ai_insights
+                st.success("✅ AI insights generated")
+            except Exception as e:
+                st.warning(f"AI insights failed: {str(e)}")
+                # Create simple fallback
+                st.session_state.ai_insights = {
+                    'summary': f"Migration analysis complete. Monthly cost: ${cost_analysis['monthly_aws_cost']:,.0f}",
+                    'error': str(e)
+                }
         else:
-            # Run standard analysis
-            st.info("📊 Running standard migration analysis")
-            
-            # Initialize analyzer
-            anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-            analyzer = MigrationAnalyzer(anthropic_api_key)
-            
-            # Step 1: Calculate recommendations
-            st.write("📊 Calculating instance recommendations...")
-            recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
-            st.session_state.recommendations = recommendations
-            
-            # Step 2: Calculate costs
-            st.write("💰 Analyzing costs...")
-            cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
-            
-            # Update migration params with estimated cost
-            st.session_state.migration_params['estimated_migration_cost'] = cost_analysis['migration_costs']['total']
-            st.session_state.analysis_results = cost_analysis
-            
-            # Step 3: Risk assessment - ROBUST VERSION
-            st.write("⚠️ Assessing risks...")
-            
-            # Force create risk assessment
-            risk_assessment = create_default_risk_assessment()
-            st.session_state.risk_assessment = risk_assessment
-            st.write("✅ Risk assessment completed successfully")
-            
-            # Step 4: AI insights (if available)
-            if anthropic_api_key:
-                st.write("🤖 Generating AI insights...")
-                try:
-                    ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
-                    st.session_state.ai_insights = ai_insights
-                except Exception as e:
-                    st.warning(f"AI insights generation failed: {str(e)}")
-                    st.session_state.ai_insights = {'error': str(e)}
-            
-            st.success("✅ Analysis complete!")
+            st.info("ℹ️ Provide Anthropic API key for AI insights")
         
-        # Show quick summary regardless of analysis type
-        st.markdown("#### 🎯 Analysis Summary")
-        col1, col2, col3 = st.columns(3)
+        st.success("✅ Analysis complete!")
         
-        # Get results from whichever analysis was run
-        if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
-            results = st.session_state.enhanced_analysis_results
-        else:
-            results = st.session_state.analysis_results
-        
-        if results:
-            with col1:
-                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-            
-            with col2:
-                migration_cost = results.get('migration_costs', {}).get('total', 0)
-                st.metric("Migration Cost", f"${migration_cost:,.0f}")
-            
-            with col3:
-                if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
-                    risk_level = st.session_state.risk_assessment['risk_level']['level']
-                    st.metric("Risk Level", risk_level)
-                else:
-                    st.metric("Risk Level", "Medium")
-        
-        # Provide navigation hint
-        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        # Show summary
+        show_simple_summary()
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
+        # Create basic fallback so app doesn't crash
+        create_basic_fallback()
+
+
+def show_simple_summary():
+    """Show simple analysis summary"""
+    
+    st.markdown("#### 🎯 Analysis Summary")
+    col1, col2, col3 = st.columns(3)
+    
+    results = st.session_state.analysis_results
+    
+    if results:
+        with col1:
+            st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
         
-        # Even if analysis fails, ensure we have a risk assessment
-        if not hasattr(st.session_state, 'risk_assessment') or st.session_state.risk_assessment is None:
-            st.session_state.risk_assessment = get_fallback_risk_assessment()
-            st.info("🛡️ Fallback risk assessment created")
+        with col2:
+            migration_cost = results.get('migration_costs', {}).get('total', 0)
+            st.metric("Migration Cost", f"${migration_cost:,.0f}")
+        
+        with col3:
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+    
+    st.info("📈 View detailed results in the 'Results Dashboard' section")
+
+
+def create_basic_fallback():
+    """Create basic fallback when analysis completely fails"""
+    
+    st.warning("⚠️ Creating fallback analysis...")
+    
+    # Basic recommendations
+    recommendations = {}
+    total_cost = 0
+    
+    for env_name, specs in st.session_state.environment_specs.items():
+        recommendations[env_name] = {
+            'environment_type': 'production' if 'prod' in env_name.lower() else 'development',
+            'instance_class': 'db.r5.large',
+            'cpu_cores': specs.get('cpu_cores', 4),
+            'ram_gb': specs.get('ram_gb', 16),
+            'storage_gb': specs.get('storage_gb', 500),
+            'multi_az': 'prod' in env_name.lower()
+        }
+        total_cost += 500  # $500 per environment estimate
+    
+    st.session_state.recommendations = recommendations
+    
+    # Basic cost analysis
+    st.session_state.analysis_results = {
+        'monthly_aws_cost': total_cost,
+        'annual_aws_cost': total_cost * 12,
+        'environment_costs': {env: {'total_monthly': 500, 'instance_cost': 400, 'storage_cost': 100} 
+                            for env in recommendations.keys()},
+        'migration_costs': {'total': 50000, 'dms_instance': 20000, 'data_transfer': 10000, 'professional_services': 20000}
+    }
+    
+    # Basic risk assessment
+    st.session_state.risk_assessment = get_fallback_risk_assessment()
+    
+    st.success("✅ Fallback analysis created")
                 
 def run_enhanced_migration_analysis():
     """Run enhanced migration analysis with Writer/Reader support"""
