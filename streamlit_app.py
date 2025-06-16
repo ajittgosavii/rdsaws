@@ -8023,7 +8023,7 @@ def initialize_session_state():
         'enhanced_analysis_results': None,
         'enhanced_cost_chart': None,
         'growth_analysis': None,  # ADD THIS LINE
-        'growth_projections': None  # ADD THIS LINE
+        'growth_projections': None,  # ADD THIS LINE
         'vrops_analysis': None,
         'vrops_analyzer': None,
         'enhanced_recommendations': None,
