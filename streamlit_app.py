@@ -3857,18 +3857,20 @@ def main():
         else:
             st.info("ℹ️ Network analysis pending")
         
-        if st.session_state.vrops_analysis:
+         if st.session_state.vrops_analysis:
             st.success("✅ vROps analysis complete")
-        
-        # Show health scores
-        health_scores = []
-        for env_name, analysis in st.session_state.vrops_analysis.items():
-            if isinstance(analysis, dict) and 'performance_scores' in analysis:
-                health_scores.append(analysis['performance_scores'].get('overall_health', 0))
-        
-        if health_scores:
-            avg_health = sum(health_scores) / len(health_scores)
-            st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+            
+            # Show health scores
+            health_scores = []
+            for env_name, analysis in st.session_state.vrops_analysis.items():
+                if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+            
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+        else:
+            st.info("ℹ️ vROps analysis pending")
         
     # Main content
     if page == "🔧 Migration Configuration":
