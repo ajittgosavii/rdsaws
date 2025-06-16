@@ -8106,7 +8106,7 @@ def main():
         )
     
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
-    st.success("✅ vROps analysis complete")
+        st.success("✅ vROps analysis complete")
     
     health_scores = []
     for env_name, analysis in st.session_state.vrops_analysis.items():
