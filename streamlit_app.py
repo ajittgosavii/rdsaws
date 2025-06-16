@@ -5378,7 +5378,7 @@ def show_debug_info():
             if st.session_state.environment_specs:
                 st.write("Num environments:", len(st.session_state.environment_specs))
                 st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
-        # Status indicators
+        # Status indicators - FIXED VERSION
         st.markdown("### 📋 Status")
         
         if st.session_state.environment_specs:
@@ -5397,8 +5397,8 @@ def show_debug_info():
         
         if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
-
-              # Show metrics from whichever analysis was completed
+            
+            # Show metrics from whichever analysis was completed
             if has_enhanced_results:
                 results = st.session_state.enhanced_analysis_results
                 st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
@@ -5411,7 +5411,6 @@ def show_debug_info():
                 st.info("📊 Standard Analysis")
         else:
             st.info("ℹ️ Analysis pending")
-        
         # Network analysis status
         if st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
