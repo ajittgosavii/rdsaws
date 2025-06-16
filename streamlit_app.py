@@ -2881,8 +2881,11 @@ def show_network_transfer_analysis():
             st.success("✅ Network analysis complete!")
     
     # Display results if available
-    if hasattr(st.session_state, 'transfer_analysis'):
+    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis is not None:
         show_network_analysis_results()
+    else:
+        st.info("ℹ️ Run the network analysis to see results and recommendations.")
+    
 
 def show_network_analysis_results():
     """Display network analysis results"""
