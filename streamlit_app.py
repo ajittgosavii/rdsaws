@@ -6782,7 +6782,7 @@ def show_results_dashboard():
     # Create tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "💰 Cost Summary",
-        "📈 Growth Projections",
+        "📈 Growth Projections", 
         "💎 Enhanced Analysis",
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
@@ -6790,7 +6790,7 @@ def show_results_dashboard():
         "🤖 AI Insights",
         "📅 Timeline"
     ])
-
+    
     with tab1:
         show_basic_cost_summary()
     
@@ -6803,20 +6803,76 @@ def show_results_dashboard():
         else:
             st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
             show_basic_cost_summary()
-
+    
     with tab4:
         show_risk_assessment_tab()
-
+    
     with tab5:
         show_environment_analysis_tab()
-
+    
     with tab6:
         show_visualizations_tab()
-
+    
     with tab7:
         show_ai_insights_tab()
-
+    
     with tab8:
+        show_timeline_analysis_tab()
+
+
+# Alternative simplified version if the above still has issues
+def show_results_dashboard_simple():
+    """Simplified results dashboard to avoid indentation issues"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
+        return
+    
+    st.markdown("## 📊 Migration Analysis Results")
+    
+    # Check for enhanced results
+    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
+                           st.session_state.enhanced_analysis_results is not None)
+    
+    # Create tabs for different views
+    tabs = st.tabs([
+        "💰 Cost Summary",
+        "📈 Growth Projections", 
+        "💎 Enhanced Analysis",
+        "⚠️ Risk Assessment", 
+        "🏢 Environment Analysis",
+        "📊 Visualizations",
+        "🤖 AI Insights",
+        "📅 Timeline"
+    ])
+    
+    # Tab content
+    with tabs[0]:  # Cost Summary
+        show_basic_cost_summary()
+    
+    with tabs[1]:  # Growth Projections
+        show_growth_analysis_dashboard()
+    
+    with tabs[2]:  # Enhanced Analysis
+        if has_enhanced_results:
+            show_enhanced_cost_analysis()
+        else:
+            st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
+            show_basic_cost_summary()
+    
+    with tabs[3]:  # Risk Assessment
+        show_risk_assessment_tab()
+    
+    with tabs[4]:  # Environment Analysis
+        show_environment_analysis_tab()
+    
+    with tabs[5]:  # Visualizations
+        show_visualizations_tab()
+    
+    with tabs[6]:  # AI Insights
+        show_ai_insights_tab()
+    
+    with tabs[7]:  # Timeline
         show_timeline_analysis_tab()
 
 
@@ -6859,10 +6915,7 @@ def show_basic_cost_summary():
     if env_costs:
         for env_name, costs in env_costs.items():
             with st.expander(f"🏢 {env_name.title()} Environment"):
-                
-                # Check if it's enhanced results format
                 if isinstance(costs, dict) and 'instance_cost' in costs:
-                    # Enhanced format
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
@@ -6878,11 +6931,68 @@ def show_basic_cost_summary():
                                                  sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
                         st.metric("Total Monthly", f"${total_env_cost:,.2f}")
                 else:
-                    # Simple format - just show the cost
                     if isinstance(costs, (int, float)):
                         st.metric("Monthly Cost", f"${costs:,.2f}")
                     else:
                         st.write("Cost information not available in expected format")
+
+
+def show_growth_analysis_dashboard():
+    """Show comprehensive growth analysis dashboard"""
+    
+    st.markdown("### 📈 3-Year Growth Analysis & Projections")
+    
+    # Check if growth analysis exists
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
+        
+        # Show basic growth planning instead
+        st.markdown("#### 🎯 Growth Planning Preview")
+        st.info("""
+        **Growth analysis will show:**
+        - 3-year cost projections with growth factors
+        - Resource scaling requirements
+        - Seasonal peak planning
+        - Cost optimization opportunities
+        - Scaling recommendations by year
+        
+        Run the migration analysis to see detailed growth projections.
+        """)
+        return
+    
+    growth_analysis = st.session_state.growth_analysis
+    growth_summary = growth_analysis['growth_summary']
+    
+    # Key Growth Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "3-Year Growth",
+            f"{growth_summary['total_3_year_growth_percent']:.1f}%",
+            delta=f"CAGR: {growth_summary['compound_annual_growth_rate']:.1f}%"
+        )
+    
+    with col2:
+        st.metric(
+            "Current Annual Cost",
+            f"${growth_summary['year_0_cost']:,.0f}",
+            delta="Baseline"
+        )
+    
+    with col3:
+        st.metric(
+            "Year 3 Projected Cost",
+            f"${growth_summary['year_3_cost']:,.0f}",
+            delta=f"+${growth_summary['year_3_cost'] - growth_summary['year_0_cost']:,.0f}"
+        )
+    
+    with col4:
+        st.metric(
+            "Total 3-Year Investment",
+            f"${growth_summary['total_3_year_investment']:,.0f}",
+            delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
+        )
 
 
 def show_risk_assessment_tab():
@@ -6923,18 +7033,6 @@ def show_environment_analysis_tab():
                     st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
                     st.write(f"Workload Pattern: {specs.get('workload_pattern', 'N/A')}")
                     st.write(f"Environment Type: {specs.get('environment_type', 'N/A')}")
-    
-    # Show recommendations if available
-    if hasattr(st.session_state, 'recommendations') and st.session_state.recommendations:
-        st.markdown("#### 💡 Environment Recommendations")
-        
-        recommendations = st.session_state.recommendations
-        for env_name, rec in recommendations.items():
-            with st.expander(f"🎯 {env_name.title()} Recommendations"):
-                if isinstance(rec, dict):
-                    st.markdown(f"**Recommended Instance:** {rec.get('instance_class', 'N/A')}")
-                    st.markdown(f"**Environment Type:** {rec.get('environment_type', 'N/A')}")
-                    st.markdown(f"**Multi-AZ:** {'Yes' if rec.get('multi_az', False) else 'No'}")
 
 
 def show_visualizations_tab():
@@ -6947,14 +7045,10 @@ def show_visualizations_tab():
         return
     
     try:
-        # Cost comparison chart
         results = st.session_state.analysis_results
-        
-        # Create simple cost visualization
         env_costs = results.get('environment_costs', {})
         
         if env_costs:
-            # Environment cost comparison
             env_names = []
             monthly_costs = []
             
@@ -6983,16 +7077,6 @@ def show_visualizations_tab():
                 
                 st.plotly_chart(fig, use_container_width=True)
         
-        # Growth visualization if available
-        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
-            st.markdown("#### 📈 Growth Projections")
-            try:
-                charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                for chart in charts:
-                    st.plotly_chart(chart, use_container_width=True)
-            except Exception as e:
-                st.error(f"Error creating growth charts: {str(e)}")
-        
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
 
@@ -7009,7 +7093,6 @@ def show_ai_insights_tab():
             st.warning(f"AI insights partially available: {insights.get('summary', 'Analysis complete')}")
             st.error(f"Error: {insights['error']}")
         else:
-            # Show AI insights
             if 'summary' in insights:
                 st.markdown("#### 📝 Executive Summary")
                 st.write(insights['summary'])
@@ -7065,38 +7148,6 @@ def show_timeline_analysis_tab():
             st.markdown(phase['description'])
         
         current_week = end_week
-    
-    # Key milestones
-    st.markdown("#### 🎯 Key Milestones")
-    
-    milestones = [
-        f"Week {int(phases[0]['weeks'])}: Assessment Complete",
-        f"Week {int(phases[0]['weeks'] + phases[1]['weeks'])}: Schema Migration Complete",
-        f"Week {int(sum(p['weeks'] for p in phases[:3]))}: Data Migration Complete",
-        f"Week {int(sum(p['weeks'] for p in phases[:4]))}: Testing Complete",
-        f"Week {timeline_weeks}: Go-Live"
-    ]
-    
-    for milestone in milestones:
-        st.markdown(f"• {milestone}")
-    
-    # Team and resources
-    st.markdown("#### 👥 Team & Resources")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Team Configuration:**")
-        st.write(f"Team Size: {params.get('team_size', 5)} people")
-        st.write(f"Expertise Level: {params.get('team_expertise', 'medium').title()}")
-        st.write(f"Timeline: {timeline_weeks} weeks")
-    
-    with col2:
-        st.markdown("**Migration Budget:**")
-        budget = params.get('migration_budget', 500000)
-        st.write(f"Total Budget: ${budget:,.0f}")
-        weekly_budget = budget / timeline_weeks if timeline_weeks > 0 else 0
-        st.write(f"Weekly Budget: ${weekly_budget:,.0f}")
 
 
 def show_growth_analysis_dashboard():
