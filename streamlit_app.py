@@ -17,9 +17,8 @@ import asyncio
 import hashlib
 import tempfile
 import os
-import anthropic  # For Claude AI
-import boto3      # For AWS pricing
-from reportlab    # For PDF generation
+import anthropic  # For Claude AI 
+from reportlab     
 
 # PDF Generation imports
 from reportlab.lib import colors
