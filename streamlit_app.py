@@ -1565,7 +1565,7 @@ def process_enhanced_data(df: pd.DataFrame, mappings: Dict[str, str]) -> Dict:
             'peak_hours_start': 9,
             'peak_hours_end': 17,
             'weekend_usage_factor': 0.3,
-            'growth_rate_percent_annual': 10
+            'growth_rate_percent_annual': 10,
             # Add these missing keys that are expected by other parts of the code
             'cpu_cores': env_metrics.get('cpu_cores_allocated', 4),  # Map from allocated if available
             'ram_gb': env_metrics.get('memory_allocated_gb', 16),    # Map from allocated if available
