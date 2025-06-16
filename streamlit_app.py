@@ -6410,18 +6410,27 @@ def run_migration_analysis_robust():
         st.session_state.risk_assessment = risk_assessment
         st.write("✅ Risk assessment completed successfully")
         
-        # Step 4: AI insights (if available)
+      # Step 4: AI insights
         if anthropic_api_key:
             st.write("🤖 Generating AI insights...")
             try:
                 ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
+                
                 if ai_insights.get('success'):
                     st.success("✅ Real Claude AI analysis complete!")
                     st.info(f"Model: {ai_insights.get('model', 'Unknown')}")
-        else:
-            st.warning(f"⚠️ Claude AI failed: {ai_insights.get('error')}")
+                else:
+                    st.warning(f"⚠️ Claude AI failed: {ai_insights.get('error')}")
                 
-                st.success("✅ Analysis complete!")
+                st.session_state.ai_insights = ai_insights
+                
+            except Exception as e:
+                st.warning(f"AI insights generation failed: {str(e)}")
+                st.session_state.ai_insights = {'error': str(e)}
+        else:
+            st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
+        
+        st.success("✅ Analysis complete!")
         
         # Show quick summary
         st.markdown("#### 🎯 Analysis Summary")
