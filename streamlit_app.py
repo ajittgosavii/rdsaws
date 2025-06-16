@@ -2383,7 +2383,7 @@ def main():
     elif page == "📊 Environment Setup":
         show_environment_setup()
     elif page == "🌐 Network Analysis":          # <-- ADD THIS SECTION
-    show_network_transfer_analysis()
+        show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section()
     elif page == "📈 Results Dashboard":
