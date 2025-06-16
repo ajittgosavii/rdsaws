@@ -3362,6 +3362,18 @@ class VRopsMetricsAnalyzer:
         
         return scores
     
+     def _generate_overall_recommendations(self, analysis_results: Dict) -> Dict:
+        """Generate overall migration recommendations based on all environments"""
+        
+        return {
+            'migration_strategy': 'Phased migration recommended based on vROps analysis',
+            'infrastructure_recommendations': [
+                'Implement monitoring and alerting for new AWS environment',
+                'Plan for right-sizing after initial migration based on actual usage'
+            ]
+        }
+    
+    
     def _identify_optimization_opportunities(self, metrics: Dict, cpu_analysis: Dict, 
                                            memory_analysis: Dict, storage_analysis: Dict) -> List[Dict]:
         """Identify optimization opportunities"""
@@ -3521,10 +3533,10 @@ class VRopsMetricsAnalyzer:
 # ENHANCED STREAMLIT INTERFACE
 # ===========================
 
-def show_enhanced_environment_setup_with_cluster_config():
-    """Enhanced environment setup with comprehensive vROps metrics"""
+def show_enhanced_environment_setup_with_vrops():
+    """Enhanced environment setup with vROps integration"""
     
-    st.markdown("## 📊 Enhanced Environment Configuration with vROps Metrics")
+    st.markdown("## 📊 Enhanced Environment Configuration")
     
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
@@ -3786,6 +3798,85 @@ def show_vrops_processing_summary(environments: Dict, analyzer: VRopsMetricsAnal
             
             # Show quick insights
             show_vrops_analysis_summary(analysis_results)
+def show_vrops_results_tab():
+    """Show vROps analysis results in the dashboard"""
+    
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("### 📊 vROps Performance Analysis")
+        
+        analysis_results = st.session_state.vrops_analysis
+        
+        # Performance health overview
+        col1, col2, col3 = st.columns(3)
+        
+        # Calculate overall health scores
+        health_scores = []
+        env_count = 0
+        
+        for env_name, analysis in analysis_results.items():
+            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+                env_count += 1
+                scores = analysis.get('performance_scores', {})
+                health_scores.append(scores.get('overall_health', 0))
+        
+        avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
+        
+        with col1:
+            st.metric("Overall Health Score", f"{avg_health:.1f}/100")
+        
+        with col2:
+            at_risk_envs = len([score for score in health_scores if score < 70])
+            st.metric("At Risk Environments", at_risk_envs)
+        
+        with col3:
+            st.metric("Total Environments", env_count)
+        
+        # Environment details
+        st.markdown("#### 🏢 Environment Performance Analysis")
+        
+        for env_name, analysis in analysis_results.items():
+            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+                with st.expander(f"📊 {env_name} Performance Details"):
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown("**CPU Analysis**")
+                        cpu_analysis = analysis.get('cpu_analysis', {})
+                        st.write(f"Max Usage: {cpu_analysis.get('max_usage_percent', 0):.1f}%")
+                        st.write(f"Avg Usage: {cpu_analysis.get('avg_usage_percent', 0):.1f}%")
+                        st.write(f"Required Capacity: {cpu_analysis.get('required_capacity_percent', 0):.1f}%")
+                    
+                    with col2:
+                        st.markdown("**Memory Analysis**")
+                        memory_analysis = analysis.get('memory_analysis', {})
+                        st.write(f"Max Usage: {memory_analysis.get('max_usage_percent', 0):.1f}%")
+                        st.write(f"Avg Usage: {memory_analysis.get('avg_usage_percent', 0):.1f}%")
+                        st.write(f"Allocated: {memory_analysis.get('allocated_gb', 0)} GB")
+                    
+                    with col3:
+                        st.markdown("**Storage Analysis**")
+                        storage_analysis = analysis.get('storage_analysis', {})
+                        st.write(f"Max IOPS: {storage_analysis.get('max_iops', 0):,}")
+                        st.write(f"Avg IOPS: {storage_analysis.get('avg_iops', 0):,}")
+                        st.write(f"Storage Utilization: {storage_analysis.get('storage_utilization_percent', 0):.1f}%")
+                    
+                    # Instance recommendations
+                    st.markdown("**🎯 AWS Instance Recommendations**")
+                    recommendations = analysis.get('instance_recommendations', [])
+                    
+                    if recommendations:
+                        for i, rec in enumerate(recommendations[:3], 1):
+                            st.markdown(f"{i}. **{rec['instance_type']}** - "
+                                      f"CPU Efficiency: {rec['cpu_efficiency']:.1%}, "
+                                      f"Memory Efficiency: {rec['memory_efficiency']:.1%}, "
+                                      f"Fit Score: {rec['fit_score']:.1f}")
+                    else:
+                        st.write("No recommendations available")
+    
+    else:
+        st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
+
 
 def show_vrops_analysis_summary(analysis_results: Dict):
     """Show summary of vROps analysis results"""
@@ -4026,39 +4117,55 @@ def show_enhanced_bulk_upload(analyzer: VRopsMetricsAnalyzer):
     
     st.markdown("### 📁 Enhanced Bulk Upload")
     
-    # Comprehensive template
+    # Use the same template and processing as before
     with st.expander("📋 Download Comprehensive Template", expanded=False):
-        
-        st.markdown("""
-        **Enhanced Template includes:**
-        - All vROps performance metrics
-        - Database-specific metrics
-        - Workload pattern information
-        - Application characteristics
-        """)
-        
-        template_data = create_comprehensive_template()
+        template_data = create_vrops_sample_template()
         csv_data = template_data.to_csv(index=False)
         
         st.dataframe(template_data, use_container_width=True)
         
         st.download_button(
-            label="📥 Download Comprehensive Template",
+            label="📥 Download Performance Metrics Template",
             data=csv_data,
-            file_name="comprehensive_environment_template.csv",
+            file_name="performance_metrics_template.csv",
             mime="text/csv",
             use_container_width=True
         )
     
     # File upload with enhanced processing
     uploaded_file = st.file_uploader(
-        "Upload Environment Data",
+        "Upload Performance Data",
         type=['csv', 'xlsx'],
-        help="Upload CSV or Excel file with comprehensive environment metrics"
+        help="Upload CSV or Excel file with performance metrics"
     )
     
     if uploaded_file is not None:
-        process_enhanced_bulk_upload(uploaded_file, analyzer)
+        try:
+            # Load file
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Process the uploaded data
+            environments = process_vrops_data(df, analyzer)
+            
+            if environments:
+                st.session_state.environment_specs = environments
+                st.success(f"✅ Processed {len(environments)} environments!")
+                
+                # Run analysis
+                with st.spinner("🔄 Running performance analysis..."):
+                    analysis_results = analyzer.analyze_vrops_metrics(environments)
+                    st.session_state.vrops_analysis = analysis_results
+                
+                st.success("✅ Analysis complete!")
+                show_vrops_analysis_summary(analysis_results)
+        
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
 
 def create_comprehensive_template() -> pd.DataFrame:
     """Create comprehensive template with all metrics"""
@@ -4667,6 +4774,7 @@ class DatabaseClusterConfiguration:
         except ValueError:
             # If writer instance not in hierarchy, default to r5.large
             return 'db.r5.large'
+        
 # Updated Migration Analyzer with Real APIs
 class RealMigrationAnalyzer:
     """Migration analyzer with real AWS pricing and Claude AI"""
@@ -7916,6 +8024,14 @@ def initialize_session_state():
         'enhanced_cost_chart': None,
         'growth_analysis': None,  # ADD THIS LINE
         'growth_projections': None  # ADD THIS LINE
+        'vrops_analysis': None,
+        'vrops_analyzer': None,
+        'enhanced_recommendations': None,
+        'enhanced_analysis_results': None,
+        'enhanced_cost_chart': None,
+        'growth_analysis': None,
+        'growth_projections': None
+    
     }
     
     for key, default_value in defaults.items():
@@ -7988,7 +8104,21 @@ def main():
                 "📄 Reports & Export"
             ]
         )
-        
+    
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+    st.success("✅ vROps analysis complete")
+    
+    health_scores = []
+    for env_name, analysis in st.session_state.vrops_analysis.items():
+        if isinstance(analysis, dict) and 'performance_scores' in analysis:
+            health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+    
+    if health_scores:
+        avg_health = sum(health_scores) / len(health_scores)
+        st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+    else:
+        st.info("ℹ️ vROps analysis pending")
+    
         # Status indicators
         st.markdown("### 📋 Status")
         
@@ -8343,7 +8473,8 @@ def show_environment_analysis():
 
 
 def show_environment_setup():
-    """Show environment setup interface"""
+ """Show environment setup interface with vROps support"""
+    show_enhanced_environment_setup_with_vrops()
     
     st.markdown("## 📊 Environment Configuration")
     
@@ -8772,7 +8903,7 @@ def run_enhanced_migration_analysis():
         st.markdown("3. Try using the 'Simple Configuration' option instead")
 
 def show_results_dashboard():
-    """Show comprehensive results dashboard with growth analysis"""
+    """Show comprehensive results dashboard with vROps analysis"""
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
@@ -8780,14 +8911,11 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
-    # Check for enhanced results
-    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
-                           st.session_state.enhanced_analysis_results is not None)
-    
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    # Create tabs for different views - ADD VROPS TAB
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "💰 Cost Summary",
         "📈 Growth Projections",
+        "📊 vROps Analysis",  # <-- NEW TAB
         "💎 Enhanced Analysis",
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
@@ -8795,22 +8923,22 @@ def show_results_dashboard():
         "🤖 AI Insights",
         "📅 Timeline"
     ])
-
+    
     with tab1:
         show_basic_cost_summary()
-            
+    
     with tab2:
         show_growth_analysis_dashboard()
-            
-    with tab3:
+    
+    with tab3:  # <-- NEW TAB CONTENT
+        show_vrops_results_tab()
+    
+    with tab4:
         if has_enhanced_results:
             show_enhanced_cost_analysis()
         else:
-            st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
+            st.info("💡 Enhanced cost analysis not available.")
             show_basic_cost_summary()
-
-    with tab4:
-        show_risk_assessment_tab()
 
     with tab5:
         show_environment_analysis_tab()
