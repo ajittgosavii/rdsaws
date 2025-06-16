@@ -6816,6 +6816,393 @@ def show_timeline_analysis():
         st.markdown(f"**{i}.** {activity}")
 
 def show_reports_section():
+    """Show reports and export section - ROBUST VERSION"""
+    
+    st.markdown("## 📄 Reports & Export")
+    
+    # Check for both regular and enhanced analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+    
+    if not has_regular_results and not has_enhanced_results:
+        st.warning("⚠️ Please complete the analysis first to generate reports.")
+        st.info("👆 Go to 'Analysis & Recommendations' section and click '🚀 Run Comprehensive Analysis'")
+        
+        # Show current status
+        st.markdown("### 📊 Current Status")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            config_status = "✅ Complete" if st.session_state.migration_params else "❌ Missing"
+            st.metric("Migration Config", config_status)
+        
+        with col2:
+            env_status = "✅ Complete" if st.session_state.environment_specs else "❌ Missing"
+            st.metric("Environment Setup", env_status)
+        
+        with col3:
+            analysis_status = "✅ Complete" if (has_regular_results or has_enhanced_results) else "❌ Pending"
+            st.metric("Analysis Results", analysis_status)
+        
+        return
+    
+    # Determine which results to use
+    if has_enhanced_results:
+        results = st.session_state.enhanced_analysis_results
+        recommendations = getattr(st.session_state, 'enhanced_recommendations', {})
+        st.info("📊 Using Enhanced Analysis Results")
+    else:
+        results = st.session_state.analysis_results
+        recommendations = getattr(st.session_state, 'recommendations', {})
+        st.info("📊 Using Standard Analysis Results")
+    
+    # Report generation options
+    st.markdown("### 📊 Available Reports")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("#### 👔 Executive Summary")
+        st.markdown("Perfect for stakeholders and decision makers")
+        st.markdown("**Includes:**")
+        st.markdown("• High-level cost analysis")
+        st.markdown("• ROI and timeline overview")
+        st.markdown("• Risk summary")
+        st.markdown("• Key recommendations")
+        
+        if st.button("📄 Generate Executive PDF", key="exec_pdf", use_container_width=True):
+            with st.spinner("Generating executive summary..."):
+                try:
+                    pdf_buffer = generate_executive_summary_pdf_robust(
+                        results,
+                        st.session_state.migration_params
+                    )
+                    
+                    if pdf_buffer:
+                        st.download_button(
+                            label="📥 Download Executive Summary",
+                            data=pdf_buffer.getvalue(),
+                            file_name=f"AWS_Migration_Executive_Summary_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                    else:
+                        st.error("Failed to generate PDF")
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
+    
+    with col2:
+        st.markdown("#### 🔧 Technical Report")
+        st.markdown("Detailed technical analysis for architects and engineers")
+        st.markdown("**Includes:**")
+        st.markdown("• Environment specifications")
+        st.markdown("• Instance recommendations")
+        st.markdown("• Detailed cost breakdown")
+        st.markdown("• Technical considerations")
+        
+        if st.button("📄 Generate Technical PDF", key="tech_pdf", use_container_width=True):
+            with st.spinner("Generating technical report..."):
+                try:
+                    pdf_buffer = generate_technical_report_pdf_robust(
+                        results,
+                        recommendations,
+                        st.session_state.migration_params
+                    )
+                    
+                    if pdf_buffer:
+                        st.download_button(
+                            label="📥 Download Technical Report",
+                            data=pdf_buffer.getvalue(),
+                            file_name=f"AWS_Migration_Technical_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                    else:
+                        st.error("Failed to generate PDF")
+                except Exception as e:
+                    st.error(f"Error generating PDF: {str(e)}")
+    
+    with col3:
+        st.markdown("#### 📊 Data Export")
+        st.markdown("Raw data for further analysis")
+        st.markdown("**Includes:**")
+        st.markdown("• Cost analysis data")
+        st.markdown("• Environment specifications")
+        st.markdown("• Risk assessment data")
+        st.markdown("• Recommendations")
+        
+        if st.button("📊 Export Data (CSV)", key="csv_export", use_container_width=True):
+            try:
+                # Prepare CSV data
+                csv_data = prepare_csv_export_data(results, recommendations)
+                
+                if csv_data:
+                    csv_string = csv_data.to_csv(index=False)
+                    
+                    st.download_button(
+                        label="📥 Download CSV Data",
+                        data=csv_string,
+                        file_name=f"AWS_Migration_Analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                else:
+                    st.error("No data available for export")
+            except Exception as e:
+                st.error(f"Error preparing CSV: {str(e)}")
+    
+    # Bulk download option
+    st.markdown("---")
+    st.markdown("### 📦 Bulk Download")
+    
+    if st.button("📊 Generate All Reports", key="bulk_reports", use_container_width=True):
+        with st.spinner("Generating all reports... This may take a moment..."):
+            try:
+                # Create ZIP file with all reports
+                zip_buffer = create_bulk_reports_zip(results, recommendations, st.session_state.migration_params)
+                
+                if zip_buffer:
+                    st.download_button(
+                        label="📥 Download All Reports (ZIP)",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"AWS_Migration_Complete_Analysis_{datetime.now().strftime('%Y%m%d')}.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
+                else:
+                    st.error("Failed to generate reports package")
+            except Exception as e:
+                st.error(f"Error generating bulk reports: {str(e)}")
+
+def prepare_csv_export_data(results, recommendations):
+    """Prepare CSV data for export"""
+    try:
+        env_costs = results.get('environment_costs', {})
+        if not env_costs:
+            return None
+        
+        csv_data = []
+        for env_name, costs in env_costs.items():
+            # Handle both enhanced and regular cost structures
+            if isinstance(costs, dict):
+                # Get cost components safely
+                instance_cost = costs.get('instance_cost', costs.get('writer_instance_cost', 0))
+                storage_cost = costs.get('storage_cost', 0)
+                backup_cost = costs.get('backup_cost', 0)
+                total_monthly = costs.get('total_monthly', 0)
+                
+                # Additional enhanced fields
+                reader_costs = costs.get('reader_costs', 0)
+                reader_count = costs.get('reader_count', 0)
+                
+                csv_data.append({
+                    'Environment': env_name,
+                    'Instance_Cost': instance_cost,
+                    'Reader_Costs': reader_costs,
+                    'Reader_Count': reader_count,
+                    'Storage_Cost': storage_cost,
+                    'Backup_Cost': backup_cost,
+                    'Total_Monthly': total_monthly,
+                    'Total_Annual': total_monthly * 12
+                })
+        
+        if csv_data:
+            return pd.DataFrame(csv_data)
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Error preparing CSV data: {e}")
+        return None
+
+def generate_executive_summary_pdf_robust(results, migration_params):
+    """Generate executive summary PDF - ROBUST VERSION"""
+    
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1*inch, bottomMargin=1*inch)
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            spaceAfter=30,
+            textColor=colors.HexColor('#2d3748'),
+            alignment=1
+        )
+        
+        story = []
+        
+        # Title and header
+        story.append(Paragraph("AWS Database Migration Analysis", title_style))
+        story.append(Paragraph("Executive Summary Report", styles['Heading2']))
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y')}", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Key metrics table
+        migration_costs = results.get('migration_costs', {})
+        
+        metrics_data = [
+            ['Metric', 'Value', 'Impact'],
+            ['Monthly AWS Cost', f"${results.get('monthly_aws_cost', 0):,.0f}", 'Operational'],
+            ['Annual AWS Cost', f"${results.get('annual_aws_cost', results.get('monthly_aws_cost', 0) * 12):,.0f}", 'Budget Planning'],
+            ['Migration Investment', f"${migration_costs.get('total', 0):,.0f}", 'One-time'],
+            ['ROI Timeline', '18-24 months', 'Financial'],
+            ['Risk Level', 'Medium', 'Manageable']
+        ]
+        
+        metrics_table = Table(metrics_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+        metrics_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(metrics_table)
+        story.append(Spacer(1, 20))
+        
+        # Recommendations
+        story.append(Paragraph("Key Recommendations", styles['Heading2']))
+        
+        recommendations = [
+            "Proceed with phased migration approach starting with non-production environments",
+            "Implement AWS DMS for initial data synchronization", 
+            "Plan for 12-16 week migration timeline with 2-week buffer",
+            "Establish comprehensive testing protocols for each environment",
+            "Consider Aurora for production workloads to optimize performance and cost"
+        ]
+        
+        for rec in recommendations:
+            story.append(Paragraph(f"• {rec}", styles['Normal']))
+            story.append(Spacer(1, 6))
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        print(f"Error generating executive PDF: {e}")
+        return None
+
+def generate_technical_report_pdf_robust(results, recommendations, migration_params):
+    """Generate technical report PDF - ROBUST VERSION"""
+    
+    try:
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.75*inch, bottomMargin=0.75*inch)
+        
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Title
+        story.append(Paragraph("AWS Database Migration - Technical Report", styles['Title']))
+        story.append(Spacer(1, 20))
+        
+        # Migration parameters
+        story.append(Paragraph("Migration Configuration", styles['Heading2']))
+        
+        config_data = [
+            ['Parameter', 'Value'],
+            ['Source Engine', migration_params.get('source_engine', 'N/A')],
+            ['Target Engine', migration_params.get('target_engine', 'N/A')],
+            ['Data Size', f"{migration_params.get('data_size_gb', 0):,} GB"],
+            ['Timeline', f"{migration_params.get('migration_timeline_weeks', 0)} weeks"],
+            ['Environments', str(len(recommendations)) if recommendations else '0'],
+        ]
+        
+        config_table = Table(config_data, colWidths=[2.5*inch, 2*inch])
+        config_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#4a5568')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        
+        story.append(config_table)
+        story.append(Spacer(1, 20))
+        
+        # Environment recommendations if available
+        if recommendations:
+            story.append(Paragraph("Environment Recommendations", styles['Heading2']))
+            
+            env_data = [['Environment', 'Instance Class', 'Configuration', 'Multi-AZ']]
+            
+            for env_name, rec in recommendations.items():
+                if 'writer' in rec:  # Enhanced recommendations
+                    instance_class = rec['writer']['instance_class']
+                    config = f"Writer + {rec['readers']['count']} readers"
+                    multi_az = 'Yes' if rec['writer']['multi_az'] else 'No'
+                else:  # Regular recommendations
+                    instance_class = rec.get('instance_class', 'N/A')
+                    config = f"{rec.get('cpu_cores', 'N/A')} cores, {rec.get('ram_gb', 'N/A')} GB"
+                    multi_az = 'Yes' if rec.get('multi_az', False) else 'No'
+                
+                env_data.append([env_name, instance_class, config, multi_az])
+            
+            env_table = Table(env_data)
+            env_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#38a169')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ]))
+            
+            story.append(env_table)
+        
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        print(f"Error generating technical PDF: {e}")
+        return None
+
+def create_bulk_reports_zip(results, recommendations, migration_params):
+    """Create ZIP file with all reports"""
+    
+    try:
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Executive summary
+            exec_pdf = generate_executive_summary_pdf_robust(results, migration_params)
+            if exec_pdf:
+                zip_file.writestr(
+                    f"Executive_Summary_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    exec_pdf.getvalue()
+                )
+            
+            # Technical report
+            tech_pdf = generate_technical_report_pdf_robust(results, recommendations, migration_params)
+            if tech_pdf:
+                zip_file.writestr(
+                    f"Technical_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    tech_pdf.getvalue()
+                )
+            
+            # CSV data
+            csv_data = prepare_csv_export_data(results, recommendations)
+            if csv_data is not None:
+                zip_file.writestr(
+                    f"Migration_Analysis_Data_{datetime.now().strftime('%Y%m%d')}.csv",
+                    csv_data.to_csv(index=False)
+                )
+        
+        zip_buffer.seek(0)
+        return zip_buffer
+        
+    except Exception as e:
+        print(f"Error creating ZIP file: {e}")
+        return None
 
 # Enhanced Environment Setup Interface
 def show_enhanced_environment_setup_with_cluster_config():
