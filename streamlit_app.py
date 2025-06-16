@@ -3857,8 +3857,8 @@ def main():
         else:
             st.info("ℹ️ Network analysis pending")
         
-         if st.session_state.vrops_analysis:
-                st.success("✅ vROps analysis complete")
+        if st.session_state.vrops_analysis:
+            st.success("✅ vROps analysis complete")
             
             # Show health scores
             health_scores = []
