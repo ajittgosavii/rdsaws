@@ -1128,7 +1128,7 @@ def _create_financial_analysis(self, analysis_results, analysis_mode):
        
        return story
    
-   def _create_migration_strategy(self):
+def _create_migration_strategy(self):
        """Create migration strategy section"""
        story = []
        
