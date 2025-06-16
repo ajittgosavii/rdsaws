@@ -6117,18 +6117,18 @@ def show_network_recommendations(transfer_analysis: Dict):
         for risk in risks:
             st.markdown(f"• {risk}")
 
-def show_pattern_comparison(transfer_analysis: Dict):
+ddef show_pattern_comparison(transfer_analysis: Dict):
     """Show pattern comparison visualizations"""
     
     st.markdown("### 📊 Network Pattern Comparison")
     
     # Comparison chart
     comparison_fig = create_network_comparison_chart(transfer_analysis)
-    st.plotly_chart(comparison_fig, use_container_width=True)
+    st.plotly_chart(comparison_fig, use_container_width=True, key="network_comparison_chart")
     
     # Cost vs Duration optimization
     optimization_fig = create_cost_duration_optimization_chart(transfer_analysis)
-    st.plotly_chart(optimization_fig, use_container_width=True)
+    st.plotly_chart(optimization_fig, use_container_width=True, key="cost_duration_optimization_chart")
     
     # Detailed comparison table
     st.markdown("#### 📋 Detailed Metrics Comparison")
@@ -6155,6 +6155,171 @@ def show_pattern_comparison(transfer_analysis: Dict):
     
     comparison_df = pd.DataFrame(comparison_data)
     st.dataframe(comparison_df, use_container_width=True)
+
+def show_network_timeline_analysis(transfer_analysis: Dict):
+    """Show network timeline analysis"""
+    
+    st.markdown("### ⏱️ Timeline Analysis")
+    
+    recommendations = transfer_analysis.get('recommendations', {})
+    timeline_impact = recommendations.get('timeline_impact', {})
+    
+    if timeline_impact:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fastest = timeline_impact.get('fastest_option', {})
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #38a169;">
+                <div class="metric-value" style="color: #38a169;">
+                    ⚡ Fastest Option
+                </div>
+                <div class="metric-label">{fastest.get('pattern', 'N/A')}</div>
+                <div style="margin-top: 10px;">
+                    Duration: {fastest.get('duration_days', 0):.1f} days<br>
+                    Timeline Usage: {fastest.get('timeline_utilization', 'N/A')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            slowest = timeline_impact.get('slowest_option', {})
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #e53e3e;">
+                <div class="metric-value" style="color: #e53e3e;">
+                    🐌 Slowest Option
+                </div>
+                <div class="metric-label">{slowest.get('pattern', 'N/A')}</div>
+                <div style="margin-top: 10px;">
+                    Duration: {slowest.get('duration_days', 0):.1f} days<br>
+                    Timeline Usage: {slowest.get('timeline_utilization', 'N/A')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.info(f"💡 {timeline_impact.get('recommendation', '')}")
+    
+    # Timeline comparison chart
+    patterns = []
+    durations = []
+    colors = []
+    
+    migration_timeline_days = st.session_state.migration_params.get('migration_timeline_weeks', 12) * 7
+    
+    for pattern_id, metrics in transfer_analysis.items():
+        if pattern_id == 'recommendations':
+            continue
+            
+        analyzer = NetworkTransferAnalyzer()
+        pattern_info = analyzer.transfer_patterns[pattern_id]
+        
+        patterns.append(pattern_info['name'])
+        durations.append(metrics['transfer_time_days'])
+        
+        # Color based on timeline fit
+        if metrics['transfer_time_days'] <= migration_timeline_days * 0.3:
+            colors.append('green')
+        elif metrics['transfer_time_days'] <= migration_timeline_days * 0.5:
+            colors.append('orange')
+        else:
+            colors.append('red')
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=patterns,
+        y=durations,
+        marker_color=colors,
+        text=[f"{d:.1f} days" for d in durations],
+        textposition='auto'
+    ))
+    
+    # Add timeline constraint line
+    fig.add_hline(
+        y=migration_timeline_days * 0.3,
+        line_dash="dash",
+        line_color="green",
+        annotation_text="Recommended (30% of timeline)"
+    )
+    
+    fig.update_layout(
+        title='Transfer Duration vs Timeline Constraints',
+        xaxis_title='Network Pattern',
+        yaxis_title='Duration (days)',
+        height=500,
+        xaxis_tickangle=-45
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key="network_timeline_chart")
+
+def show_network_architecture(transfer_analysis: Dict):
+    """Show network architecture diagrams"""
+    
+    st.markdown("### 🏗️ Network Architecture")
+    
+    # Pattern selector
+    analyzer = NetworkTransferAnalyzer()
+    pattern_options = list(analyzer.transfer_patterns.keys())
+    pattern_names = [analyzer.transfer_patterns[p]['name'] for p in pattern_options]
+    
+    selected_pattern_name = st.selectbox(
+        "Select Pattern to Visualize",
+        pattern_names
+    )
+    
+    selected_pattern_id = pattern_options[pattern_names.index(selected_pattern_name)]
+    
+    # Architecture diagram
+    arch_fig = create_network_architecture_diagram(selected_pattern_id)
+    st.plotly_chart(arch_fig, use_container_width=True, key="network_architecture_chart")
+    
+    # Pattern details
+    pattern_info = analyzer.transfer_patterns[selected_pattern_id]
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 🔧 Components")
+        for component in pattern_info['components']:
+            st.markdown(f"• {component}")
+    
+    with col2:
+        st.markdown("#### 📋 Use Cases")
+        for use_case in pattern_info['use_cases']:
+            st.markdown(f"• {use_case}")
+    
+    # Pros and Cons
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### ✅ Advantages")
+        for pro in pattern_info['pros']:
+            st.markdown(f"• {pro}")
+    
+    with col2:
+        st.markdown("#### ⚠️ Considerations")
+        for con in pattern_info['cons']:
+            st.markdown(f"• {con}")
+    
+    # Technical specifications
+    if selected_pattern_id in transfer_analysis:
+        metrics = transfer_analysis[selected_pattern_id]
+        
+        st.markdown("#### 📊 Performance Metrics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Bandwidth Utilization", f"{metrics['bandwidth_utilization']}%")
+        
+        with col2:
+            st.metric("Reliability Score", f"{metrics['reliability_score']}/100")
+        
+        with col3:
+            st.metric("Security Score", f"{metrics['security_score']}/100")
+        
+        with col4:
+            st.metric("Complexity Level", pattern_info['complexity'])
 
 def show_network_cost_analysis(transfer_analysis: Dict):
     """Show detailed network cost analysis"""
@@ -7220,6 +7385,79 @@ def show_growth_analysis_dashboard():
             delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
         )
 
+     # Growth Projection Charts
+    st.markdown("#### 📊 Growth Projections")
+    
+    try:
+        charts = create_growth_projection_charts(growth_analysis)
+        
+        # Display charts with unique keys
+        for i, chart in enumerate(charts):
+            st.plotly_chart(chart, use_container_width=True, key=f"growth_chart_{i}")
+            
+    except Exception as e:
+        st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Show basic growth table instead
+        st.markdown("#### 📈 Year-by-Year Projections")
+        projections = growth_analysis['yearly_projections']
+        
+        years_data = []
+        for year in range(4):
+            year_data = projections[f'year_{year}']
+            years_data.append({
+                'Year': f'Year {year}' if year > 0 else 'Current',
+                'Monthly Cost': f"${year_data['total_monthly']:,.0f}",
+                'Annual Cost': f"${year_data['total_annual']:,.0f}",
+                'Peak Cost': f"${year_data['peak_annual']:,.0f}"
+            })
+        
+        st.table(years_data)
+    
+    # Scaling Recommendations
+    st.markdown("#### 🎯 Scaling Recommendations")
+    
+    recommendations = growth_analysis.get('scaling_recommendations', [])
+    
+    if recommendations:
+        for rec in recommendations:
+            priority_color = {
+                'High': '#e53e3e',
+                'Medium': '#d69e2e',
+                'Low': '#38a169'
+            }.get(rec['priority'], '#666666')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {priority_color}; padding: 15px; margin: 10px 0; background: {priority_color}22;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: {priority_color};">{rec['type']} (Year {rec['year']})</strong><br>
+                        {rec['description']}<br>
+                        <em>Action: {rec['action']}</em>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Priority: {rec['priority']}</strong><br>
+                        <span style="color: #38a169;">Potential Savings: ${rec['estimated_savings']:,.0f}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical scaling issues identified in the 3-year projection.")
+        
+        # Show default recommendations
+        st.markdown("#### 💡 General Growth Recommendations")
+        default_recommendations = [
+            "📊 **Monitor growth trends** - Track actual vs projected growth quarterly",
+            "💰 **Reserved Instances** - Consider 1-3 year commitments for 30-40% savings",
+            "🔄 **Auto-scaling** - Implement auto-scaling for variable workloads",
+            "📈 **Capacity planning** - Review and adjust capacity every 6 months",
+            "🗄️ **Data lifecycle** - Implement archiving for older data to reduce storage costs"
+        ]
+        
+        for rec in default_recommendations:
+            st.markdown(rec)
+    
 
 def show_risk_assessment_tab():
     """Show risk assessment results"""
@@ -7271,10 +7509,14 @@ def show_visualizations_tab():
         return
     
     try:
+        # Cost comparison chart
         results = st.session_state.analysis_results
+        
+        # Create simple cost visualization
         env_costs = results.get('environment_costs', {})
         
         if env_costs:
+            # Environment cost comparison
             env_names = []
             monthly_costs = []
             
@@ -7301,7 +7543,22 @@ def show_visualizations_tab():
                     height=400
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_chart")
+        
+        # Growth visualization if available
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            st.markdown("#### 📈 Growth Projections")
+            try:
+                charts = create_growth_projection_charts(st.session_state.growth_analysis)
+                for i, chart in enumerate(charts):
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
+            except Exception as e:
+                st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.markdown("#### 💎 Enhanced Cost Analysis")
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_chart")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
