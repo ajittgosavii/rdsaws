@@ -1038,36 +1038,36 @@ class ImprovedReportGenerator:
                             total_recommended_storage += result.get('storage_GB', 0)
        
        # Create aggregate comparison table
-       subsection_style = self.safe_get_style('SubsectionHeader', 'Heading2')
-       story.append(Paragraph("Aggregate Resource Comparison", subsection_style))
-       story.append(Spacer(1, 10))
-       
-       aggregate_data = [
-           ['Resource Type', 'Current Total', 'Recommended Total', 'Efficiency Gain'],
-           ['Total vCPUs', f"{total_current_cpu}", f"{total_recommended_cpu}", f"{((total_recommended_cpu/max(total_current_cpu,1))-1)*100:+.1f}%"],
-           ['Total RAM (GB)', f"{total_current_ram:,}", f"{total_recommended_ram:,}", f"{((total_recommended_ram/max(total_current_ram,1))-1)*100:+.1f}%"],
-           ['Total Storage (GB)', f"{total_current_storage:,}", f"{total_recommended_storage:,}", f"{((total_recommended_storage/max(total_current_storage,1))-1)*100:+.1f}%"],
-           ['Server Count', f"{len(server_specs) if server_specs else 0}", f"{successful_count}", f"{(successful_count/max(len(server_specs) if server_specs else 1,1))*100:.0f}% success"]
-       ]
-       
-       aggregate_table = Table(aggregate_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
-       aggregate_table.setStyle(TableStyle([
-           ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
-           ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-           ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-           ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-           ('FONTSIZE', (0, 0), (-1, 0), 11),
-           ('FONTSIZE', (0, 1), (-1, -1), 10),
-           ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-           ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
-           ('GRID', (0, 0), (-1, -1), 1, colors.black),
-           ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-           ('TOPPADDING', (0, 0), (-1, -1), 8),
-           ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-       ]))
-       story.append(aggregate_table)
-       
-       return story
+        subsection_style = self.safe_get_style('SubsectionHeader', 'Heading2')
+        story.append(Paragraph("Aggregate Resource Comparison", subsection_style))
+        story.append(Spacer(1, 10))
+            
+        aggregate_data = [
+                ['Resource Type', 'Current Total', 'Recommended Total', 'Efficiency Gain'],
+                ['Total vCPUs', f"{total_current_cpu}", f"{total_recommended_cpu}", f"{((total_recommended_cpu/max(total_current_cpu,1))-1)*100:+.1f}%"],
+                ['Total RAM (GB)', f"{total_current_ram:,}", f"{total_recommended_ram:,}", f"{((total_recommended_ram/max(total_current_ram,1))-1)*100:+.1f}%"],
+                ['Total Storage (GB)', f"{total_current_storage:,}", f"{total_recommended_storage:,}", f"{((total_recommended_storage/max(total_current_storage,1))-1)*100:+.1f}%"],
+                ['Server Count', f"{len(server_specs) if server_specs else 0}", f"{successful_count}", f"{(successful_count/max(len(server_specs) if server_specs else 1,1))*100:.0f}% success"]
+                        ]
+            
+            aggregate_table = Table(aggregate_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+            aggregate_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+            story.append(aggregate_table)
+        
+    return story
    
    def _create_financial_analysis(self, analysis_results, analysis_mode):
        """Create improved financial analysis section"""
