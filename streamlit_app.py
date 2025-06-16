@@ -4813,7 +4813,7 @@ def calculate_migration_risks(migration_params: Dict, recommendations: Dict) -> 
     }
 
     
-        return {
+    return {
             'overall_score': 50,
             'risk_level': {'level': 'Medium', 'color': '#d69e2e', 'action': 'Active monitoring recommended'},
             'technical_risks': {
