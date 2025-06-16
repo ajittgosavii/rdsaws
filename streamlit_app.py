@@ -1023,21 +1023,20 @@ class ImprovedReportGenerator:
         total_recommended_cpu = 0
         total_recommended_ram = 0
         total_recommended_storage = 0
-        successful_count = 0
-        
+        successful_count = 0        
        for server_results in analysis_results.values():
            if 'error' not in server_results:
                result = server_results.get('PROD', list(server_results.values())[0])
-               if 'error' not in result:
-                   successful_count += 1
-                   if 'writer' in result:
-                       writer = result['writer']
-                       total_recommended_cpu += writer.get('actual_vCPUs', 0)
-                       total_recommended_ram += writer.get('actual_RAM_GB', 0)
-                   else:
-                       total_recommended_cpu += result.get('actual_vCPUs', 0)
-                       total_recommended_ram += result.get('actual_RAM_GB', 0)
-                   total_recommended_storage += result.get('storage_GB', 0)
+                    if 'error' not in result:
+                        successful_count += 1
+                        if 'writer' in result:
+                            writer = result['writer']
+                            total_recommended_cpu += writer.get('actual_vCPUs', 0)
+                            total_recommended_ram += writer.get('actual_RAM_GB', 0)
+                        else:
+                            total_recommended_cpu += result.get('actual_vCPUs', 0)
+                            total_recommended_ram += result.get('actual_RAM_GB', 0)
+                            total_recommended_storage += result.get('storage_GB', 0)
        
        # Create aggregate comparison table
        subsection_style = self.safe_get_style('SubsectionHeader', 'Heading2')
