@@ -1,0 +1,35 @@
+# MINIMAL REQUIREMENTS - Core functionality only
+
+# Core Streamlit Framework
+streamlit>=1.28.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualizations
+plotly>=5.15.0
+kaleido>=0.2.1
+
+# AWS Integration
+boto3>=1.28.0
+
+# AI Integration (Optional - for AI insights)
+anthropic>=0.3.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# PDF Generation
+reportlab>=4.0.0
+Pillow>=10.0.0
+
+# File Processing
+openpyxl>=3.1.0
+
+# Authentication and Security
+bcrypt>=4.0.0
+PyJWT>=2.8.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
