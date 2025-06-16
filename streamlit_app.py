@@ -336,14 +336,7 @@ class MigrationAnalyzer:
             'direct_connect': dx_cost,
             'total': min(internet_cost, dx_cost)
         }
-        except Exception as e:
-            print(f"Error calculating transfer costs: {e}")
-            return {
-                'internet': data_size_gb * 0.09,
-                'direct_connect': data_size_gb * 0.02,
-                'total': data_size_gb * 0.02
-            }
-
+        
 class ImprovedReportGenerator:
     """Enhanced PDF Report Generator with Better Formatting and Layout"""
     
