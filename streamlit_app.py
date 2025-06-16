@@ -8631,33 +8631,33 @@ def show_results_dashboard():
         "📅 Timeline"
     ])
 
-with tab1:
-    show_basic_cost_summary()
-    
-with tab2:
-    show_growth_analysis_dashboard()
-    
-with tab3:
-    if has_enhanced_results:
-        show_enhanced_cost_analysis()
-    else:
-        st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
-        show_basic_cost_summary()
+        with tab1:
+            show_basic_cost_summary()
+            
+        with tab2:
+            show_growth_analysis_dashboard()
+            
+        with tab3:
+            if has_enhanced_results:
+                show_enhanced_cost_analysis()
+            else:
+                st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
+                show_basic_cost_summary()
 
-with tab4:
-    show_risk_assessment_tab()
+        with tab4:
+            show_risk_assessment_tab()
 
-with tab5:
-    show_environment_analysis_tab()
+        with tab5:
+            show_environment_analysis_tab()
 
-with tab6:
-    show_visualizations_tab()
+        with tab6:
+            show_visualizations_tab()
 
-with tab7:
-    show_ai_insights_tab()
+        with tab7:
+            show_ai_insights_tab()
 
-with tab8:
-    show_timeline_analysis_tab()
+        with tab8:
+            show_timeline_analysis_tab()
 
 def show_basic_cost_summary():
     """Show basic cost summary from analysis results"""
