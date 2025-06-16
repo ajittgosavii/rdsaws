@@ -1065,7 +1065,7 @@ class ImprovedReportGenerator:
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ]))
-            story.append(aggregate_table)
+        story.append(aggregate_table)
         
     return story
    
