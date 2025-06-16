@@ -25,6 +25,119 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+class DatabaseEngine:
+    """Database engine definitions and compatibility matrix"""
+    
+    ENGINES = {
+        'oracle-ee': {
+            'name': 'Oracle Enterprise Edition',
+            'features': ['Advanced Analytics', 'Partitioning', 'Advanced Security', 'RAC'],
+            'aws_targets': ['oracle-ee', 'postgres', 'aurora-postgresql'],
+            'complexity_multiplier': 1.0
+        },
+        'oracle-se': {
+            'name': 'Oracle Standard Edition',
+            'features': ['Basic Analytics', 'Standard Security'],
+            'aws_targets': ['oracle-se', 'postgres', 'aurora-postgresql'],
+            'complexity_multiplier': 0.8
+        },
+        'postgres': {
+            'name': 'PostgreSQL',
+            'features': ['JSON Support', 'Advanced Indexing', 'Extensions'],
+            'aws_targets': ['postgres', 'aurora-postgresql'],
+            'complexity_multiplier': 0.5
+        },
+        'mysql': {
+            'name': 'MySQL',
+            'features': ['InnoDB', 'MyISAM', 'Replication'],
+            'aws_targets': ['mysql', 'aurora-mysql'],
+            'complexity_multiplier': 0.6
+        },
+        'sql-server': {
+            'name': 'Microsoft SQL Server',
+            'features': ['T-SQL', 'SSRS', 'SSIS', 'Analysis Services'],
+            'aws_targets': ['sql-server', 'postgres', 'aurora-postgresql'],
+            'complexity_multiplier': 1.2
+        },
+        'mariadb': {
+            'name': 'MariaDB',
+            'features': ['MySQL Compatibility', 'Columnar Storage'],
+            'aws_targets': ['mariadb', 'mysql', 'aurora-mysql'],
+            'complexity_multiplier': 0.4
+        },
+        'aurora-postgresql': {
+            'name': 'Amazon Aurora PostgreSQL',
+            'features': ['Auto-scaling', 'Global Database', 'Serverless'],
+            'aws_targets': ['aurora-postgresql'],
+            'complexity_multiplier': 0.3
+        },
+        'aurora-mysql': {
+            'name': 'Amazon Aurora MySQL',
+            'features': ['Auto-scaling', 'Global Database', 'Serverless'],
+            'aws_targets': ['aurora-mysql'],
+            'complexity_multiplier': 0.3
+        }
+    }
+    
+    @classmethod
+    def get_migration_type(cls, source_engine: str, target_engine: str) -> str:
+        """Determine migration type based on source and target engines"""
+        
+        if source_engine == target_engine:
+            return "homogeneous"
+        
+        # Check if engines are in the same family
+        mysql_family = ['mysql', 'mariadb', 'aurora-mysql']
+        postgres_family = ['postgres', 'aurora-postgresql']
+        oracle_family = ['oracle-ee', 'oracle-se']
+        
+        source_family = None
+        target_family = None
+        
+        for family in [mysql_family, postgres_family, oracle_family]:
+            if source_engine in family:
+                source_family = family
+            if target_engine in family:
+                target_family = family
+        
+        if source_family and source_family == target_family:
+            return "homogeneous"
+        else:
+            return "heterogeneous"
+    
+    @classmethod
+    def get_complexity_multiplier(cls, source_engine: str, target_engine: str) -> float:
+        """Get complexity multiplier for migration"""
+        
+        if source_engine == target_engine:
+            return 1.0
+        
+        # Base complexity from source engine
+        source_complexity = cls.ENGINES.get(source_engine, {}).get('complexity_multiplier', 1.0)
+        target_complexity = cls.ENGINES.get(target_engine, {}).get('complexity_multiplier', 1.0)
+        
+        # Additional complexity for heterogeneous migrations
+        migration_type = cls.get_migration_type(source_engine, target_engine)
+        
+        if migration_type == "heterogeneous":
+            if 'oracle' in source_engine and 'postgres' in target_engine:
+                return source_complexity * 2.5  # Oracle to PostgreSQL is complex
+            elif 'sql-server' in source_engine and 'postgres' in target_engine:
+                return source_complexity * 2.0  # SQL Server to PostgreSQL
+            else:
+                return source_complexity * 1.5  # Other heterogeneous migrations
+        else:
+            return max(source_complexity, target_complexity)
+    
+    @classmethod
+    def get_supported_features(cls, engine: str) -> list:
+        """Get supported features for an engine"""
+        return cls.ENGINES.get(engine, {}).get('features', [])
+    
+    @classmethod
+    def get_aws_targets(cls, source_engine: str) -> list:
+        """Get available AWS target engines for a source engine"""
+        return cls.ENGINES.get(source_engine, {}).get('aws_targets', [])
 # Page Configuration
 st.set_page_config(
     page_title="Enterprise AWS Database Migration Tool",
