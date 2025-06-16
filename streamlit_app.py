@@ -2679,6 +2679,120 @@ class GrowthAwareCostAnalyzer:
                 projections[f'year_{year}']['total_annual'] for year in range(4)
             ]) / 4
         }
+    
+    def _identify_growth_optimizations(self, projections: Dict) -> List[Dict]:
+        """Identify cost optimization opportunities based on growth projections"""
+        
+        optimizations = []
+        
+        year_0 = projections['year_0']
+        year_3 = projections['year_3']
+        
+        # Calculate growth rates for different cost components
+        total_growth = (year_3['total_annual'] / year_0['total_annual'] - 1) * 100
+        
+        # Storage optimization opportunities
+        storage_growth = 0
+        compute_growth = 0
+        env_count = len(year_0['environment_costs'])
+        
+        for env_name in year_0['environment_costs'].keys():
+            year_0_env = year_0['environment_costs'][env_name]
+            year_3_env = year_3['environment_costs'][env_name]
+            
+            storage_growth += year_3_env['resource_scaling']['storage_scaling']
+            compute_growth += year_3_env['resource_scaling']['compute_scaling']
+        
+        avg_storage_growth = storage_growth / env_count
+        avg_compute_growth = compute_growth / env_count
+        
+        # Generate optimization recommendations
+        if avg_storage_growth > 2.5:
+            optimizations.append({
+                'opportunity': 'Data Lifecycle Management',
+                'description': f"Storage projected to grow {avg_storage_growth:.1f}x over 3 years. Implement automated data archiving and tiering.",
+                'estimated_savings': year_3['total_annual'] * 0.15,
+                'implementation_effort': 'Medium',
+                'timeline': '3-6 months'
+            })
+        
+        if avg_compute_growth > 2.0:
+            optimizations.append({
+                'opportunity': 'Reserved Instance Strategy',
+                'description': f"Compute resources growing {avg_compute_growth:.1f}x. Reserved Instances can provide 30-60% savings.",
+                'estimated_savings': year_3['total_annual'] * 0.35,
+                'implementation_effort': 'Low',
+                'timeline': '1-2 months'
+            })
+        
+        if total_growth > 100:  # More than doubling
+            optimizations.append({
+                'opportunity': 'Architecture Optimization',
+                'description': f"Total costs growing {total_growth:.1f}% over 3 years. Consider microservices architecture and serverless components.",
+                'estimated_savings': year_3['total_annual'] * 0.25,
+                'implementation_effort': 'High',
+                'timeline': '6-12 months'
+            })
+        
+        # Seasonal optimization
+        peak_ratio = year_3['peak_annual'] / year_3['total_annual']
+        if peak_ratio > 1.3:  # 30% peak difference
+            optimizations.append({
+                'opportunity': 'Auto-scaling Implementation',
+                'description': f"Peak costs are {peak_ratio:.1f}x average. Auto-scaling can reduce costs during low-demand periods.",
+                'estimated_savings': (year_3['peak_annual'] - year_3['total_annual']) * 0.6,
+                'implementation_effort': 'Medium',
+                'timeline': '2-4 months'
+            })
+        
+        # Reader replica optimization
+        total_reader_scaling = sum([
+            env['resource_scaling']['recommended_reader_scaling'] 
+            for env in year_3['environment_costs'].values()
+        ])
+        
+        if total_reader_scaling > env_count * 2:  # More than 2 readers per environment on average
+            optimizations.append({
+                'opportunity': 'Read Replica Optimization',
+                'description': f"Projected to need {total_reader_scaling} total read replicas. Consider Aurora Serverless v2 for variable read workloads.",
+                'estimated_savings': year_3['total_annual'] * 0.12,
+                'implementation_effort': 'Low',
+                'timeline': '1-3 months'
+            })
+        
+        # If no specific optimizations found, provide general recommendations
+        if not optimizations:
+            optimizations.append({
+                'opportunity': 'Continuous Optimization',
+                'description': 'Implement regular cost reviews and right-sizing exercises every 6 months.',
+                'estimated_savings': year_3['total_annual'] * 0.10,
+                'implementation_effort': 'Low',
+                'timeline': 'Ongoing'
+            })
+        
+        return optimizations
+    
+    def _generate_growth_summary(self, projections: Dict) -> Dict:
+        """Generate growth summary statistics"""
+        
+        year_0 = projections['year_0']['total_annual']
+        year_3 = projections['year_3']['total_annual']
+        
+        total_growth = ((year_3 / year_0) - 1) * 100
+        cagr = ((year_3 / year_0) ** (1/3) - 1) * 100
+        
+        return {
+            'total_3_year_growth_percent': total_growth,
+            'compound_annual_growth_rate': cagr,
+            'year_0_cost': year_0,
+            'year_3_cost': year_3,
+            'total_3_year_investment': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]),
+            'average_annual_cost': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]) / 4
+        }
 
 class VRopsMetricsAnalyzer:
     """Comprehensive vROps metrics analysis for accurate AWS sizing"""
