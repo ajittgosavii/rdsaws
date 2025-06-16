@@ -323,22 +323,52 @@ class MigrationAnalyzer:
             'transfer_costs': transfer_costs
         }
     
-    async def generate_ai_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate AI insights (optional, requires API key)"""
+    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+    """Generate REAL Claude AI insights synchronously"""
+    
+    if not self.anthropic_api_key:
+        return {'error': 'No Anthropic API key provided', 'source': 'Error'}
+    
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=self.anthropic_api_key)
         
-        if not self.anthropic_api_key:
-            return {'error': 'No API key provided'}
+        context = f"""
+        You are an AWS database migration expert. Analyze this project:
         
-        try:
-            # Simple insights without actual API call for now
-            insights = {
-                'cost_efficiency': f"Monthly AWS cost of ${cost_analysis['monthly_aws_cost']:,.0f} represents efficient cloud migration",
-                'migration_strategy': f"Recommended {migration_params.get('migration_timeline_weeks', 12)}-week timeline is appropriate for this scale",
-                'risk_assessment': "Migration complexity is manageable with proper planning and resources"
-            }
-            return insights
-        except Exception as e:
-            return {'error': str(e)}
+        MIGRATION: {migration_params.get('source_engine')} → {migration_params.get('target_engine')}
+        DATA SIZE: {migration_params.get('data_size_gb', 0):,} GB
+        TIMELINE: {migration_params.get('migration_timeline_weeks', 0)} weeks
+        MONTHLY COST: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
+        MIGRATION COST: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
+        
+        Provide specific insights for:
+        1. Top 3 migration risks and how to mitigate them
+        2. Cost optimization opportunities
+        3. Timeline feasibility and recommendations
+        4. Technical considerations for this specific database migration
+        
+        Be concise but actionable.
+        """
+        
+        message = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1500,
+            temperature=0.3,
+            messages=[{"role": "user", "content": context}]
+        )
+        
+        return {
+            'ai_analysis': message.content[0].text,
+            'source': 'Claude AI (Real)',
+            'model': 'claude-3-sonnet-20240229',
+            'success': True
+        }
+        
+    except ImportError:
+        return {'error': 'Run: pip install anthropic', 'source': 'Library Error', 'success': False}
+    except Exception as e:
+        return {'error': f'Claude AI failed: {str(e)}', 'source': 'API Error', 'success': False}
     
     def _categorize_environment(self, env_name: str) -> str:
         """Categorize environment type from name"""
@@ -6384,11 +6414,12 @@ def run_migration_analysis_robust():
         if anthropic_api_key:
             st.write("🤖 Generating AI insights...")
             try:
-                ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
-                st.session_state.ai_insights = ai_insights
-            except Exception as e:
-                st.warning(f"AI insights generation failed: {str(e)}")
-                st.session_state.ai_insights = {'error': str(e)}
+                ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
+                if ai_insights.get('success'):
+    st.success("✅ Real Claude AI analysis complete!")
+    st.info(f"Model: {ai_insights.get('model', 'Unknown')}")
+else:
+    st.warning(f"⚠️ Claude AI failed: {ai_insights.get('error')}")
         
         st.success("✅ Analysis complete!")
         
@@ -6791,6 +6822,45 @@ def initialize_session_state():
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
+def test_claude_ai_connection():
+    """Test Claude AI integration"""
+    
+    st.markdown("### 🧪 Test Claude AI Connection")
+    
+    api_key = st.text_input("Enter Anthropic API Key:", type="password")
+    
+    if st.button("🤖 Test Claude AI"):
+        if not api_key:
+            st.error("Please enter an API key")
+            return
+        
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            
+            with st.spinner("Testing Claude AI..."):
+                message = client.messages.create(
+                    model="claude-3-sonnet-20240229",
+                    max_tokens=100,
+                    messages=[{
+                        "role": "user",
+                        "content": "This is a test. Please respond: 'Claude AI is working correctly!'"
+                    }]
+                )
+                
+                response = message.content[0].text
+                
+                if "working correctly" in response.lower():
+                    st.success("✅ Claude AI is working!")
+                    st.info(f"Response: {response}")
+                else:
+                    st.warning("⚠️ Unexpected response")
+                    st.write(response)
+                    
+        except ImportError:
+            st.error("❌ Run: pip install anthropic")
+        except Exception as e:
+            st.error(f"❌ Test failed: {str(e)}")
 
 def main():
     """Main Streamlit application"""
