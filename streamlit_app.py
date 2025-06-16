@@ -3940,7 +3940,7 @@ def initialize_session_state():
         'analysis_results': None,
         'recommendations': None,
         'risk_assessment': None,
-        'ai_insights': None
+        'ai_insights': None,
         # ADD THESE NEW LINES:
         'enhanced_recommendations': None,
         'enhanced_analysis_results': None,
