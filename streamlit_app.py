@@ -8176,18 +8176,18 @@ def main():
             if health_scores:
                 avg_health = sum(health_scores) / len(health_scores)
                 st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-        else:
+    else:
             st.info("ℹ️ vROps analysis pending")
         
         # Debug info (optional)
-        if st.checkbox("🐛 Show Debug Info"):
+    if st.checkbox("🐛 Show Debug Info"):
             st.markdown("### Debug Information")
             st.write("Environment specs:", bool(st.session_state.environment_specs))
             st.write("Migration params:", bool(st.session_state.migration_params))
             st.write("Analysis results:", bool(st.session_state.analysis_results))
             st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
             
-            if st.session_state.environment_specs:
+    if st.session_state.environment_specs:
                 st.write("Num environments:", len(st.session_state.environment_specs))
                 st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
     
