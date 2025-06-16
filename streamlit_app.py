@@ -188,18 +188,7 @@ class MigrationAnalyzer:
             env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
             environment_costs[env_name] = env_costs
             total_monthly_cost += env_costs['total_monthly']
-        except Exception as e:
-                print(f"Error calculating costs for {env_name}: {e}")
-                # Add default cost
-                default_cost = {
-                    'instance_cost': 200,
-                    'storage_cost': 100,
-                    'backup_cost': 20,
-                    'total_monthly': 320
-                }
-                environment_costs[env_name] = default_cost
-                total_monthly_cost += default_cost['total_monthly']
-        
+               
         
         # Migration service costs
         data_size_gb = migration_params.get('data_size_gb', 1000)
