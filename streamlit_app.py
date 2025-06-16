@@ -7044,7 +7044,7 @@ def show_results_dashboard():
 
     with tab9:
         show_timeline_analysis_tab()
-
+        
 # Alternative simplified version if the above still has issues
 def show_results_dashboard_simple():
     """Simplified results dashboard to avoid indentation issues"""
