@@ -841,7 +841,7 @@ class VRopsMetricsAnalyzer:
 # ENHANCED STREAMLIT INTERFACE
 # ===========================
 
-def show_enhanced_environment_setup_with_cluster_config()
+def show_enhanced_environment_setup_with_cluster_config():
     """Enhanced environment setup with comprehensive vROps metrics"""
     
     st.markdown("## 📊 Enhanced Environment Configuration with vROps Metrics")
