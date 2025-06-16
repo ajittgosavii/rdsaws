@@ -1023,7 +1023,7 @@ class ImprovedReportGenerator:
         total_recommended_ram = 0
         total_recommended_storage = 0
         successful_count = 0        
-            for server_results in analysis_results.values():
+        for server_results in analysis_results.values():
                 if 'error' not in server_results:
                     result = server_results.get('PROD', list(server_results.values())[0])
                             if 'error' not in result:
