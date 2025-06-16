@@ -323,7 +323,7 @@ class MigrationAnalyzer:
             'transfer_costs': transfer_costs
         }
     
-    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
     """Generate REAL Claude AI insights synchronously"""
     
     if not self.anthropic_api_key:
