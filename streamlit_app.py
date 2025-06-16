@@ -169,7 +169,7 @@ class MigrationAnalyzer:
                 'daily_usage_hours': specs.get('daily_usage_hours', 24),
                 'peak_connections': specs.get('peak_connections', 100)
             }
-             except Exception as e:
+            except Exception as e:
                 print(f"Error processing environment {env_name}: {e}")
                 # Add a default recommendation
                 recommendations[env_name] = {
