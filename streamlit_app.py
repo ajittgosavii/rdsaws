@@ -841,7 +841,7 @@ class VRopsMetricsAnalyzer:
 # ENHANCED STREAMLIT INTERFACE
 # ===========================
 
-def show_enhanced_environment_setup():
+def show_enhanced_environment_setup_with_cluster_config()
     """Enhanced environment setup with comprehensive vROps metrics"""
     
     st.markdown("## 📊 Enhanced Environment Configuration with vROps Metrics")
@@ -1606,153 +1606,222 @@ def integrate_enhanced_environment_module():
 # CORE CLASSES AND FUNCTIONS
 # ===========================
 
-class AWSPricingAPI:
-    """AWS Pricing API integration for real-time database pricing"""
+class EnhancedAWSPricingAPI:
+    """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
     
     def __init__(self):
         self.base_url = "https://pricing.us-east-1.amazonaws.com"
         self.cache = {}
         
-    def get_rds_pricing(self, region: str, engine: str, instance_class: str) -> Dict:
-        """Get RDS pricing for specific instance"""
-        cache_key = f"{region}_{engine}_{instance_class}"
+    def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
+        """Get RDS pricing for specific instance with Multi-AZ support"""
+        cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
         
         if cache_key in self.cache:
             return self.cache[cache_key]
         
-        # Simplified pricing data (in production, use actual AWS Pricing API)
+        # Enhanced pricing data with Multi-AZ and Aurora support
         pricing_data = {
             'us-east-1': {
                 'postgres': {
-                    'db.t3.micro': {'hourly': 0.0255, 'storage_gb': 0.115},
-                    'db.t3.small': {'hourly': 0.051, 'storage_gb': 0.115},
-                    'db.t3.medium': {'hourly': 0.102, 'storage_gb': 0.115},
-                    'db.t3.large': {'hourly': 0.204, 'storage_gb': 0.115},
-                    'db.r5.large': {'hourly': 0.24, 'storage_gb': 0.115},
-                    'db.r5.xlarge': {'hourly': 0.48, 'storage_gb': 0.115},
-                    'db.r5.2xlarge': {'hourly': 0.96, 'storage_gb': 0.115},
-                    'db.r5.4xlarge': {'hourly': 1.92, 'storage_gb': 0.115},
-                },
-                'oracle-ee': {
-                    'db.t3.medium': {'hourly': 0.408, 'storage_gb': 0.115},
-                    'db.r5.large': {'hourly': 0.96, 'storage_gb': 0.115},
-                    'db.r5.xlarge': {'hourly': 1.92, 'storage_gb': 0.115},
-                    'db.r5.2xlarge': {'hourly': 3.84, 'storage_gb': 0.115},
-                    'db.r5.4xlarge': {'hourly': 7.68, 'storage_gb': 0.115},
+                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.xlarge': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.8xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
                 },
                 'aurora-postgresql': {
-                    'db.r5.large': {'hourly': 0.29, 'storage_gb': 0.10},
-                    'db.r5.xlarge': {'hourly': 0.58, 'storage_gb': 0.10},
-                    'db.r5.2xlarge': {'hourly': 1.16, 'storage_gb': 0.10},
-                    'db.r5.4xlarge': {'hourly': 2.32, 'storage_gb': 0.10},
-                    'db.r5.8xlarge': {'hourly': 4.64, 'storage_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.12xlarge': {'hourly': 6.96, 'hourly_multi_az': 6.96, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.16xlarge': {'hourly': 9.28, 'hourly_multi_az': 9.28, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.24xlarge': {'hourly': 13.92, 'hourly_multi_az': 13.92, 'storage_gb': 0.10, 'io_request': 0.20},
+                },
+                'oracle-ee': {
+                    'db.t3.medium': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 7.68, 'hourly_multi_az': 15.36, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'mysql': {
+                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'aurora-mysql': {
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
                 }
             }
         }
         
-        result = pricing_data.get(region, {}).get(engine, {}).get(instance_class, 
-                                                                 {'hourly': 0.5, 'storage_gb': 0.115})
+        engine_pricing = pricing_data.get(region, {}).get(engine, {})
+        instance_pricing = engine_pricing.get(instance_class, {
+            'hourly': 0.5, 
+            'hourly_multi_az': 1.0, 
+            'storage_gb': 0.115, 
+            'iops_gb': 0.10,
+            'io_request': 0.20
+        })
+        
+        # Select appropriate pricing based on Multi-AZ
+        if multi_az and 'aurora' not in engine:
+            hourly_cost = instance_pricing['hourly_multi_az']
+        else:
+            hourly_cost = instance_pricing['hourly']
+        
+        result = {
+            'hourly': hourly_cost,
+            'storage_gb': instance_pricing['storage_gb'],
+            'iops_gb': instance_pricing.get('iops_gb', 0.10),
+            'io_request': instance_pricing.get('io_request', 0.20),
+            'is_aurora': 'aurora' in engine,
+            'multi_az': multi_az
+        }
+        
         self.cache[cache_key] = result
         return result
 
-class DatabaseEngine:
-    """Database engine configuration and compatibility"""
+class DatabaseClusterConfiguration:
+    """Enhanced database cluster configuration with Writer/Reader support"""
     
-    ENGINES = {
-        'oracle-ee': {
-            'name': 'Oracle Enterprise Edition',
-            'aws_targets': ['oracle-ee', 'postgres', 'aurora-postgresql'],
-            'migration_complexity': {'oracle-ee': 1.0, 'postgres': 2.5, 'aurora-postgresql': 2.0},
-            'features': ['ACID', 'Stored Procedures', 'Triggers', 'Views', 'Indexes']
-        },
-        'oracle-se': {
-            'name': 'Oracle Standard Edition',
-            'aws_targets': ['oracle-se2', 'postgres', 'aurora-postgresql'],
-            'migration_complexity': {'oracle-se2': 1.2, 'postgres': 2.3, 'aurora-postgresql': 1.8},
-            'features': ['ACID', 'Stored Procedures', 'Triggers', 'Views']
-        },
-        'postgres': {
-            'name': 'PostgreSQL',
-            'aws_targets': ['postgres', 'aurora-postgresql'],
-            'migration_complexity': {'postgres': 1.0, 'aurora-postgresql': 1.2},
-            'features': ['ACID', 'Extensions', 'JSON', 'Full-text Search']
-        },
-        'mysql': {
-            'name': 'MySQL',
-            'aws_targets': ['mysql', 'aurora-mysql'],
-            'migration_complexity': {'mysql': 1.0, 'aurora-mysql': 1.1},
-            'features': ['ACID', 'Replication', 'Partitioning']
+    @staticmethod
+    def calculate_optimal_readers(environment_type: str, workload_pattern: str, connections: int) -> int:
+        """Calculate optimal number of read replicas"""
+        
+        base_readers = {
+            'production': 2,
+            'staging': 1,
+            'testing': 1,
+            'development': 0
         }
-    }
-    
-    @classmethod
-    def get_migration_type(cls, source: str, target: str) -> str:
-        """Determine if migration is homogeneous or heterogeneous"""
-        if source == target:
-            return "homogeneous"
-        elif source.split('-')[0] == target.split('-')[0]:
-            return "homogeneous"
+        
+        # Adjust based on workload pattern
+        workload_multipliers = {
+            'read_heavy': 1.5,
+            'balanced': 1.0,
+            'write_heavy': 0.5,
+            'analytics': 2.0
+        }
+        
+        # Adjust based on connection count
+        if connections > 1000:
+            connection_factor = 1.5
+        elif connections > 500:
+            connection_factor = 1.2
         else:
-            return "heterogeneous"
+            connection_factor = 1.0
+        
+        optimal_readers = int(
+            base_readers.get(environment_type, 1) * 
+            workload_multipliers.get(workload_pattern, 1.0) * 
+            connection_factor
+        )
+        
+        return max(0, min(optimal_readers, 5))  # Cap at 5 readers
     
-    @classmethod
-    def get_complexity_multiplier(cls, source: str, target: str) -> float:
-        """Get complexity multiplier for migration"""
-        if source not in cls.ENGINES:
-            return 2.0
-        return cls.ENGINES[source]['migration_complexity'].get(target, 2.5)
-
-class MigrationAnalyzer:
-    """Core migration analysis engine with AI capabilities"""
+    @staticmethod
+    def recommend_reader_instance_size(writer_instance: str, read_ratio: float = 0.7) -> str:
+        """Recommend reader instance size based on writer and read ratio"""
+        
+        # Instance sizing hierarchy
+        instance_hierarchy = [
+            'db.t3.micro', 'db.t3.small', 'db.t3.medium', 'db.t3.large', 'db.t3.xlarge',
+            'db.r5.large', 'db.r5.xlarge', 'db.r5.2xlarge', 'db.r5.4xlarge', 'db.r5.8xlarge'
+        ]
+        
+        try:
+            writer_index = instance_hierarchy.index(writer_instance)
+            
+            # For heavy read workloads, readers might need to be same size or larger
+            if read_ratio > 0.8:
+                reader_index = writer_index
+            elif read_ratio > 0.5:
+                reader_index = max(0, writer_index - 1)
+            else:
+                reader_index = max(0, writer_index - 2)
+            
+            return instance_hierarchy[reader_index]
+            
+        except ValueError:
+            # If writer instance not in hierarchy, default to r5.large
+            return 'db.r5.large'
+class EnhancedMigrationAnalyzer:
+    """Enhanced migration analyzer with Writer/Reader and improved storage calculations"""
     
     def __init__(self, anthropic_api_key: Optional[str] = None):
-        self.pricing_api = AWSPricingAPI()
-        self.anthropic_client = None
+        self.pricing_api = EnhancedAWSPricingAPI()
+        self.cluster_config = DatabaseClusterConfiguration()
         
-        if anthropic_api_key:
-            try:
-                import anthropic
-                self.anthropic_client = anthropic.Anthropic(api_key=anthropic_api_key)
-            except Exception as e:
-                st.warning(f"AI client initialization failed: {e}")
-    
-    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate AWS instance recommendations based on current specs"""
+    def calculate_enhanced_instance_recommendations(self, environment_specs: Dict) -> Dict:
+        """Calculate enhanced AWS instance recommendations with Writer/Reader configuration"""
+        
         recommendations = {}
         
         for env_name, specs in environment_specs.items():
             cpu_cores = specs['cpu_cores']
             ram_gb = specs['ram_gb']
             storage_gb = specs['storage_gb']
+            connections = specs.get('peak_connections', 100)
+            workload_pattern = specs.get('workload_pattern', 'balanced')
+            read_write_ratio = specs.get('read_write_ratio', 70)  # % reads
+            
             environment_type = self._categorize_environment(env_name)
             
-            # Instance sizing logic
-            if cpu_cores <= 2 and ram_gb <= 8:
-                instance_class = 'db.t3.medium'
-            elif cpu_cores <= 4 and ram_gb <= 16:
-                instance_class = 'db.t3.large'
-            elif cpu_cores <= 8 and ram_gb <= 32:
-                instance_class = 'db.r5.large'
-            elif cpu_cores <= 16 and ram_gb <= 64:
-                instance_class = 'db.r5.xlarge'
-            elif cpu_cores <= 32 and ram_gb <= 128:
-                instance_class = 'db.r5.2xlarge'
-            else:
-                instance_class = 'db.r5.4xlarge'
+            # Writer instance sizing
+            writer_instance = self._calculate_writer_instance(cpu_cores, ram_gb, environment_type)
             
-            # Environment-specific adjustments
-            if environment_type == 'development':
-                instance_class = self._downsize_instance(instance_class)
-            elif environment_type == 'production':
-                instance_class = self._ensure_production_sizing(instance_class, cpu_cores, ram_gb)
+            # Reader configuration
+            num_readers = self.cluster_config.calculate_optimal_readers(
+                environment_type, workload_pattern, connections
+            )
+            
+            reader_instance = self.cluster_config.recommend_reader_instance_size(
+                writer_instance, read_write_ratio / 100
+            )
+            
+            # Multi-AZ recommendation
+            multi_az_writer = environment_type in ['production', 'staging']
+            multi_az_readers = environment_type == 'production'
+            
+            # Storage configuration
+            storage_config = self._calculate_storage_configuration(
+                storage_gb, environment_type, specs.get('iops_requirement', 3000)
+            )
             
             recommendations[env_name] = {
-                'instance_class': instance_class,
                 'environment_type': environment_type,
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'multi_az': environment_type in ['production', 'staging']
+                'writer': {
+                    'instance_class': writer_instance,
+                    'multi_az': multi_az_writer,
+                    'cpu_cores': cpu_cores,
+                    'ram_gb': ram_gb
+                },
+                'readers': {
+                    'count': num_readers,
+                    'instance_class': reader_instance,
+                    'multi_az': multi_az_readers
+                },
+                'storage': storage_config,
+                'workload_pattern': workload_pattern,
+                'read_write_ratio': read_write_ratio,
+                'connections': connections
             }
         
         return recommendations
@@ -1768,79 +1837,106 @@ class MigrationAnalyzer:
             return 'testing'
         elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
             return 'development'
-        return 'other'
+        return 'production'  # Default to production for safety
     
-    def _downsize_instance(self, instance_class: str) -> str:
-        """Downsize instance for development environments"""
-        size_mapping = {
-            'db.r5.4xlarge': 'db.r5.2xlarge',
-            'db.r5.2xlarge': 'db.r5.xlarge',
-            'db.r5.xlarge': 'db.r5.large',
-            'db.r5.large': 'db.t3.large',
-            'db.t3.large': 'db.t3.medium'
-        }
-        return size_mapping.get(instance_class, instance_class)
-    
-    def _ensure_production_sizing(self, instance_class: str, cpu_cores: int, ram_gb: int) -> str:
-        """Ensure adequate sizing for production"""
-        if cpu_cores >= 16 or ram_gb >= 64:
-            if instance_class in ['db.t3.medium', 'db.t3.large']:
-                return 'db.r5.xlarge'
+    def _calculate_writer_instance(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
+        """Calculate writer instance class"""
+        
+        # Instance sizing logic based on CPU and RAM
+        if cpu_cores <= 2 and ram_gb <= 8:
+            instance_class = 'db.t3.medium'
+        elif cpu_cores <= 4 and ram_gb <= 16:
+            instance_class = 'db.t3.large'
+        elif cpu_cores <= 8 and ram_gb <= 32:
+            instance_class = 'db.r5.large'
+        elif cpu_cores <= 16 and ram_gb <= 64:
+            instance_class = 'db.r5.xlarge'
+        elif cpu_cores <= 32 and ram_gb <= 128:
+            instance_class = 'db.r5.2xlarge'
+        elif cpu_cores <= 64 and ram_gb <= 256:
+            instance_class = 'db.r5.4xlarge'
+        else:
+            instance_class = 'db.r5.8xlarge'
+        
+        # Environment-specific adjustments
+        if env_type == 'development' and 'r5' in instance_class:
+            # Downsize for development
+            downsized = {
+                'db.r5.8xlarge': 'db.r5.4xlarge',
+                'db.r5.4xlarge': 'db.r5.2xlarge',
+                'db.r5.2xlarge': 'db.r5.xlarge',
+                'db.r5.xlarge': 'db.r5.large',
+                'db.r5.large': 'db.t3.large'
+            }
+            instance_class = downsized.get(instance_class, instance_class)
+        
+        elif env_type == 'production' and 't3' in instance_class:
+            # Ensure production uses dedicated instances
+            if instance_class == 'db.t3.medium':
+                instance_class = 'db.r5.large'
+            elif instance_class == 'db.t3.large':
+                instance_class = 'db.r5.xlarge'
+        
         return instance_class
     
-    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
-        """Calculate comprehensive migration costs"""
+    def _calculate_storage_configuration(self, storage_gb: int, env_type: str, iops_requirement: int) -> Dict:
+        """Calculate enhanced storage configuration"""
+        
+        # Determine storage type based on IOPS requirements
+        if iops_requirement > 20000:
+            storage_type = 'io2'
+            provisioned_iops = iops_requirement
+        elif iops_requirement > 3000:
+            storage_type = 'gp3'
+            provisioned_iops = min(iops_requirement, 16000)  # gp3 max
+        else:
+            storage_type = 'gp2'
+            provisioned_iops = min(storage_gb * 3, 16000)  # gp2 baseline
+        
+        # Add buffer for growth
+        storage_buffer = {
+            'production': 1.5,
+            'staging': 1.3,
+            'testing': 1.2,
+            'development': 1.1
+        }
+        
+        recommended_storage = int(storage_gb * storage_buffer.get(env_type, 1.2))
+        
+        return {
+            'size_gb': recommended_storage,
+            'type': storage_type,
+            'iops': provisioned_iops,
+            'encrypted': env_type in ['production', 'staging'],
+            'backup_retention_days': 30 if env_type == 'production' else 7
+        }
+    
+    def calculate_enhanced_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
+        """Calculate comprehensive migration costs with Writer/Reader pricing"""
         
         region = migration_params.get('region', 'us-east-1')
         target_engine = migration_params.get('target_engine', 'postgres')
         
-        # AWS infrastructure costs
         total_monthly_cost = 0
         environment_costs = {}
         
         for env_name, rec in recommendations.items():
-            pricing = self.pricing_api.get_rds_pricing(region, target_engine, rec['instance_class'])
-            
-            # Calculate monthly costs
-            instance_hours = 24 * 30  # 30 days
-            instance_cost = pricing['hourly'] * instance_hours
-            
-            # Multi-AZ doubles the instance cost
-            if rec['multi_az']:
-                instance_cost *= 2
-            
-            # Storage costs
-            storage_cost = rec['storage_gb'] * pricing['storage_gb']
-            
-            # Backup costs (estimated)
-            backup_cost = storage_cost * 0.5
-            
-            # Additional costs
-            monitoring_cost = 30 if rec['environment_type'] == 'production' else 10
-            
-            env_total = instance_cost + storage_cost + backup_cost + monitoring_cost
-            environment_costs[env_name] = {
-                'instance_cost': instance_cost,
-                'storage_cost': storage_cost,
-                'backup_cost': backup_cost,
-                'monitoring_cost': monitoring_cost,
-                'total_monthly': env_total
-            }
-            
-            total_monthly_cost += env_total
+            env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
+            environment_costs[env_name] = env_costs
+            total_monthly_cost += env_costs['total_monthly']
         
-        # Migration service costs
+        # Migration service costs (unchanged from original)
         data_size_gb = migration_params.get('data_size_gb', 1000)
         migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
         
         # DMS costs
-        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks  # t3.medium for migration
+        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
         
         # Data transfer costs
         transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
         
         # Professional services
-        ps_cost = migration_timeline_weeks * 8000  # $8k per week for team
+        ps_cost = migration_timeline_weeks * 8000
         
         migration_costs = {
             'dms_instance': dms_instance_cost,
@@ -1860,97 +1956,129 @@ class MigrationAnalyzer:
             'transfer_costs': transfer_costs
         }
     
+    def _calculate_environment_cost(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
+        """Calculate comprehensive environment cost including Writer/Reader"""
+        
+        # Writer costs
+        writer_pricing = self.pricing_api.get_rds_pricing(
+            region, target_engine, rec['writer']['instance_class'], rec['writer']['multi_az']
+        )
+        
+        writer_hours = 24 * 30  # Monthly hours
+        writer_instance_cost = writer_pricing['hourly'] * writer_hours
+        
+        # Reader costs
+        reader_costs = 0
+        reader_count = rec['readers']['count']
+        
+        if reader_count > 0:
+            reader_pricing = self.pricing_api.get_rds_pricing(
+                region, target_engine, rec['readers']['instance_class'], rec['readers']['multi_az']
+            )
+            reader_costs = reader_pricing['hourly'] * writer_hours * reader_count
+        
+        # Storage costs
+        storage_costs = self._calculate_detailed_storage_costs(rec['storage'], writer_pricing)
+        
+        # Backup costs
+        backup_cost = storage_costs['total_storage_cost'] * 0.5  # Estimate 50% of storage cost
+        
+        # Monitoring and additional services
+        monitoring_cost = 30 if rec['environment_type'] == 'production' else 10
+        
+        # Cross-AZ data transfer costs (for Multi-AZ and readers)
+        cross_az_cost = 0
+        if rec['writer']['multi_az']:
+            cross_az_cost += 20  # Estimate for Multi-AZ data transfer
+        if reader_count > 0:
+            cross_az_cost += reader_count * 10  # Estimate for reader sync
+        
+        total_monthly = (writer_instance_cost + reader_costs + storage_costs['total_storage_cost'] + 
+                        backup_cost + monitoring_cost + cross_az_cost)
+        
+        return {
+            'writer_instance_cost': writer_instance_cost,
+            'reader_costs': reader_costs,
+            'reader_count': reader_count,
+            'storage_cost': storage_costs['total_storage_cost'],
+            'storage_breakdown': storage_costs,
+            'backup_cost': backup_cost,
+            'monitoring_cost': monitoring_cost,
+            'cross_az_cost': cross_az_cost,
+            'total_monthly': total_monthly,
+            'writer_config': rec['writer'],
+            'reader_config': rec['readers'],
+            'storage_config': rec['storage']
+        }
+    
+    def _calculate_detailed_storage_costs(self, storage_config: Dict, pricing: Dict) -> Dict:
+        """Calculate detailed storage costs"""
+        
+        storage_gb = storage_config['size_gb']
+        storage_type = storage_config['type']
+        iops = storage_config['iops']
+        
+        # Base storage cost
+        base_storage_cost = storage_gb * pricing['storage_gb']
+        
+        # IOPS costs (for provisioned IOPS)
+        iops_cost = 0
+        if storage_type in ['io1', 'io2']:
+            iops_cost = iops * pricing.get('iops_gb', 0.10)
+        elif storage_type == 'gp3' and iops > 3000:
+            # gp3 additional IOPS cost
+            additional_iops = max(0, iops - 3000)
+            iops_cost = additional_iops * 0.005  # $0.005 per additional IOPS
+        
+        # Throughput costs (for gp3)
+        throughput_cost = 0
+        if storage_type == 'gp3':
+            # Assume standard throughput, could be enhanced based on requirements
+            throughput_cost = 0
+        
+        # Aurora I/O costs (if applicable)
+        io_request_cost = 0
+        if pricing.get('is_aurora', False):
+            # Estimate I/O requests based on storage size and usage
+            estimated_monthly_ios = storage_gb * 1000000  # 1M IOs per GB estimate
+            io_request_cost = estimated_monthly_ios * pricing.get('io_request', 0.20) / 1000000
+        
+        total_storage_cost = base_storage_cost + iops_cost + throughput_cost + io_request_cost
+        
+        return {
+            'base_storage_cost': base_storage_cost,
+            'iops_cost': iops_cost,
+            'throughput_cost': throughput_cost,
+            'io_request_cost': io_request_cost,
+            'total_storage_cost': total_storage_cost,
+            'storage_type': storage_type,
+            'storage_size_gb': storage_gb,
+            'provisioned_iops': iops
+        }
+    
     def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
-        """Calculate data transfer costs for different methods"""
+        """Calculate data transfer costs (unchanged from original)"""
         
         use_direct_connect = migration_params.get('use_direct_connect', False)
         bandwidth_mbps = migration_params.get('bandwidth_mbps', 1000)
         
         # Internet transfer
-        internet_cost = data_size_gb * 0.09  # $0.09 per GB
-        internet_time_hours = (data_size_gb * 8192) / (bandwidth_mbps * 3600)  # Convert to hours
+        internet_cost = data_size_gb * 0.09
+        internet_time_hours = (data_size_gb * 8192) / (bandwidth_mbps * 3600)
         
         # Direct Connect transfer
         if use_direct_connect:
-            dx_cost = data_size_gb * 0.02  # $0.02 per GB
-            dx_time_hours = internet_time_hours * 0.3  # 3x faster
+            dx_cost = data_size_gb * 0.02
+            dx_time_hours = internet_time_hours * 0.3
         else:
             dx_cost = internet_cost
             dx_time_hours = internet_time_hours
         
-        # DataSync costs
-        datasync_cost = data_size_gb * 0.0125  # $0.0125 per GB
-        
         return {
             'internet': {'cost': internet_cost, 'time_hours': internet_time_hours},
             'direct_connect': {'cost': dx_cost, 'time_hours': dx_time_hours},
-            'datasync': {'cost': datasync_cost, 'time_hours': dx_time_hours},
-            'total': min(internet_cost, dx_cost) + datasync_cost
+            'total': min(internet_cost, dx_cost)
         }
-    
-    async def generate_ai_insights(self, analysis_results: Dict, migration_params: Dict) -> Dict:
-        """Generate AI-powered insights and recommendations"""
-        
-        if not self.anthropic_client:
-            return {'error': 'AI client not available'}
-        
-        try:
-            # Prepare analysis context
-            context = {
-                'source_engine': migration_params.get('source_engine'),
-                'target_engine': migration_params.get('target_engine'),
-                'environments': len(analysis_results.get('environment_costs', {})),
-                'total_monthly_cost': analysis_results.get('monthly_aws_cost', 0),
-                'migration_cost': analysis_results.get('migration_costs', {}).get('total', 0),
-                'data_size_gb': migration_params.get('data_size_gb', 0)
-            }
-            
-            prompt = f"""
-            As an AWS database migration expert, analyze this migration scenario and provide insights:
-            
-            Migration Details:
-            - Source: {context['source_engine']} → Target: {context['target_engine']}
-            - Environments: {context['environments']}
-            - Monthly AWS Cost: ${context['total_monthly_cost']:,.2f}
-            - Migration Cost: ${context['migration_cost']:,.2f}
-            - Data Size: {context['data_size_gb']:,} GB
-            
-            Provide a comprehensive analysis covering:
-            1. Migration complexity assessment
-            2. Cost optimization opportunities
-            3. Risk factors and mitigation strategies
-            4. Timeline recommendations
-            5. Best practices for this specific migration path
-            
-            Format as JSON with keys: complexity, cost_optimization, risks, timeline, best_practices
-            """
-            
-            message = self.anthropic_client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            # Parse AI response
-            ai_response = message.content[0].text
-            
-            # Try to parse as JSON, fallback to text
-            try:
-                insights = json.loads(ai_response)
-            except:
-                insights = {
-                    'complexity': 'Medium',
-                    'cost_optimization': 'Review instance sizing',
-                    'risks': 'Standard migration risks apply',
-                    'timeline': 'Plan for 12-16 weeks',
-                    'best_practices': ai_response
-                }
-            
-            return insights
-            
-        except Exception as e:
-            return {'error': f'AI analysis failed: {str(e)}'}
-
 # ===========================
 # NETWORK TRANSFER ANALYSIS MODULE
 # ===========================
@@ -3813,6 +3941,10 @@ def initialize_session_state():
         'recommendations': None,
         'risk_assessment': None,
         'ai_insights': None
+        # ADD THESE NEW LINES:
+        'enhanced_recommendations': None,
+        'enhanced_analysis_results': None,
+        'enhanced_cost_chart': None
     }
     
     for key, default_value in defaults.items():
@@ -3839,10 +3971,10 @@ def main():
             "Select Section:",
             [
                 "🔧 Migration Configuration",
-                "📊 Environment Setup",
+                "📊 Environment Setup",          # This will be enhanced
                 "🌐 Network Analysis",
-                "🚀 Analysis & Recommendations",
-                "📈 Results Dashboard",
+                "🚀 Analysis & Recommendations", # This will be enhanced
+                "📈 Results Dashboard",          # This will be enhanced
                 "📄 Reports & Export"
             ]
         )
@@ -3899,7 +4031,7 @@ def main():
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
-        show_enhanced_environment_setup()
+    show_enhanced_environment_setup_with_cluster_config()
     elif page == "🌐 Network Analysis":          # <-- ADD THIS SECTION
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
@@ -4212,7 +4344,10 @@ def show_analysis_section():
     # Run analysis
     if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
         with st.spinner("🔄 Analyzing migration requirements..."):
-            run_migration_analysis()
+            if is_enhanced_environment_data(st.session_state.environment_specs):
+                run_enhanced_migration_analysis()
+            else:
+                run_migration_analysis()
 
 def run_migration_analysis():
     """Run comprehensive migration analysis"""
@@ -4268,8 +4403,9 @@ def show_results_dashboard():
         return
     
     # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "💰 Cost Summary",
+        "💎 Enhanced Cost Analysis",  # NEW TAB
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
         "📊 Visualizations",
@@ -4279,20 +4415,26 @@ def show_results_dashboard():
     
     with tab1:
         show_cost_summary()
-    
+        
     with tab2:
-        show_risk_assessment()
+    if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
+        show_enhanced_cost_analysis()
+    else:
+        st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
     
     with tab3:
-        show_environment_analysis()
+        show_risk_assessment()
     
     with tab4:
-        show_visualizations()
+        show_environment_analysis()
     
     with tab5:
-        show_ai_insights()
+        show_visualizations()
     
     with tab6:
+        show_ai_insights()
+    
+    with tab7:
         show_timeline_analysis()
 
 def show_cost_summary():
@@ -4469,9 +4611,14 @@ def show_environment_analysis():
     
     st.markdown("### 🏢 Environment Analysis")
     
-    if not st.session_state.recommendations:
-        st.warning("Environment analysis not available")
+    # CHECK for enhanced recommendations first
+    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
+        show_enhanced_environment_analysis()
         return
+    
+    #if not st.session_state.recommendations:
+     #   st.warning("Environment analysis not available")
+     #   return
     
     recommendations = st.session_state.recommendations
     environment_specs = st.session_state.environment_specs
@@ -4810,6 +4957,719 @@ def show_reports_section():
             mime="application/zip",
             use_container_width=True
         )
+
+# Enhanced Environment Setup Interface
+def show_enhanced_environment_setup_with_cluster_config():
+    """Enhanced environment setup with Writer/Reader configuration"""
+    
+    st.markdown("## 📊 Enhanced Database Cluster Configuration")
+    
+    if not st.session_state.migration_params:
+        st.warning("⚠️ Please complete Migration Configuration first.")
+        return
+    
+    # Configuration method selection
+    config_method = st.radio(
+        "Choose configuration method:",
+        [
+            "📝 Manual Cluster Configuration", 
+            "📁 Bulk Upload with Cluster Details",
+            "🔄 Simple Configuration (Legacy)"
+        ],
+        horizontal=True
+    )
+    
+    if config_method == "📝 Manual Cluster Configuration":
+        show_manual_cluster_configuration()
+    elif config_method == "📁 Bulk Upload with Cluster Details":
+        show_bulk_cluster_upload()
+    else:
+        show_simple_configuration()
+
+def show_manual_cluster_configuration():
+    """Show manual cluster configuration with Writer/Reader options"""
+    
+    st.markdown("### 📝 Database Cluster Configuration")
+    
+    # Number of environments
+    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=4)
+    
+    environment_specs = {}
+    default_names = ['Development', 'QA', 'SQA', 'Production']
+    
+    for i in range(num_environments):
+        with st.expander(f"🏢 Environment {i+1} - Cluster Configuration", expanded=i == 0):
+            
+            # Basic environment info
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                env_name = st.text_input(
+                    "Environment Name",
+                    value=default_names[i] if i < len(default_names) else f"Environment_{i+1}",
+                    key=f"env_name_{i}"
+                )
+                
+                environment_type = st.selectbox(
+                    "Environment Type",
+                    ["Production", "Staging", "Testing", "Development"],
+                    index=min(i, 3),
+                    key=f"env_type_{i}"
+                )
+            
+            with col2:
+                workload_pattern = st.selectbox(
+                    "Workload Pattern",
+                    ["balanced", "read_heavy", "write_heavy", "analytics"],
+                    key=f"workload_{i}"
+                )
+                
+                read_write_ratio = st.slider(
+                    "Read/Write Ratio (% Reads)",
+                    min_value=10, max_value=95, value=70,
+                    key=f"read_ratio_{i}"
+                )
+            
+            # Infrastructure configuration
+            st.markdown("#### 💻 Infrastructure Requirements")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                cpu_cores = st.number_input(
+                    "CPU Cores",
+                    min_value=1, max_value=128,
+                    value=[4, 8, 16, 32][min(i, 3)],
+                    key=f"cpu_{i}"
+                )
+                
+                ram_gb = st.number_input(
+                    "RAM (GB)",
+                    min_value=4, max_value=1024,
+                    value=[16, 32, 64, 128][min(i, 3)],
+                    key=f"ram_{i}"
+                )
+            
+            with col2:
+                storage_gb = st.number_input(
+                    "Storage (GB)",
+                    min_value=20, max_value=50000,
+                    value=[100, 500, 1000, 2000][min(i, 3)],
+                    key=f"storage_{i}"
+                )
+                
+                iops_requirement = st.number_input(
+                    "IOPS Requirement",
+                    min_value=100, max_value=50000,
+                    value=[1000, 3000, 5000, 10000][min(i, 3)],
+                    key=f"iops_{i}"
+                )
+            
+            with col3:
+                peak_connections = st.number_input(
+                    "Peak Connections",
+                    min_value=1, max_value=10000,
+                    value=[20, 50, 100, 500][min(i, 3)],
+                    key=f"connections_{i}"
+                )
+                
+                daily_usage_hours = st.slider(
+                    "Daily Usage (Hours)",
+                    min_value=1, max_value=24,
+                    value=[8, 12, 16, 24][min(i, 3)],
+                    key=f"usage_{i}"
+                )
+            
+            # Cluster configuration
+            st.markdown("#### 🔗 Cluster Configuration")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                multi_az_writer = st.checkbox(
+                    "Multi-AZ for Writer",
+                    value=environment_type in ["Production", "Staging"],
+                    key=f"multi_az_writer_{i}",
+                    help="Deploy writer instance across multiple Availability Zones for high availability"
+                )
+                
+                custom_reader_count = st.checkbox(
+                    "Custom Reader Count",
+                    value=False,
+                    key=f"custom_readers_{i}"
+                )
+                
+                if custom_reader_count:
+                    num_readers = st.number_input(
+                        "Number of Read Replicas",
+                        min_value=0, max_value=5,
+                        value=1 if environment_type == "Production" else 0,
+                        key=f"num_readers_{i}"
+                    )
+                else:
+                    # Auto-calculate based on environment and workload
+                    cluster_config = DatabaseClusterConfiguration()
+                    num_readers = cluster_config.calculate_optimal_readers(
+                        environment_type.lower(), workload_pattern, peak_connections
+                    )
+                    st.info(f"Recommended readers: {num_readers} (auto-calculated)")
+            
+            with col2:
+                multi_az_readers = st.checkbox(
+                    "Multi-AZ for Readers",
+                    value=environment_type == "Production",
+                    key=f"multi_az_readers_{i}",
+                    help="Deploy read replicas across multiple Availability Zones"
+                )
+                
+                if num_readers > 0:
+                    custom_reader_instance = st.checkbox(
+                        "Custom Reader Instance Size",
+                        value=False,
+                        key=f"custom_reader_instance_{i}"
+                    )
+                    
+                    if custom_reader_instance:
+                        reader_instance_override = st.selectbox(
+                            "Reader Instance Class",
+                            ["db.t3.medium", "db.t3.large", "db.r5.large", "db.r5.xlarge", "db.r5.2xlarge"],
+                            key=f"reader_instance_{i}"
+                        )
+                    else:
+                        reader_instance_override = None
+                        st.info("Reader size will be auto-calculated based on writer size and workload")
+                else:
+                    reader_instance_override = None
+            
+            # Storage configuration
+            st.markdown("#### 💾 Storage Configuration")
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                storage_encrypted = st.checkbox(
+                    "Encryption at Rest",
+                    value=environment_type in ["Production", "Staging"],
+                    key=f"encryption_{i}"
+                )
+            
+            with col2:
+                backup_retention = st.number_input(
+                    "Backup Retention (Days)",
+                    min_value=1, max_value=35,
+                    value=30 if environment_type == "Production" else 7,
+                    key=f"backup_{i}"
+                )
+            
+            with col3:
+                auto_storage_scaling = st.checkbox(
+                    "Auto Storage Scaling",
+                    value=True,
+                    key=f"auto_scaling_{i}",
+                    help="Automatically scale storage when needed"
+                )
+            
+            # Store environment configuration
+            environment_specs[env_name] = {
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'iops_requirement': iops_requirement,
+                'peak_connections': peak_connections,
+                'daily_usage_hours': daily_usage_hours,
+                'workload_pattern': workload_pattern,
+                'read_write_ratio': read_write_ratio,
+                'environment_type': environment_type.lower(),
+                'multi_az_writer': multi_az_writer,
+                'multi_az_readers': multi_az_readers,
+                'num_readers': num_readers if custom_reader_count else None,
+                'reader_instance_override': reader_instance_override,
+                'storage_encrypted': storage_encrypted,
+                'backup_retention': backup_retention,
+                'auto_storage_scaling': auto_storage_scaling
+            }
+    
+    if st.button("💾 Save Cluster Configuration", type="primary", use_container_width=True):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Cluster configuration saved!")
+        
+        # Run enhanced analysis
+        if st.button("🚀 Analyze Cluster Configuration", type="secondary", use_container_width=True):
+            with st.spinner("🔄 Analyzing cluster requirements..."):
+                analyzer = EnhancedMigrationAnalyzer()
+                recommendations = analyzer.calculate_enhanced_instance_recommendations(environment_specs)
+                st.session_state.enhanced_recommendations = recommendations
+                
+                # Show preview
+                show_cluster_configuration_preview(recommendations)
+
+def show_bulk_cluster_upload():
+    """Show bulk upload interface for cluster configurations"""
+    
+    st.markdown("### 📁 Bulk Cluster Configuration Upload")
+    
+    with st.expander("📋 Download Enhanced Template", expanded=False):
+        st.markdown("""
+        **Enhanced Template includes:**
+        - Writer/Reader configuration
+        - Multi-AZ options
+        - Storage specifications
+        - Workload patterns
+        - IOPS requirements
+        """)
+        
+        # Generate enhanced template
+        enhanced_template = create_enhanced_cluster_template()
+        csv_data = enhanced_template.to_csv(index=False)
+        
+        st.dataframe(enhanced_template, use_container_width=True)
+        
+        st.download_button(
+            label="📥 Download Enhanced Cluster Template",
+            data=csv_data,
+            file_name="enhanced_cluster_template.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    
+    # File upload
+    uploaded_file = st.file_uploader(
+        "Upload Cluster Configuration",
+        type=['csv', 'xlsx'],
+        help="Upload CSV or Excel file with cluster specifications"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Process cluster data
+            environment_specs = process_cluster_data(df)
+            
+            if environment_specs:
+                st.session_state.environment_specs = environment_specs
+                st.success(f"✅ Successfully processed {len(environment_specs)} cluster configurations!")
+                
+                # Show summary
+                show_cluster_upload_summary(environment_specs)
+        
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
+
+def create_enhanced_cluster_template() -> pd.DataFrame:
+    """Create enhanced cluster template"""
+    
+    template_data = {
+        'Environment_Name': ['Production-Cluster', 'Staging-Cluster', 'QA-Cluster', 'Dev-Cluster'],
+        'Environment_Type': ['Production', 'Staging', 'Testing', 'Development'],
+        'CPU_Cores': [32, 16, 8, 4],
+        'RAM_GB': [128, 64, 32, 16],
+        'Storage_GB': [2000, 1000, 500, 200],
+        'IOPS_Requirement': [10000, 5000, 3000, 1000],
+        'Peak_Connections': [500, 200, 100, 50],
+        'Daily_Usage_Hours': [24, 16, 12, 8],
+        'Workload_Pattern': ['read_heavy', 'balanced', 'balanced', 'write_heavy'],
+        'Read_Write_Ratio': [80, 70, 60, 40],
+        'Multi_AZ_Writer': [True, True, False, False],
+        'Multi_AZ_Readers': [True, False, False, False],
+        'Num_Readers': [2, 1, 1, 0],
+        'Storage_Encrypted': [True, True, False, False],
+        'Backup_Retention_Days': [30, 14, 7, 7],
+        'Auto_Storage_Scaling': [True, True, True, False]
+    }
+    
+    return pd.DataFrame(template_data)
+
+def process_cluster_data(df: pd.DataFrame) -> Dict:
+    """Process uploaded cluster data"""
+    
+    environments = {}
+    
+    for _, row in df.iterrows():
+        env_name = str(row['Environment_Name'])
+        
+        environments[env_name] = {
+            'cpu_cores': int(row.get('CPU_Cores', 4)),
+            'ram_gb': int(row.get('RAM_GB', 16)),
+            'storage_gb': int(row.get('Storage_GB', 500)),
+            'iops_requirement': int(row.get('IOPS_Requirement', 3000)),
+            'peak_connections': int(row.get('Peak_Connections', 100)),
+            'daily_usage_hours': int(row.get('Daily_Usage_Hours', 24)),
+            'workload_pattern': str(row.get('Workload_Pattern', 'balanced')),
+            'read_write_ratio': int(row.get('Read_Write_Ratio', 70)),
+            'environment_type': str(row.get('Environment_Type', 'Production')).lower(),
+            'multi_az_writer': bool(row.get('Multi_AZ_Writer', True)),
+            'multi_az_readers': bool(row.get('Multi_AZ_Readers', False)),
+            'num_readers': int(row.get('Num_Readers', 1)) if pd.notna(row.get('Num_Readers')) else None,
+            'storage_encrypted': bool(row.get('Storage_Encrypted', True)),
+            'backup_retention': int(row.get('Backup_Retention_Days', 7)),
+            'auto_storage_scaling': bool(row.get('Auto_Storage_Scaling', True))
+        }
+    
+    return environments
+
+def show_cluster_upload_summary(environment_specs: Dict):
+    """Show summary of uploaded cluster configurations"""
+    
+    st.markdown("#### 📊 Cluster Configuration Summary")
+    
+    summary_data = []
+    for env_name, specs in environment_specs.items():
+        summary_data.append({
+            'Environment': env_name,
+            'Type': specs['environment_type'].title(),
+            'Resources': f"{specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM",
+            'Storage': f"{specs['storage_gb']} GB ({specs['iops_requirement']} IOPS)",
+            'Workload': f"{specs['workload_pattern']} ({specs['read_write_ratio']}% reads)",
+            'Writer Multi-AZ': '✅' if specs['multi_az_writer'] else '❌',
+            'Readers': f"{specs.get('num_readers', 'Auto')} ({'Multi-AZ' if specs['multi_az_readers'] else 'Single-AZ'})"
+        })
+    
+    summary_df = pd.DataFrame(summary_data)
+    st.dataframe(summary_df, use_container_width=True)
+
+def show_cluster_configuration_preview(recommendations: Dict):
+    """Show preview of cluster configuration recommendations"""
+    
+    st.markdown("#### 🎯 Cluster Configuration Preview")
+    
+    for env_name, rec in recommendations.items():
+        with st.expander(f"🏢 {env_name} Cluster Configuration"):
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("**Writer Configuration**")
+                st.write(f"Instance: {rec['writer']['instance_class']}")
+                st.write(f"Multi-AZ: {'✅ Yes' if rec['writer']['multi_az'] else '❌ No'}")
+                st.write(f"Resources: {rec['writer']['cpu_cores']} cores, {rec['writer']['ram_gb']} GB RAM")
+            
+            with col2:
+                st.markdown("**Reader Configuration**")
+                reader_count = rec['readers']['count']
+                if reader_count > 0:
+                    st.write(f"Count: {reader_count} replicas")
+                    st.write(f"Instance: {rec['readers']['instance_class']}")
+                    st.write(f"Multi-AZ: {'✅ Yes' if rec['readers']['multi_az'] else '❌ No'}")
+                else:
+                    st.write("No read replicas")
+                    st.write("Single writer configuration")
+            
+            with col3:
+                st.markdown("**Storage Configuration**")
+                storage = rec['storage']
+                st.write(f"Size: {storage['size_gb']} GB")
+                st.write(f"Type: {storage['type'].upper()}")
+                st.write(f"IOPS: {storage['iops']:,}")
+                st.write(f"Encrypted: {'✅ Yes' if storage['encrypted'] else '❌ No'}")
+
+# Enhanced Cost Analysis Functions
+def show_enhanced_cost_analysis():
+    """Show enhanced cost analysis with Writer/Reader breakdown"""
+    
+    st.markdown("### 💰 Enhanced Cost Analysis")
+    
+    if not hasattr(st.session_state, 'enhanced_analysis_results'):
+        st.warning("Please run the enhanced analysis first.")
+        return
+    
+    results = st.session_state.enhanced_analysis_results
+    
+    # Overall cost metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Total Monthly Cost",
+            f"${results['monthly_aws_cost']:,.0f}",
+            delta=f"${results['annual_aws_cost']:,.0f}/year"
+        )
+    
+    with col2:
+        # Calculate writer vs reader costs
+        total_writer_cost = sum([env['writer_instance_cost'] for env in results['environment_costs'].values()])
+        total_reader_cost = sum([env['reader_costs'] for env in results['environment_costs'].values()])
+        
+        st.metric(
+            "Writer Instances",
+            f"${total_writer_cost:,.0f}/month",
+            delta=f"{(total_writer_cost/results['monthly_aws_cost']*100):.1f}% of total"
+        )
+    
+    with col3:
+        st.metric(
+            "Reader Instances",
+            f"${total_reader_cost:,.0f}/month",
+            delta=f"{(total_reader_cost/results['monthly_aws_cost']*100):.1f}% of total" if total_reader_cost > 0 else "No readers"
+        )
+    
+    with col4:
+        total_storage_cost = sum([env['storage_cost'] for env in results['environment_costs'].values()])
+        st.metric(
+            "Storage & I/O",
+            f"${total_storage_cost:,.0f}/month",
+            delta=f"{(total_storage_cost/results['monthly_aws_cost']*100):.1f}% of total"
+        )
+    
+    # Detailed environment breakdown
+    st.markdown("#### 🏢 Environment Cost Breakdown")
+    
+    for env_name, costs in results['environment_costs'].items():
+        with st.expander(f"💵 {env_name} - Total: ${costs['total_monthly']:,.0f}/month"):
+            
+            # Create cost breakdown chart
+            cost_categories = ['Writer Instance', 'Reader Instances', 'Storage', 'Backup', 'Monitoring', 'Cross-AZ Transfer']
+            cost_values = [
+                costs['writer_instance_cost'],
+                costs['reader_costs'],
+                costs['storage_cost'],
+                costs['backup_cost'],
+                costs['monitoring_cost'],
+                costs['cross_az_cost']
+            ]
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=cost_categories,
+                values=cost_values,
+                hole=0.3,
+                textinfo='label+percent',
+                textposition='outside'
+            )])
+            
+            fig.update_layout(
+                title=f"{env_name} Cost Distribution",
+                height=400
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Detailed breakdown table
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Instance Costs**")
+                st.write(f"Writer: ${costs['writer_instance_cost']:,.0f}")
+                if costs['reader_count'] > 0:
+                    st.write(f"Readers ({costs['reader_count']}): ${costs['reader_costs']:,.0f}")
+                    st.write(f"Reader cost per instance: ${costs['reader_costs']/costs['reader_count']:,.0f}")
+                else:
+                    st.write("Readers: No read replicas")
+            
+            with col2:
+                st.markdown("**Storage Breakdown**")
+                storage_breakdown = costs['storage_breakdown']
+                st.write(f"Base Storage: ${storage_breakdown['base_storage_cost']:,.0f}")
+                if storage_breakdown['iops_cost'] > 0:
+                    st.write(f"Provisioned IOPS: ${storage_breakdown['iops_cost']:,.0f}")
+                if storage_breakdown['io_request_cost'] > 0:
+                    st.write(f"I/O Requests: ${storage_breakdown['io_request_cost']:,.0f}")
+                st.write(f"Storage Type: {storage_breakdown['storage_type'].upper()}")
+                st.write(f"Size: {storage_breakdown['storage_size_gb']:,} GB")
+            
+            # Configuration details
+            st.markdown("**Configuration Details**")
+            writer_config = costs['writer_config']
+            reader_config = costs['reader_config']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("*Writer:*")
+                st.write(f"Instance: {writer_config['instance_class']}")
+                st.write(f"Multi-AZ: {'✅ Yes' if writer_config['multi_az'] else '❌ No'}")
+            
+            with col2:
+                st.markdown("*Readers:*")
+                if reader_config['count'] > 0:
+                    st.write(f"Count: {reader_config['count']}")
+                    st.write(f"Instance: {reader_config['instance_class']}")
+                    st.write(f"Multi-AZ: {'✅ Yes' if reader_config['multi_az'] else '❌ No'}")
+                else:
+                    st.write("No read replicas configured")
+
+# Enhanced Analysis Runner
+def run_enhanced_migration_analysis():
+    """Run enhanced migration analysis with Writer/Reader support"""
+    
+    try:
+        # Initialize enhanced analyzer
+        analyzer = EnhancedMigrationAnalyzer()
+        
+        # Step 1: Calculate enhanced recommendations
+        st.write("📊 Calculating cluster recommendations...")
+        recommendations = analyzer.calculate_enhanced_instance_recommendations(st.session_state.environment_specs)
+        st.session_state.enhanced_recommendations = recommendations
+        
+        # Step 2: Calculate enhanced costs
+        st.write("💰 Analyzing cluster costs...")
+        cost_analysis = analyzer.calculate_enhanced_migration_costs(recommendations, st.session_state.migration_params)
+        st.session_state.enhanced_analysis_results = cost_analysis
+        
+        # Step 3: Generate cost comparison
+        st.write("📈 Generating cost comparisons...")
+        generate_enhanced_cost_visualizations()
+        
+        st.success("✅ Enhanced analysis complete!")
+        
+        # Show summary
+        show_enhanced_analysis_summary()
+        
+    except Exception as e:
+        st.error(f"❌ Enhanced analysis failed: {str(e)}")
+        st.code(str(e))
+
+def show_enhanced_analysis_summary():
+    """Show enhanced analysis summary"""
+    
+    st.markdown("#### 🎯 Enhanced Analysis Summary")
+    
+    results = st.session_state.enhanced_analysis_results
+    recommendations = st.session_state.enhanced_recommendations
+    
+    # Quick metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_writers = len(recommendations)
+    total_readers = sum([rec['readers']['count'] for rec in recommendations.values()])
+    multi_az_envs = sum([1 for rec in recommendations.values() if rec['writer']['multi_az']])
+    
+    with col1:
+        st.metric("Total Environments", total_writers)
+    
+    with col2:
+        st.metric("Total Read Replicas", total_readers)
+    
+    with col3:
+        st.metric("Multi-AZ Environments", multi_az_envs)
+    
+    with col4:
+        avg_monthly_cost = results['monthly_aws_cost'] / total_writers
+        st.metric("Avg Cost per Environment", f"${avg_monthly_cost:,.0f}/month")
+    
+    # Configuration overview
+    st.markdown("#### 📋 Configuration Overview")
+    
+    config_summary = []
+    for env_name, rec in recommendations.items():
+        config_summary.append({
+            'Environment': env_name,
+            'Writer': f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})",
+            'Readers': f"{rec['readers']['count']} x {rec['readers']['instance_class']}" if rec['readers']['count'] > 0 else "None",
+            'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
+            'IOPS': f"{rec['storage']['iops']:,}",
+            'Workload': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
+        })
+    
+    config_df = pd.DataFrame(config_summary)
+    st.dataframe(config_df, use_container_width=True)
+
+def generate_enhanced_cost_visualizations():
+    """Generate enhanced cost visualizations"""
+    
+    results = st.session_state.enhanced_analysis_results
+    
+    # Writer vs Reader cost comparison
+    env_names = list(results['environment_costs'].keys())
+    writer_costs = [results['environment_costs'][env]['writer_instance_cost'] for env in env_names]
+    reader_costs = [results['environment_costs'][env]['reader_costs'] for env in env_names]
+    storage_costs = [results['environment_costs'][env]['storage_cost'] for env in env_names]
+    
+    # Create stacked bar chart
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        name='Writer Instance',
+        x=env_names,
+        y=writer_costs,
+        marker_color='#3182ce'
+    ))
+    
+    fig.add_trace(go.Bar(
+        name='Reader Instances',
+        x=env_names,
+        y=reader_costs,
+        marker_color='#38a169'
+    ))
+    
+    fig.add_trace(go.Bar(
+        name='Storage & I/O',
+        x=env_names,
+        y=storage_costs,
+        marker_color='#d69e2e'
+    ))
+    
+    fig.update_layout(
+        title='Monthly Cost Breakdown by Environment',
+        xaxis_title='Environment',
+        yaxis_title='Monthly Cost ($)',
+        barmode='stack',
+        height=500
+    )
+    
+    st.session_state.enhanced_cost_chart = fig
+
+# Integration with main application
+def integrate_enhanced_cluster_features():
+    """Integration instructions for enhanced cluster features"""
+    
+    # Replace show_environment_setup() with show_enhanced_environment_setup_with_cluster_config()
+    # Replace run_migration_analysis() with run_enhanced_migration_analysis()
+    # Add show_enhanced_cost_analysis() to the results dashboard
+    
+    # Add to session state initialization:
+    # 'enhanced_recommendations': None,
+    # 'enhanced_analysis_results': None,
+    # 'enhanced_cost_chart': None
+    
+    pass
+
+# Usage example for the enhanced features:
+"""
+To integrate these enhancements into your main application:
+
+1. Replace the environment setup section with:
+   show_enhanced_environment_setup_with_cluster_config()
+
+2. Update the analysis section to use:
+   run_enhanced_migration_analysis()
+
+3. Add enhanced cost analysis to results dashboard:
+   show_enhanced_cost_analysis()
+
+4. The enhanced features include:
+   - Writer/Reader instance configuration
+   - Multi-AZ checkbox options for both writers and readers
+   - Detailed storage cost calculations (base, IOPS, I/O requests)
+   - Aurora cluster support with I/O request pricing
+   - Automatic reader sizing based on workload patterns
+   - Cross-AZ data transfer cost calculations
+   - Enhanced cost breakdowns and visualizations
+
+Key improvements:
+- Separate pricing for Multi-AZ deployments
+- Read replica count optimization based on workload
+- Storage type selection (gp2, gp3, io1, io2) with appropriate cost calculations
+- Aurora-specific pricing including I/O request costs
+- Enhanced cost visualization showing writer vs reader vs storage costs
+"""
+
+# ADD this helper function to check data compatibility:
+
+def is_enhanced_environment_data(environment_specs):
+    """Check if environment specs contain enhanced cluster data"""
+    if not environment_specs:
+        return False
+    
+    sample_spec = next(iter(environment_specs.values()))
+    enhanced_fields = ['workload_pattern', 'read_write_ratio', 'multi_az_writer']
+    
+    return any(field in sample_spec for field in enhanced_fields)
+
 
 if __name__ == "__main__":
     main()
