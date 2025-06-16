@@ -8134,10 +8134,10 @@ def main():
             st.warning("⚠️ Set migration parameters")
         
         # Check for both regular and enhanced analysis results
-        has_regular_results = st.session_state.analysis_results is not None
-        has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
         
-        if has_regular_results or has_enhanced_results:
+    if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
             
             # Show metrics from whichever analysis was completed
