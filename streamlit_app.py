@@ -6345,7 +6345,7 @@ def show_results_dashboard():
             st.info("Enhanced cost analysis not available. Use the enhanced environment setup to access this feature.")
     
     with tab3:
-        show_risk_assessment_fixed()
+        show_risk_assessment_robust()
     
     with tab4:
         show_environment_analysis()
