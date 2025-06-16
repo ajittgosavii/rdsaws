@@ -8123,9 +8123,9 @@ def main():
                 st.markdown("### 📋 Status")
         
     env_specs = getattr(st.session_state, 'environment_specs', {})
-        if env_specs and len(env_specs) > 0:
+    if env_specs and len(env_specs) > 0:
             st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
-        else:
+    else:
             st.warning("⚠️ Configure environments")
         
         if st.session_state.migration_params:
