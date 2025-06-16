@@ -8155,17 +8155,17 @@ def main():
             st.info("ℹ️ Analysis pending")
         
         # Network analysis status
-        if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
             recommendations = st.session_state.transfer_analysis.get('recommendations', {})
             primary = recommendations.get('primary_recommendation', {})
             if primary:
                 st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
-        else:
+    else:
             st.info("ℹ️ Network analysis pending")
         
         # vROps analysis status
-        if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
             st.success("✅ vROps analysis complete")
             
             health_scores = []
