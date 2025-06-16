@@ -6416,8 +6416,8 @@ def run_migration_analysis_robust():
             try:
                 ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
                 if ai_insights.get('success'):
-                st.success("✅ Real Claude AI analysis complete!")
-                st.info(f"Model: {ai_insights.get('model', 'Unknown')}")
+                    st.success("✅ Real Claude AI analysis complete!")
+                    st.info(f"Model: {ai_insights.get('model', 'Unknown')}")
         else:
             st.warning(f"⚠️ Claude AI failed: {ai_insights.get('error')}")
                 
