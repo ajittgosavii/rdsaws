@@ -8128,9 +8128,9 @@ def main():
     else:
             st.warning("⚠️ Configure environments")
         
-        if st.session_state.migration_params:
+    if st.session_state.migration_params:
             st.success("✅ Migration parameters set")
-        else:
+    else:
             st.warning("⚠️ Set migration parameters")
         
         # Check for both regular and enhanced analysis results
