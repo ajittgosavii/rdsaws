@@ -6117,7 +6117,7 @@ def show_network_recommendations(transfer_analysis: Dict):
         for risk in risks:
             st.markdown(f"• {risk}")
 
-ddef show_pattern_comparison(transfer_analysis: Dict):
+def show_pattern_comparison(transfer_analysis: Dict):
     """Show pattern comparison visualizations"""
     
     st.markdown("### 📊 Network Pattern Comparison")
