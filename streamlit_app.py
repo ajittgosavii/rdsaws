@@ -1060,6 +1060,11 @@ def process_vrops_data(df: pd.DataFrame, analyzer: VRopsMetricsAnalyzer) -> Dict
                 env_metrics.setdefault('peak_hours_start', 9)
                 env_metrics.setdefault('peak_hours_end', 17)
                 
+                # Fix: Ensure the required keys exist for compatibility with other functions
+                env_metrics.setdefault('cpu_cores', env_metrics.get('cpu_cores_allocated', 4))
+                env_metrics.setdefault('ram_gb', env_metrics.get('memory_allocated_gb', 16))
+                env_metrics.setdefault('storage_gb', env_metrics.get('storage_allocated_gb', 500))
+                
                 environments[env_name] = env_metrics
             
             return environments
@@ -1561,6 +1566,11 @@ def process_enhanced_data(df: pd.DataFrame, mappings: Dict[str, str]) -> Dict:
             'peak_hours_end': 17,
             'weekend_usage_factor': 0.3,
             'growth_rate_percent_annual': 10
+            # Add these missing keys that are expected by other parts of the code
+            'cpu_cores': env_metrics.get('cpu_cores_allocated', 4),  # Map from allocated if available
+            'ram_gb': env_metrics.get('memory_allocated_gb', 16),    # Map from allocated if available
+            'storage_gb': env_metrics.get('storage_allocated_gb', 500)  # Map from allocated if available
+        
         }
         
         for key, default_value in defaults.items():
@@ -2877,6 +2887,11 @@ def show_network_transfer_analysis():
 def show_network_analysis_results():
     """Display network analysis results"""
     
+    # Fix: Check if transfer_analysis exists and is not None
+    if not hasattr(st.session_state, 'transfer_analysis') or st.session_state.transfer_analysis is None:
+        st.error("No network analysis results available. Please run the network analysis first.")
+        return
+    
     transfer_analysis = st.session_state.transfer_analysis
     
     # Create tabs for different views
@@ -2907,6 +2922,11 @@ def show_network_recommendations(transfer_analysis: Dict):
     """Show network recommendations"""
     
     st.markdown("### 🎯 AI-Powered Network Recommendations")
+    
+    # Fix: Add None check before accessing
+    if transfer_analysis is None:
+        st.error("No transfer analysis data available")
+        return
     
     recommendations = transfer_analysis.get('recommendations', {})
     
@@ -4182,6 +4202,8 @@ def show_analysis_section():
         envs = st.session_state.environment_specs
         st.markdown(f"**Environments:** {len(envs)}")
         for env_name, specs in envs.items():
+            cpu_cores = specs.get('cpu_cores', 'N/A')
+            ram_gb = specs.get('ram_gb', 'N/A')
             st.markdown(f"• **{env_name}:** {specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM")
     
     # Run analysis
