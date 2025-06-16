@@ -4812,9 +4812,7 @@ def calculate_migration_risks(migration_params: Dict, recommendations: Dict) -> 
         'mitigation_strategies': _generate_mitigation_strategies(technical_risks, business_risks)
     }
 
-    except Exception as e:
-        # Return a default risk assessment if calculation fails
-        print(f"Error calculating migration risks: {e}")
+    
         return {
             'overall_score': 50,
             'risk_level': {'level': 'Medium', 'color': '#d69e2e', 'action': 'Active monitoring recommended'},
