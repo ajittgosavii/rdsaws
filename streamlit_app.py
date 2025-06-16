@@ -1065,9 +1065,8 @@ class ImprovedReportGenerator:
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
             ]))
-        story.append(aggregate_table)
-        
-    return story
+        story.append(aggregate_table)        
+        return story
    
 def _create_financial_analysis(self, analysis_results, analysis_mode):
        """Create improved financial analysis section"""
