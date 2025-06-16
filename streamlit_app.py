@@ -1069,7 +1069,7 @@ class ImprovedReportGenerator:
         
     return story
    
-   def _create_financial_analysis(self, analysis_results, analysis_mode):
+def _create_financial_analysis(self, analysis_results, analysis_mode):
        """Create improved financial analysis section"""
        story = []
        
