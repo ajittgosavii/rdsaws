@@ -7257,7 +7257,7 @@ def initialize_session_state():
         # ADD THESE NEW LINES:
         'enhanced_recommendations': None,
         'enhanced_analysis_results': None,
-        'enhanced_cost_chart': None
+        'enhanced_cost_chart': None,
         'growth_analysis': None,  # ADD THIS LINE
         'growth_projections': None  # ADD THIS LINE
     }
