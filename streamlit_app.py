@@ -6250,7 +6250,7 @@ def show_network_timeline_analysis(transfer_analysis: Dict):
         xaxis_tickangle=-45
     )
     
-    st.plotly_chart(fig, use_container_width=True, key="network_timeline_chart")
+    st.plotly_chart(fig, use_container_width=True, key="network_timeline_duration_chart")
 
 def show_network_architecture(transfer_analysis: Dict):
     """Show network architecture diagrams"""
@@ -6328,6 +6328,7 @@ def show_network_cost_analysis(transfer_analysis: Dict):
     
     # Cost breakdown for each pattern
     analyzer = NetworkTransferAnalyzer()
+    chart_counter = 0
     
     for pattern_id, metrics in transfer_analysis.items():
         if pattern_id == 'recommendations':
@@ -6336,7 +6337,7 @@ def show_network_cost_analysis(transfer_analysis: Dict):
         pattern_info = analyzer.transfer_patterns[pattern_id]
         
         with st.expander(f"💵 {pattern_info['name']} - Total Cost: ${metrics['total_cost']:,.0f}"):
-            
+             
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -7184,7 +7185,7 @@ def show_results_dashboard():
         show_basic_cost_summary()
     
     with tab2:
-        show_growth_analysis_dashboard()
+        show_growth_analysis_dashboard()  # FIXED ABOVE
     
     with tab3:
         show_vrops_results_tab()
@@ -7933,8 +7934,10 @@ def show_growth_analysis_dashboard():
     
     try:
         charts = create_growth_projection_charts(growth_analysis)
-        for chart in charts:
-            st.plotly_chart(chart, use_container_width=True)
+        
+         # Display charts with unique keys - THIS IS THE KEY FIX
+        for i, chart in enumerate(charts):
+            st.plotly_chart(chart, use_container_width=True, key=f"growth_dashboard_chart_{i}")
     except Exception as e:
         st.error(f"Error creating growth charts: {str(e)}")
         
@@ -9528,17 +9531,25 @@ def show_visualizations_tab():
                     height=400
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                # FIXED: Added unique key
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_visualization_chart")
         
         # Growth visualization if available
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             st.markdown("#### 📈 Growth Projections")
             try:
                 charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                for chart in charts:
-                    st.plotly_chart(chart, use_container_width=True)
+                # FIXED: Added unique keys for each chart
+                for i, chart in enumerate(charts):
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
             except Exception as e:
                 st.error(f"Error creating growth charts: {str(e)}")
+        
+           # Enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.markdown("#### 💎 Enhanced Cost Analysis")
+            # FIXED: Added unique key
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_visualization_chart")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
@@ -10520,8 +10531,11 @@ def show_enhanced_cost_analysis():
                 height=400
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+             # FIXED: Added unique key using counter
+            st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_breakdown_{chart_counter}")
+            chart_counter += 1
             
+                       
             # Detailed breakdown table
             col1, col2 = st.columns(2)
             
@@ -10653,29 +10667,12 @@ def generate_enhanced_cost_visualizations():
     reader_costs = [results['environment_costs'][env]['reader_costs'] for env in env_names]
     storage_costs = [results['environment_costs'][env]['storage_cost'] for env in env_names]
     
-    # Create stacked bar chart
+# Create stacked bar chart
     fig = go.Figure()
     
-    fig.add_trace(go.Bar(
-        name='Writer Instance',
-        x=env_names,
-        y=writer_costs,
-        marker_color='#3182ce'
-    ))
-    
-    fig.add_trace(go.Bar(
-        name='Reader Instances',
-        x=env_names,
-        y=reader_costs,
-        marker_color='#38a169'
-    ))
-    
-    fig.add_trace(go.Bar(
-        name='Storage & I/O',
-        x=env_names,
-        y=storage_costs,
-        marker_color='#d69e2e'
-    ))
+    fig.add_trace(go.Bar(name='Writer Instance', x=env_names, y=writer_costs, marker_color='#3182ce'))
+    fig.add_trace(go.Bar(name='Reader Instances', x=env_names, y=reader_costs, marker_color='#38a169'))
+    fig.add_trace(go.Bar(name='Storage & I/O', x=env_names, y=storage_costs, marker_color='#d69e2e'))
     
     fig.update_layout(
         title='Monthly Cost Breakdown by Environment',
