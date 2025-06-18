@@ -9184,12 +9184,12 @@ def main():
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
-    try:
-        show_enhanced_environment_setup_with_vrops()
-    except Exception as e:
-        st.error(f"Enhanced setup failed: {str(e)}")
-        st.info("🔄 Using simple environment setup instead")
-        show_manual_environment_setup()
+        try:
+                show_enhanced_environment_setup_with_vrops()
+        except Exception as e:
+                st.error(f"Enhanced setup failed: {str(e)}")
+                st.info("🔄 Using simple environment setup instead")
+                show_manual_environment_setup()
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
