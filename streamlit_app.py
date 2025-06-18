@@ -3182,9 +3182,17 @@ class VRopsMetricsAnalyzer:
     """Comprehensive vROps metrics analysis for accurate AWS sizing"""
     
     def __init__(self):
-        self.required_metrics = self._initialize_required_metrics()
-        self.aws_instance_specs = self._initialize_aws_instance_specs()
-        self.performance_buffers = self._initialize_performance_buffers()
+        """Initialize the analyzer with proper error handling"""
+        try:
+            self.required_metrics = self._initialize_required_metrics()
+            self.aws_instance_specs = self._initialize_aws_instance_specs()
+            self.performance_buffers = self._initialize_performance_buffers()
+        except Exception as e:
+            st.error(f"Error initializing VRopsMetricsAnalyzer: {str(e)}")
+            # Provide fallback initialization
+            self.required_metrics = {}
+            self.aws_instance_specs = self._get_fallback_instance_specs()
+            self.performance_buffers = self._get_fallback_buffers()
     
     def _initialize_required_metrics(self) -> Dict:
         """Initialize comprehensive vROps metrics mapping"""
@@ -3912,6 +3920,324 @@ class VRopsMetricsAnalyzer:
             )
         
         return recommendations
+def show_enhanced_environment_setup_with_vrops_fixed():
+    """Fixed enhanced environment setup with proper error handling"""
+    
+    st.markdown("## 📊 Enhanced Environment Configuration")
+    
+    if not st.session_state.migration_params:
+        st.warning("⚠️ Please complete Migration Configuration first.")
+        return
+    
+    try:
+        # Initialize vROps analyzer with error handling
+        if 'vrops_analyzer' not in st.session_state or st.session_state.vrops_analyzer is None:
+            with st.spinner("Initializing performance analyzer..."):
+                st.session_state.vrops_analyzer = VRopsMetricsAnalyzer()
+            st.success("✅ Performance analyzer ready!")
+        
+        analyzer = st.session_state.vrops_analyzer
+        
+        # Configuration method selection
+        st.markdown("### 🔧 Configuration Method")
+        
+        config_method = st.radio(
+            "Choose configuration method:",
+            [
+                "📝 Manual Detailed Entry",
+                "📁 Bulk CSV Upload", 
+                "📊 vROps Import (Advanced)",
+                "🔄 Simple Configuration"
+            ],
+            horizontal=True
+        )
+        
+        if config_method == "📊 vROps Import (Advanced)":
+            show_vrops_import_interface_fixed(analyzer)
+        elif config_method == "📝 Manual Detailed Entry":
+            show_manual_detailed_entry_fixed(analyzer)
+        elif config_method == "📁 Bulk CSV Upload":
+            show_enhanced_bulk_upload_fixed(analyzer)
+        else:
+            show_simple_configuration_fixed()
+    
+    except Exception as e:
+        st.error(f"❌ Error in enhanced setup: {str(e)}")
+        st.warning("🔄 Falling back to simple configuration...")
+        show_simple_configuration_fixed()
+
+def show_vrops_import_interface_fixed(analyzer: VRopsMetricsAnalyzer):
+    """Fixed vROps import interface"""
+    
+    st.markdown("### 📊 vROps Metrics Import")
+    
+    # Sample vROps export template
+    with st.expander("📋 Download vROps Export Template", expanded=False):
+        st.markdown("""
+        **vROps Data Collection Instructions:**
+        
+        1. Export performance data from vROps for your database VMs
+        2. Include minimum 30 days of data for accurate analysis
+        3. Export CPU, Memory, Storage, and Network metrics
+        4. Save as CSV format
+        """)
+        
+        # Generate sample template
+        try:
+            sample_metrics = create_vrops_sample_template_fixed()
+            csv_data = sample_metrics.to_csv(index=False)
+            
+            st.dataframe(sample_metrics.head(), use_container_width=True)
+            
+            st.download_button(
+                label="📥 Download vROps Template (CSV)",
+                data=csv_data,
+                file_name="vrops_metrics_template.csv", 
+                mime="text/csv",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Error creating template: {str(e)}")
+    
+    # File upload
+    uploaded_file = st.file_uploader(
+        "Upload vROps Export File",
+        type=['csv', 'xlsx'],
+        help="Upload your vROps performance metrics export"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Load the file
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Show data preview
+            st.markdown("#### 📊 Data Preview")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Process vROps data
+            if st.button("🔄 Process vROps Data", type="primary"):
+                processed_environments = process_vrops_data_fixed(df, analyzer)
+                
+                if processed_environments:
+                    st.session_state.environment_specs = processed_environments
+                    st.success(f"✅ Successfully processed {len(processed_environments)} environments!")
+                    
+                    # Run analysis
+                    with st.spinner("🔄 Analyzing performance metrics..."):
+                        analysis_results = analyzer.analyze_vrops_metrics(processed_environments)
+                        st.session_state.vrops_analysis = analysis_results
+                        
+                        if 'error' not in analysis_results:
+                            st.success("✅ vROps analysis complete!")
+                            show_vrops_analysis_summary_fixed(analysis_results)
+                        else:
+                            st.error(f"Analysis error: {analysis_results['error']}")
+        
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
+def show_vrops_import_interface_fixed(analyzer: VRopsMetricsAnalyzer):
+    """Fixed vROps import interface"""
+    
+    st.markdown("### 📊 vROps Metrics Import")
+    
+    # Sample vROps export template
+    with st.expander("📋 Download vROps Export Template", expanded=False):
+        st.markdown("""
+        **vROps Data Collection Instructions:**
+        
+        1. Export performance data from vROps for your database VMs
+        2. Include minimum 30 days of data for accurate analysis
+        3. Export CPU, Memory, Storage, and Network metrics
+        4. Save as CSV format
+        """)
+        
+        # Generate sample template
+        try:
+            sample_metrics = create_vrops_sample_template_fixed()
+            csv_data = sample_metrics.to_csv(index=False)
+            
+            st.dataframe(sample_metrics.head(), use_container_width=True)
+            
+            st.download_button(
+                label="📥 Download vROps Template (CSV)",
+                data=csv_data,
+                file_name="vrops_metrics_template.csv", 
+                mime="text/csv",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.error(f"Error creating template: {str(e)}")
+    
+    # File upload
+    uploaded_file = st.file_uploader(
+        "Upload vROps Export File",
+        type=['csv', 'xlsx'],
+        help="Upload your vROps performance metrics export"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # Load the file
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Show data preview
+            st.markdown("#### 📊 Data Preview")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            # Process vROps data
+            if st.button("🔄 Process vROps Data", type="primary"):
+                processed_environments = process_vrops_data_fixed(df, analyzer)
+                
+                if processed_environments:
+                    st.session_state.environment_specs = processed_environments
+                    st.success(f"✅ Successfully processed {len(processed_environments)} environments!")
+                    
+                    # Run analysis
+                    with st.spinner("🔄 Analyzing performance metrics..."):
+                        analysis_results = analyzer.analyze_vrops_metrics(processed_environments)
+                        st.session_state.vrops_analysis = analysis_results
+                        
+                        if 'error' not in analysis_results:
+                            st.success("✅ vROps analysis complete!")
+                            show_vrops_analysis_summary_fixed(analysis_results)
+                        else:
+                            st.error(f"Analysis error: {analysis_results['error']}")
+        
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
+def show_vrops_results_tab_fixed():
+    """Show vROps analysis results in the dashboard - FIXED"""
+    
+    st.markdown("### 📊 vROps Performance Analysis")
+    
+    if not hasattr(st.session_state, 'vrops_analysis') or not st.session_state.vrops_analysis:
+        st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
+        
+        # Show what vROps analysis would provide
+        st.markdown("#### 🎯 vROps Analysis Features")
+        st.markdown("""
+        When vROps analysis is available, you'll see:
+        - **Performance Health Scores** for each environment
+        - **Resource Utilization Analysis** (CPU, Memory, Storage)
+        - **AWS Instance Recommendations** based on actual performance data
+        - **Optimization Opportunities** to reduce costs
+        - **Risk Indicators** for performance issues
+        - **Right-sizing Recommendations** based on real usage patterns
+        """)
+        
+        if st.button("🔄 Go to Enhanced Environment Setup", type="primary"):
+            st.info("👆 Navigate to 'Environment Setup' and select 'vROps Import (Advanced)' to enable performance analysis")
+        
+        return
+    
+    analysis_results = st.session_state.vrops_analysis
+    
+    # Check for errors
+    if 'error' in analysis_results:
+        st.error(f"❌ vROps analysis error: {analysis_results['error']}")
+        return
+    
+    # Performance health overview
+    col1, col2, col3 = st.columns(3)
+    
+    # Calculate overall health scores
+    health_scores = []
+    env_count = 0
+    
+    for env_name, analysis in analysis_results.items():
+        if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+            env_count += 1
+            scores = analysis.get('performance_scores', {})
+            health_scores.append(scores.get('overall_health', 0))
+    
+    avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
+    
+    with col1:
+        health_color = "🟢" if avg_health > 80 else "🟡" if avg_health > 60 else "🔴"
+        st.metric("Overall Health Score", f"{avg_health:.1f}/100", delta=health_color)
+    
+    with col2:
+        at_risk_envs = len([score for score in health_scores if score < 70])
+        st.metric("At Risk Environments", at_risk_envs)
+    
+    with col3:
+        st.metric("Total Environments", env_count)
+    
+    # Environment details
+    st.markdown("#### 🏢 Environment Performance Analysis")
+    
+    for env_name, analysis in analysis_results.items():
+        if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+            if 'error' in analysis:
+                st.warning(f"⚠️ {env_name}: {analysis['error']}")
+                continue
+                
+            with st.expander(f"📊 {env_name} Performance Details"):
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.markdown("**CPU Analysis**")
+                    cpu_analysis = analysis.get('cpu_analysis', {})
+                    st.write(f"Max Usage: {cpu_analysis.get('max_usage_percent', 0):.1f}%")
+                    st.write(f"Current Cores: {cpu_analysis.get('current_cores', 0)}")
+                    st.write(f"Recommendation: {cpu_analysis.get('scaling_recommendation', 'N/A')}")
+                
+                with col2:
+                    st.markdown("**Memory Analysis**")
+                    memory_analysis = analysis.get('memory_analysis', {})
+                    st.write(f"Max Usage: {memory_analysis.get('max_usage_percent', 0):.1f}%")
+                    st.write(f"Allocated: {memory_analysis.get('allocated_gb', 0)} GB")
+                    st.write(f"Recommendation: {memory_analysis.get('scaling_recommendation', 'N/A')}")
+                
+                with col3:
+                    st.markdown("**Performance Scores**")
+                    scores = analysis.get('performance_scores', {})
+                    st.write(f"CPU Health: {scores.get('cpu_health', 0):.1f}/100")
+                    st.write(f"Memory Health: {scores.get('memory_health', 0):.1f}/100")
+                    st.write(f"Overall Health: {scores.get('overall_health', 0):.1f}/100")
+                
+                # Instance recommendations
+                st.markdown("**🎯 AWS Instance Recommendations**")
+                recommendations = analysis.get('instance_recommendations', [])
+                
+                if recommendations:
+                    for i, rec in enumerate(recommendations[:3], 1):
+                        st.markdown(f"{i}. **{rec['instance_type']}** - "
+                                  f"vCPU: {rec['vcpu']}, "
+                                  f"Memory: {rec['memory_gb']} GB, "
+                                  f"Fit Score: {rec['fit_score']:.1f}")
+                        if 'recommendation_reason' in rec:
+                            st.markdown(f"   *{rec['recommendation_reason']}*")
+                else:
+                    st.write("No recommendations available")
+                
+                # Optimization opportunities
+                optimizations = analysis.get('optimization_opportunities', [])
+                if optimizations:
+                    st.markdown("**💡 Optimization Opportunities**")
+                    for opt in optimizations:
+                        st.markdown(f"• **{opt.get('category', 'Optimization')}:** {opt.get('description', 'No description')}")
+                
+                # Risk indicators
+                risks = analysis.get('risk_indicators', [])
+                if risks:
+                    st.markdown("**⚠️ Risk Indicators**")
+                    for risk in risks:
+                        severity_color = {"High": "🔴", "Medium": "🟡", "Low": "🟢"}.get(risk.get('severity', 'Low'), "⚪")
+                        st.markdown(f"• {severity_color} **{risk.get('risk', 'Risk')}:** {risk.get('description', 'No description')}")
+
 
 # ===========================
 # ENHANCED STREAMLIT INTERFACE
@@ -7837,6 +8163,19 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
+    # UPDATE YOUR TABS - ADD THE vROps TAB:
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab_vrops = st.tabs([
+        "💰 Cost Summary",
+        "📈 Growth Projections", 
+        "💎 Enhanced Analysis",
+        "⚠️ Risk Assessment", 
+        "🏢 Environment Analysis",
+        "📊 Visualizations",
+        "🤖 AI Insights",
+        "📅 Timeline",
+        "📊 vROps Performance"  # NEW TAB
+    ])
+    
     # ADD auto-refresh toggle at the top
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
@@ -9065,7 +9404,7 @@ def test_claude_ai_connection():
 def main():
     """Main Streamlit application"""
     
-    initialize_session_state()
+    initialize_session_state_fixed()
     
     # Header
     st.markdown("""
@@ -9078,16 +9417,14 @@ def main():
     # Sidebar navigation
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
-        page = st.radio(
-            "Select Section:",
-            [
-                "🔧 Migration Configuration",
-                "📊 Environment Setup", 
-                "🌐 Network Analysis",
-                "🚀 Analysis & Recommendations",
-                "📈 Results Dashboard",
-                "💰 Cost Refresh",  # <-- ADD THIS LINE
-                "📄 Reports & Export"
+        page = st.radio("Select Section:", [
+            "🔧 Migration Configuration",
+            "📊 Environment Setup", 
+            "🌐 Network Analysis",
+            "🚀 Analysis & Recommendations",
+            "📈 Results Dashboard",
+            "💰 Cost Refresh",
+            "📄 Reports & Export"
             ]
         )
     
@@ -9184,18 +9521,16 @@ def main():
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
-        try:
-                show_enhanced_environment_setup_with_vrops()
-        except Exception as e:
-                st.error(f"Enhanced setup failed: {str(e)}")
-                st.info("🔄 Using simple environment setup instead")
-                show_manual_environment_setup()
+        # CRITICAL: Use the fixed function here
+        show_environment_setup_main_fixed()
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
-        show_results_dashboard()
+        show_results_dashboard()  # This will now include the vROps tab
+    elif page == "💰 Cost Refresh":
+        main_cost_refresh_section()
     elif page == "📄 Reports & Export":
         show_reports_section()
     else:
@@ -9477,8 +9812,9 @@ def show_environment_analysis():
 
 
 
-def show_environment_setup_working():
-    """Simple working environment setup - NO VRops dependencies"""
+def show_environment_setup():
+    """Show environment setup interface with vROps support"""
+            #show_enhanced_environment_setup_with_vrops()
     
     st.markdown("## 📊 Environment Configuration")
     
@@ -9486,7 +9822,7 @@ def show_environment_setup_working():
         st.warning("⚠️ Please complete Migration Configuration first.")
         return
     
-    # Simple configuration method selection
+    # Environment configuration options
     config_method = st.radio(
         "Configuration Method:",
         ["📝 Manual Entry", "📁 Bulk Upload"],
@@ -9498,104 +9834,15 @@ def show_environment_setup_working():
     else:
         show_manual_environment_setup()
 
-def show_manual_environment_setup():
-    """Show manual environment setup interface - WORKING VERSION"""
-    
-    st.markdown("### 📝 Manual Environment Configuration")
-    
-    # Number of environments
-    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=4)
-    
-    # Environment configuration
-    environment_specs = {}
-    default_names = ['Development', 'QA', 'Staging', 'Production']
-    
-    # Create environment forms
-    for i in range(num_environments):
-        with st.expander(f"🏢 Environment {i+1}", expanded=i == 0):
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                env_name = st.text_input(
-                    "Environment Name",
-                    value=default_names[i] if i < len(default_names) else f"Environment_{i+1}",
-                    key=f"env_name_{i}"
-                )
-                
-                cpu_cores = st.number_input(
-                    "CPU Cores",
-                    min_value=1, max_value=128,
-                    value=[4, 8, 16, 32][min(i, 3)],
-                    key=f"cpu_{i}"
-                )
-                
-                ram_gb = st.number_input(
-                    "RAM (GB)",
-                    min_value=4, max_value=1024,
-                    value=[16, 32, 64, 128][min(i, 3)],
-                    key=f"ram_{i}"
-                )
-            
-            with col2:
-                storage_gb = st.number_input(
-                    "Storage (GB)",
-                    min_value=20, max_value=50000,
-                    value=[100, 500, 1000, 2000][min(i, 3)],
-                    key=f"storage_{i}"
-                )
-                
-                daily_usage_hours = st.slider(
-                    "Daily Usage (Hours)",
-                    min_value=1, max_value=24,
-                    value=[8, 12, 16, 24][min(i, 3)],
-                    key=f"usage_{i}"
-                )
-                
-                peak_connections = st.number_input(
-                    "Peak Connections",
-                    min_value=1, max_value=10000,
-                    value=[20, 50, 100, 500][min(i, 3)],
-                    key=f"connections_{i}"
-                )
-            
-            # Store environment specs
-            environment_specs[env_name] = {
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'daily_usage_hours': daily_usage_hours,
-                'peak_connections': peak_connections
-            }
-    
-    # Save button
-    if st.button("💾 Save Environment Configuration", type="primary", use_container_width=True):
-        st.session_state.environment_specs = environment_specs
-        st.success("✅ Environment configuration saved!")
-        
-        # Display summary
-        st.markdown("#### 📊 Configuration Summary")
-        summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
-        st.dataframe(summary_df, use_container_width=True)
-        
-        # Add cost refresh if analysis exists
-        if st.session_state.migration_params:
-            with st.spinner("🔄 Updating cost estimates..."):
-                try:
-                    refresh_cost_calculations()
-                    st.info("💰 Cost estimates updated based on new environment configuration")
-                except:
-                    st.info("💡 Cost estimates will be calculated when you run the analysis")
-
 def show_bulk_upload_interface():
-    """Show bulk upload interface for environments - WORKING VERSION"""
+    """Show bulk upload interface for environments"""
     
     st.markdown("### 📁 Bulk Environment Upload")
     
     # Sample template
     with st.expander("📋 Download Sample Template", expanded=False):
         sample_data = {
-            'environment': ['Development', 'QA', 'Staging', 'Production'],
+            'environment': ['Development', 'QA', 'SQA', 'Production'],
             'cpu_cores': [4, 8, 16, 32],
             'ram_gb': [16, 32, 64, 128],
             'storage_gb': [100, 500, 1000, 2000],
@@ -9656,6 +9903,16 @@ def show_bulk_upload_interface():
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
+    if st.button("💾 Save Environment Configuration", type="primary"):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Environment configuration saved!")
+        
+        # ADD automatic cost refresh when environments change
+        if st.session_state.migration_params:
+            with st.spinner("🔄 Updating cost estimates..."):
+                refresh_cost_calculations()
+                st.info("💰 Cost estimates updated based on new environment configuration")
+    
 def show_manual_environment_setup():
     """Show manual environment setup interface"""
     
@@ -10031,7 +10288,7 @@ def show_results_dashboard():
         show_growth_analysis_dashboard()
     
     with tab3:  # <-- NEW TAB CONTENT
-        show_vrops_results_tab()
+        show_vrops_results_tab_fixed()
     
     with tab4:
         if has_enhanced_results:
