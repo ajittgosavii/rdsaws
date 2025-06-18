@@ -632,74 +632,53 @@ class MigrationAnalyzer:
             'transfer_costs': transfer_costs
         }
     
-def add_missing_methods_to_migration_analyzer():
-    """Add missing methods to MigrationAnalyzer class"""
+def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+    """Generate REAL Claude AI insights synchronously"""
     
-    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate REAL Claude AI insights synchronously"""
-        
-        if not self.anthropic_api_key:
-            return {
-                'error': 'No Anthropic API key provided', 
-                'source': 'Error',
-                'success': False,
-                'fallback_insights': {
-                    'summary': f"Migration analysis complete. Monthly cost: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}",
-                    'recommendations': ['Proceed with phased migration approach', 'Implement comprehensive testing'],
-                    'cost_optimization': 'Consider Reserved Instances for 30-40% savings'
-                }
-            }
-        
-        try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-            
-            context = f"""
-            You are an AWS database migration expert. Analyze this project:
-            
-            MIGRATION: {migration_params.get('source_engine')} → {migration_params.get('target_engine')}
-            DATA SIZE: {migration_params.get('data_size_gb', 0):,} GB
-            TIMELINE: {migration_params.get('migration_timeline_weeks', 0)} weeks
-            MONTHLY COST: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
-            MIGRATION COST: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
-            
-            Provide specific insights for:
-            1. Top 3 migration risks and how to mitigate them
-            2. Cost optimization opportunities
-            3. Timeline feasibility and recommendations
-            4. Technical considerations for this specific database migration
-            
-            Be concise but actionable.
-            """
-            
-            message = client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=1500,
-                temperature=0.3,
-                messages=[{"role": "user", "content": context}]
-            )
-            
-            return {
-                'ai_analysis': message.content[0].text,
-                'source': 'Claude AI (Real)',
-                'model': 'claude-3-sonnet-20240229',
-                'success': True
-            }
-            
-        except ImportError:
-            return {
-                'error': 'Run: pip install anthropic', 
-                'source': 'Library Error', 
-                'success': False
-            }
-        except Exception as e:
-            return {
-                'error': f'Claude AI failed: {str(e)}', 
-                'source': 'API Error', 
-                'success': False
-            }
+    if not self.anthropic_api_key:
+        return {'error': 'No Anthropic API key provided', 'source': 'Error'}
     
-       
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=self.anthropic_api_key)
+        
+        context = f"""
+        You are an AWS database migration expert. Analyze this project:
+        
+        MIGRATION: {migration_params.get('source_engine')} → {migration_params.get('target_engine')}
+        DATA SIZE: {migration_params.get('data_size_gb', 0):,} GB
+        TIMELINE: {migration_params.get('migration_timeline_weeks', 0)} weeks
+        MONTHLY COST: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
+        MIGRATION COST: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
+        
+        Provide specific insights for:
+        1. Top 3 migration risks and how to mitigate them
+        2. Cost optimization opportunities
+        3. Timeline feasibility and recommendations
+        4. Technical considerations for this specific database migration
+        
+        Be concise but actionable.
+        """
+        
+        message = client.messages.create(
+            model="claude-3-sonnet-20240229",
+            max_tokens=1500,
+            temperature=0.3,
+            messages=[{"role": "user", "content": context}]
+        )
+        
+        return {
+            'ai_analysis': message.content[0].text,
+            'source': 'Claude AI (Real)',
+            'model': 'claude-3-sonnet-20240229',
+            'success': True
+        }
+        
+    except ImportError:
+        return {'error': 'Run: pip install anthropic', 'source': 'Library Error', 'success': False}
+    except Exception as e:
+        return {'error': f'Claude AI failed: {str(e)}', 'source': 'API Error', 'success': False}
+    
     def _categorize_environment(self, env_name: str) -> str:
         """Categorize environment type from name"""
         env_lower = env_name.lower()
@@ -6341,9 +6320,9 @@ def show_network_transfer_analysis():
     
 
 def show_network_analysis_results():
-    """Display network analysis results - FIXED VERSION"""
+    """Display network analysis results"""
     
-    # Check if transfer_analysis exists and is not None
+    # Fix: Check if transfer_analysis exists and is not None
     if not hasattr(st.session_state, 'transfer_analysis') or st.session_state.transfer_analysis is None:
         st.error("No network analysis results available. Please run the network analysis first.")
         return
@@ -6657,6 +6636,7 @@ def show_network_cost_analysis(transfer_analysis: Dict):
     
     # Cost breakdown for each pattern
     analyzer = NetworkTransferAnalyzer()
+    chart_counter = 0
     
     for pattern_id, metrics in transfer_analysis.items():
         if pattern_id == 'recommendations':
@@ -6677,10 +6657,13 @@ def show_network_cost_analysis(transfer_analysis: Dict):
                 st.metric("Total Cost", f"${metrics['total_cost']:,.0f}")
             
             with col3:
-                data_size = st.session_state.migration_params.get('data_size_gb', 1000)
-                st.metric("Cost per GB", f"${metrics['total_cost']/data_size:.2f}")
+                st.metric("Cost per GB", f"${metrics['total_cost']/st.session_state.migration_params.get('data_size_gb', 1000):.2f}")
                 
                 # ROI calculation
+                migration_params = st.session_state.migration_params
+                data_size = migration_params.get('data_size_gb', 1000)
+                
+                # Estimate ongoing monthly savings (simplified)
                 monthly_savings = data_size * 0.05  # Assume $0.05/GB monthly savings
                 roi_months = metrics['total_cost'] / monthly_savings if monthly_savings > 0 else float('inf')
                 
@@ -8715,97 +8698,141 @@ def test_claude_ai_connection():
             st.error(f"❌ Test failed: {str(e)}")
 
 def main():
-    """Main Streamlit application - COMPLETELY FIXED VERSION"""
+    """Main Streamlit application"""
     
-    try:
-        initialize_session_state()
-        
-        # Header
-        st.markdown("""
-        <div class="enterprise-header">
-            <h1>🚀 Enterprise AWS Database Migration Tool</h1>
-            <p>AI-Powered Analysis • Real-time AWS Pricing • Comprehensive Risk Assessment</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Sidebar navigation
-        with st.sidebar:
-            st.markdown("## 🧭 Navigation")
-            page = st.radio(
-                "Select Section:",
-                [
-                    "🔧 Migration Configuration",
-                    "📊 Environment Setup", 
-                    "🌐 Network Analysis",
-                    "🚀 Analysis & Recommendations",
-                    "📈 Results Dashboard",
-                    "💰 Cost Refresh",
-                    "📄 Reports & Export"
-                ]
-            )
-            
-            # Status indicators
-            st.markdown("### 📋 Status")
-            
-            # Environment status
-            env_specs = getattr(st.session_state, 'environment_specs', {})
-            if env_specs and len(env_specs) > 0:
-                st.success(f"✅ {len(env_specs)} environments configured")
-            else:
-                st.warning("⚠️ Configure environments")
-            
-            # Migration params status
-            if hasattr(st.session_state, 'migration_params') and st.session_state.migration_params:
-                st.success("✅ Migration parameters set")
-            else:
-                st.warning("⚠️ Set migration parameters")
-            
-            # Analysis status
-            has_regular_results = hasattr(st.session_state, 'analysis_results') and st.session_state.analysis_results is not None
-            has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
-            
-            if has_regular_results or has_enhanced_results:
-                st.success("✅ Analysis complete")
-                
-                # Show quick metrics
-                if has_enhanced_results:
-                    results = st.session_state.enhanced_analysis_results
-                    st.metric("Monthly Cost", f"${results.get('monthly_aws_cost', 0):,.0f}")
-                    st.info("🔬 Enhanced Analysis")
-                elif has_regular_results:
-                    results = st.session_state.analysis_results
-                    st.metric("Monthly Cost", f"${results.get('monthly_aws_cost', 0):,.0f}")
-                    st.info("📊 Standard Analysis")
-            else:
-                st.info("ℹ️ Analysis pending")
-        
-        # Main content area - FIXED NAVIGATION
-        if page == "🔧 Migration Configuration":
-            show_migration_configuration()
-        elif page == "📊 Environment Setup":
-            show_enhanced_environment_setup_with_cluster_config()
-        elif page == "🌐 Network Analysis":
-            show_network_transfer_analysis()
-        elif page == "🚀 Analysis & Recommendations":
-            show_analysis_section_fixed()
-        elif page == "📈 Results Dashboard":
-            show_results_dashboard()
-        elif page == "💰 Cost Refresh":
-            main_cost_refresh_section()
-        elif page == "📄 Reports & Export":
-            show_reports_section()
-        else:
-            # Default page
-            st.markdown("## Welcome to the AWS Database Migration Tool")
-            st.markdown("Please select a section from the sidebar to get started.")
+    initialize_session_state()
     
-    except Exception as e:
-        st.error(f"❌ Application Error: {str(e)}")
-        st.code(str(e))
+    # Header
+    st.markdown("""
+    <div class="enterprise-header">
+        <h1>🚀 Enterprise AWS Database Migration Tool</h1>
+        <p>AI-Powered Analysis • Real-time AWS Pricing • Comprehensive Risk Assessment</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Sidebar navigation
+    with st.sidebar:
+        st.markdown("## 🧭 Navigation")
+        page = st.radio(
+            "Select Section:",
+            [
+                "🔧 Migration Configuration",
+                "📊 Environment Setup", 
+                "🌐 Network Analysis",
+                "🚀 Analysis & Recommendations",
+                "📈 Results Dashboard",
+                "💰 Cost Refresh",  # <-- ADD THIS LINE
+                "📄 Reports & Export"
+            ]
+        )
+    
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.success("✅ vROps analysis complete")
         
-        # Provide basic fallback
-        st.markdown("## ⚠️ Fallback Mode")
-        st.markdown("The application encountered an error. Please refresh the page or contact support.")
+    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
+        main_cost_refresh_section()
+    
+    health_scores = []
+    vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
+    if vrops_analysis is not None and isinstance(vrops_analysis, dict):
+        for env_name, analysis in vrops_analysis.items():
+    
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+            else:
+                st.info("ℹ️ vROps analysis pending")
+    
+        # Status indicators
+                st.markdown("### 📋 Status")
+        
+    env_specs = getattr(st.session_state, 'environment_specs', {})
+    if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
+    else:
+            st.warning("⚠️ Configure environments")
+        
+    if st.session_state.migration_params:
+            st.success("✅ Migration parameters set")
+    else:
+            st.warning("⚠️ Set migration parameters")
+        
+        # Check for both regular and enhanced analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        
+    if has_regular_results or has_enhanced_results:
+            st.success("✅ Analysis complete")
+            
+            # Show metrics from whichever analysis was completed
+            if has_enhanced_results:
+                results = st.session_state.enhanced_analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("🔬 Enhanced Analysis")
+            elif has_regular_results:
+                results = st.session_state.analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("📊 Standard Analysis")
+    else:
+            st.info("ℹ️ Analysis pending")
+        
+        # Network analysis status
+    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+            st.success("✅ Network analysis complete")
+            recommendations = st.session_state.transfer_analysis.get('recommendations', {})
+            primary = recommendations.get('primary_recommendation', {})
+            if primary:
+                st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
+    else:
+            st.info("ℹ️ Network analysis pending")
+        
+        # vROps analysis status
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+            st.success("✅ vROps analysis complete")
+            
+            health_scores = []
+            for env_name, analysis in st.session_state.vrops_analysis.items():
+                if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+            
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+    else:
+            st.info("ℹ️ vROps analysis pending")
+        
+        # Debug info (optional)
+    if st.checkbox("🐛 Show Debug Info"):
+            st.markdown("### Debug Information")
+            st.write("Environment specs:", bool(st.session_state.environment_specs))
+            st.write("Migration params:", bool(st.session_state.migration_params))
+            st.write("Analysis results:", bool(st.session_state.analysis_results))
+            st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
+            
+    if st.session_state.environment_specs:
+                st.write("Num environments:", len(st.session_state.environment_specs))
+                st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
+    
+    # Main content area - THIS IS THE KEY FIX
+    if page == "🔧 Migration Configuration":
+        show_migration_configuration()
+    elif page == "📊 Environment Setup":
+        show_enhanced_environment_setup_with_cluster_config()
+    elif page == "🌐 Network Analysis":
+        show_network_transfer_analysis()
+    elif page == "🚀 Analysis & Recommendations":
+        show_analysis_section_fixed()
+    elif page == "📈 Results Dashboard":
+        show_results_dashboard()
+    elif page == "📄 Reports & Export":
+        show_reports_section()
+    else:
+        # Default page
+        st.markdown("## Welcome to the AWS Database Migration Tool")
+        st.markdown("Please select a section from the sidebar to get started.")
+
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
     
@@ -10424,16 +10451,39 @@ def show_enhanced_environment_setup_with_cluster_config():
         st.warning("⚠️ Please complete Migration Configuration first.")
         return
     
+    # ADD THIS SECTION:
+    # Initialize vROps analyzer
+    if 'vrops_analyzer' not in st.session_state:
+        st.session_state.vrops_analyzer = VRopsMetricsAnalyzer()
+    
     # Configuration method selection
     config_method = st.radio(
         "Choose configuration method:",
         [
+            "📊 vROps Metrics Import",  # ADD THIS LINE
             "📝 Manual Cluster Configuration", 
             "📁 Bulk Upload with Cluster Details",
             "🔄 Simple Configuration (Legacy)"
         ],
         horizontal=True
     )
+    
+    if config_method == "📊 vROps Metrics Import":  # ADD THIS CONDITION
+        analyzer = st.session_state.vrops_analyzer
+        show_vrops_import_interface(analyzer)
+        return
+    # END OF ADDITION
+    
+    # Configuration method selection
+    #config_method = st.radio(
+     #   "Choose configuration method:",
+     #   [
+     #       "📝 Manual Cluster Configuration", 
+      #      "📁 Bulk Upload with Cluster Details",
+      #      "🔄 Simple Configuration (Legacy)"
+      #  ],
+      #  horizontal=True
+   # )
     
     if config_method == "📝 Manual Cluster Configuration":
         show_manual_cluster_configuration()
@@ -10825,12 +10875,12 @@ def show_cluster_configuration_preview(recommendations: Dict):
                 st.write(f"Encrypted: {'✅ Yes' if storage['encrypted'] else '❌ No'}")
 
 # Enhanced Cost Analysis Functions
-def show_enhanced_cost_analysis_fixed():
-    """Show enhanced cost analysis - FIXED VERSION"""
+def show_enhanced_cost_analysis():
+    """Show enhanced cost analysis with Writer/Reader breakdown"""
     
     st.markdown("### 💰 Enhanced Cost Analysis")
     
-    if not hasattr(st.session_state, 'enhanced_analysis_results') or not st.session_state.enhanced_analysis_results:
+    if not hasattr(st.session_state, 'enhanced_analysis_results'):
         st.warning("Please run the enhanced analysis first.")
         return
     
@@ -10843,73 +10893,113 @@ def show_enhanced_cost_analysis_fixed():
         st.metric(
             "Total Monthly Cost",
             f"${results['monthly_aws_cost']:,.0f}",
-            delta=f"${results.get('annual_aws_cost', results['monthly_aws_cost'] * 12):,.0f}/year"
+            delta=f"${results['annual_aws_cost']:,.0f}/year"
         )
     
     with col2:
-        # Calculate writer vs reader costs safely
-        env_costs = results.get('environment_costs', {})
-        total_writer_cost = sum([env.get('writer_instance_cost', 0) for env in env_costs.values()])
-        total_reader_cost = sum([env.get('reader_costs', 0) for env in env_costs.values()])
+        # Calculate writer vs reader costs
+        total_writer_cost = sum([env['writer_instance_cost'] for env in results['environment_costs'].values()])
+        total_reader_cost = sum([env['reader_costs'] for env in results['environment_costs'].values()])
         
         st.metric(
             "Writer Instances",
             f"${total_writer_cost:,.0f}/month",
-            delta=f"{(total_writer_cost/results['monthly_aws_cost']*100):.1f}% of total" if results['monthly_aws_cost'] > 0 else "N/A"
+            delta=f"{(total_writer_cost/results['monthly_aws_cost']*100):.1f}% of total"
         )
     
     with col3:
         st.metric(
             "Reader Instances",
             f"${total_reader_cost:,.0f}/month",
-            delta=f"{(total_reader_cost/results['monthly_aws_cost']*100):.1f}% of total" if total_reader_cost > 0 and results['monthly_aws_cost'] > 0 else "No readers"
+            delta=f"{(total_reader_cost/results['monthly_aws_cost']*100):.1f}% of total" if total_reader_cost > 0 else "No readers"
         )
     
     with col4:
-        total_storage_cost = sum([env.get('storage_cost', 0) for env in env_costs.values()])
+        total_storage_cost = sum([env['storage_cost'] for env in results['environment_costs'].values()])
         st.metric(
             "Storage & I/O",
             f"${total_storage_cost:,.0f}/month",
-            delta=f"{(total_storage_cost/results['monthly_aws_cost']*100):.1f}% of total" if results['monthly_aws_cost'] > 0 else "N/A"
+            delta=f"{(total_storage_cost/results['monthly_aws_cost']*100):.1f}% of total"
         )
     
     # Detailed environment breakdown
     st.markdown("#### 🏢 Environment Cost Breakdown")
     
-    chart_counter = 0  # Initialize counter properly
-    
-    for env_name, costs in env_costs.items():
-        with st.expander(f"💵 {env_name} - Total: ${costs.get('total_monthly', 0):,.0f}/month"):
+    for env_name, costs in results['environment_costs'].items():
+        with st.expander(f"💵 {env_name} - Total: ${costs['total_monthly']:,.0f}/month"):
             
-            # Create cost breakdown chart with safe data extraction
-            cost_categories = ['Writer Instance', 'Reader Instances', 'Storage', 'Backup']
+            # Create cost breakdown chart
+            cost_categories = ['Writer Instance', 'Reader Instances', 'Storage', 'Backup', 'Monitoring', 'Cross-AZ Transfer']
             cost_values = [
-                costs.get('writer_instance_cost', 0),
-                costs.get('reader_costs', 0),
-                costs.get('storage_cost', 0),
-                costs.get('backup_cost', 0)
+                costs['writer_instance_cost'],
+                costs['reader_costs'],
+                costs['storage_cost'],
+                costs['backup_cost'],
+                costs['monitoring_cost'],
+                costs['cross_az_cost']
             ]
             
-            # Only create chart if we have valid data
-            if any(val > 0 for val in cost_values):
-                fig = go.Figure(data=[go.Pie(
-                    labels=cost_categories,
-                    values=cost_values,
-                    hole=0.3,
-                    textinfo='label+percent',
-                    textposition='outside'
-                )])
-                
-                fig.update_layout(
-                    title=f"{env_name} Cost Distribution",
-                    height=400
-                )
-                
-                # FIXED: Unique key with proper counter
-                st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_chart_{chart_counter}")
-                chart_counter += 1
-            else:
-                st.info("No cost data available for chart visualization")
+            fig = go.Figure(data=[go.Pie(
+                labels=cost_categories,
+                values=cost_values,
+                hole=0.3,
+                textinfo='label+percent',
+                textposition='outside'
+            )])
+            
+            fig.update_layout(
+                title=f"{env_name} Cost Distribution",
+                height=400
+            )
+            
+             # FIXED: Added unique key using counter
+            st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_breakdown_{chart_counter}")
+            chart_counter += 1
+            
+                       
+            # Detailed breakdown table
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Instance Costs**")
+                st.write(f"Writer: ${costs['writer_instance_cost']:,.0f}")
+                if costs['reader_count'] > 0:
+                    st.write(f"Readers ({costs['reader_count']}): ${costs['reader_costs']:,.0f}")
+                    st.write(f"Reader cost per instance: ${costs['reader_costs']/costs['reader_count']:,.0f}")
+                else:
+                    st.write("Readers: No read replicas")
+            
+            with col2:
+                st.markdown("**Storage Breakdown**")
+                storage_breakdown = costs['storage_breakdown']
+                st.write(f"Base Storage: ${storage_breakdown['base_storage_cost']:,.0f}")
+                if storage_breakdown['iops_cost'] > 0:
+                    st.write(f"Provisioned IOPS: ${storage_breakdown['iops_cost']:,.0f}")
+                if storage_breakdown['io_request_cost'] > 0:
+                    st.write(f"I/O Requests: ${storage_breakdown['io_request_cost']:,.0f}")
+                st.write(f"Storage Type: {storage_breakdown['storage_type'].upper()}")
+                st.write(f"Size: {storage_breakdown['storage_size_gb']:,} GB")
+            
+            # Configuration details
+            st.markdown("**Configuration Details**")
+            writer_config = costs['writer_config']
+            reader_config = costs['reader_config']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("*Writer:*")
+                st.write(f"Instance: {writer_config['instance_class']}")
+                st.write(f"Multi-AZ: {'✅ Yes' if writer_config['multi_az'] else '❌ No'}")
+            
+            with col2:
+                st.markdown("*Readers:*")
+                if reader_config['count'] > 0:
+                    st.write(f"Count: {reader_config['count']}")
+                    st.write(f"Instance: {reader_config['instance_class']}")
+                    st.write(f"Multi-AZ: {'✅ Yes' if reader_config['multi_az'] else '❌ No'}")
+                else:
+                    st.write("No read replicas configured")
 
 # Enhanced Analysis Runner
 def run_enhanced_migration_analysis():
