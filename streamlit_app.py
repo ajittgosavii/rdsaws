@@ -9462,6 +9462,10 @@ def main():
         # Safe access to session state
         env_specs = getattr(st.session_state, 'environment_specs', {})
         migration_params = getattr(st.session_state, 'migration_params', {})
+        if migration_params:
+            st.success("✅ Migration parameters set")
+        else:
+            st.warning("⚠️ Set migration parameters")
         
         if env_specs and len(env_specs) > 0:
             st.success(f"✅ {len(env_specs)} environments configured")
@@ -9489,9 +9493,9 @@ def main():
         
     env_specs = getattr(st.session_state, 'environment_specs', {})
     if env_specs and len(env_specs) > 0:
-            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
+        st.success(f"✅ {len(env_specs)} environments configured")
     else:
-            st.warning("⚠️ Configure environments")
+        st.warning("⚠️ Configure environments")
         
     if st.session_state.migration_params:
             st.success("✅ Migration parameters set")
