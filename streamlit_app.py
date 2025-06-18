@@ -8735,11 +8735,8 @@ def main():
     else:
         st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
         return
-        st.success("✅ vROps analysis complete")
-        
-    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
-        main_cost_refresh_section()
-    
+        st.success("✅ vROps analysis complete")        
+       
     health_scores = []
     vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
     if vrops_analysis is not None and isinstance(vrops_analysis, dict):
