@@ -8766,20 +8766,7 @@ def main():
     
    
             
-            # Show metrics from whichever analysis was completed
-            if has_enhanced_results:
-                results = st.session_state.enhanced_analysis_results
-                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
-                st.info("🔬 Enhanced Analysis")
-            elif has_regular_results:
-                results = st.session_state.analysis_results
-                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
-                st.info("📊 Standard Analysis")
-    else:
-            st.info("ℹ️ Analysis pending")
-        
+             
         # Network analysis status
     if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
