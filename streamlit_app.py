@@ -7771,8 +7771,8 @@ def show_growth_analysis_dashboard():
     
         
         # Show basic growth planning instead
-        st.markdown("#### 🎯 Growth Planning Preview")
-        st.info("""
+    st.markdown("#### 🎯 Growth Planning Preview")
+    st.info("""
         **Growth analysis will show:**
         - 3-year cost projections with growth factors
         - Resource scaling requirements
