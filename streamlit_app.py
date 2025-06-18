@@ -7894,7 +7894,7 @@ def show_growth_analysis_dashboard():
 
 """Show risk assessment results"""
     
-    st.markdown("### ⚠️ Migration Risk Assessment")
+        st.markdown("### ⚠️ Migration Risk Assessment")
     
     # Create a basic risk assessment if none exists
     if not hasattr(st.session_state, 'risk_assessment') or not st.session_state.risk_assessment:
