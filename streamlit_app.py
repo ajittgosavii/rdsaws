@@ -8726,47 +8726,58 @@ def main():
             ]
         )
     
-    # ADD THIS SECTION TO MOVE STATUS TO SIDEBAR:
-    st.markdown("---")
-    st.markdown("### 📋 Status")
-    
-    # Migration parameters status
-    if st.session_state.migration_params:
-        st.success("✅ Migration parameters set")
-    else:
-        st.warning("⚠️ Set migration parameters")
-    
-    # Environment specs status
-    env_specs = getattr(st.session_state, 'environment_specs', {})
-    if env_specs and len(env_specs) > 0:
-        st.success(f"✅ {len(env_specs)} environments configured")
-    else:
-        st.warning("⚠️ Configure environments")
-    
-    # Analysis results status
-    has_regular_results = st.session_state.analysis_results is not None
-    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
-    
-    if has_regular_results or has_enhanced_results:
-        st.success("✅ Analysis complete")
-    else:
-        st.info("ℹ️ Analysis pending")
-    
-    # Network analysis status
-    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
-        st.success("✅ Network analysis complete")
-    else:
-        st.info("ℹ️ Network analysis pending")
-    
-    # vROps analysis status
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
         st.success("✅ vROps analysis complete")
-    else:
-        st.info("ℹ️ vROps analysis pending")
+        
+    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
+        main_cost_refresh_section()
     
-   
+    health_scores = []
+    vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
+    if vrops_analysis is not None and isinstance(vrops_analysis, dict):
+        for env_name, analysis in vrops_analysis.items():
+    
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+            else:
+                st.info("ℹ️ vROps analysis pending")
+    
+        # Status indicators
+                st.markdown("### 📋 Status")
+        
+    env_specs = getattr(st.session_state, 'environment_specs', {})
+    if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
+    else:
+            st.warning("⚠️ Configure environments")
+        
+    if st.session_state.migration_params:
+            st.success("✅ Migration parameters set")
+    else:
+            st.warning("⚠️ Set migration parameters")
+        
+        # Check for both regular and enhanced analysis results
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        
+    if has_regular_results or has_enhanced_results:
+            st.success("✅ Analysis complete")
             
-             
+            # Show metrics from whichever analysis was completed
+            if has_enhanced_results:
+                results = st.session_state.enhanced_analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("🔬 Enhanced Analysis")
+            elif has_regular_results:
+                results = st.session_state.analysis_results
+                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                st.info("📊 Standard Analysis")
+    else:
+            st.info("ℹ️ Analysis pending")
+        
         # Network analysis status
     if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
