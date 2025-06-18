@@ -8799,7 +8799,7 @@ def main():
     else:
         st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
         return
-            st.success("✅ vROps analysis complete")
+        st.success("✅ vROps analysis complete")
             
             health_scores = []
             for env_name, analysis in st.session_state.vrops_analysis.items():
