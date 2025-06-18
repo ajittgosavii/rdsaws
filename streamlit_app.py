@@ -8725,43 +8725,43 @@ def main():
                 "📄 Reports & Export"
             ]
         )
-     # ADD THIS SECTION TO MOVE STATUS TO SIDEBAR:
-    st.markdown("---")
-    st.markdown("### 📋 Status")
-    
-    # Migration parameters status
-    if st.session_state.migration_params:
-        st.success("✅ Migration parameters set")
-    else:
-        st.warning("⚠️ Set migration parameters")
-    
-    # Environment specs status
-    env_specs = getattr(st.session_state, 'environment_specs', {})
-    if env_specs and len(env_specs) > 0:
-        st.success(f"✅ {len(env_specs)} environments configured")
-    else:
-        st.warning("⚠️ Configure environments")
-    
-    # Analysis results status
-    has_regular_results = st.session_state.analysis_results is not None
-    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
-    
-    if has_regular_results or has_enhanced_results:
-        st.success("✅ Analysis complete")
-    else:
-        st.info("ℹ️ Analysis pending")
-    
-    # Network analysis status
-    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
-        st.success("✅ Network analysis complete")
-    else:
-        st.info("ℹ️ Network analysis pending")
-    
-    # vROps analysis status
-    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
-        st.success("✅ vROps analysis complete")
-    else:
-        st.info("ℹ️ vROps analysis pending")
+        # ADD THIS SECTION TO MOVE STATUS TO SIDEBAR:
+        st.markdown("---")
+        st.markdown("### 📋 Status")
+        
+        # Migration parameters status
+        if st.session_state.migration_params:
+            st.success("✅ Migration parameters set")
+        else:
+            st.warning("⚠️ Set migration parameters")
+        
+        # Environment specs status
+        env_specs = getattr(st.session_state, 'environment_specs', {})
+        if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(env_specs)} environments configured")
+        else:
+            st.warning("⚠️ Configure environments")
+        
+        # Analysis results status
+        has_regular_results = st.session_state.analysis_results is not None
+        has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        
+        if has_regular_results or has_enhanced_results:
+            st.success("✅ Analysis complete")
+        else:
+            st.info("ℹ️ Analysis pending")
+        
+        # Network analysis status
+        if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+            st.success("✅ Network analysis complete")
+        else:
+            st.info("ℹ️ Network analysis pending")
+        
+        # vROps analysis status
+        if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+            st.success("✅ vROps analysis complete")
+        else:
+            st.info("ℹ️ vROps analysis pending")
     
     # Main content area - THIS IS THE KEY FIX
     if page == "🔧 Migration Configuration":
