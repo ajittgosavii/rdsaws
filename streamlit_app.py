@@ -7782,7 +7782,7 @@ def show_growth_analysis_dashboard():
         
         Run the migration analysis to see detailed growth projections.
         """)
-        return
+    return
     
     growth_analysis = st.session_state.growth_analysis
     growth_summary = growth_analysis['growth_summary']
