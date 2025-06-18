@@ -991,7 +991,7 @@ def show_analysis_summary():
     st.info("📈 View detailed results in the 'Results Dashboard' section")
 
 
-# FIXED: Update the analysis section to use synchronous function
+
 def show_analysis_section_fixed():
     """Show analysis and recommendations section - FIXED for Streamlit"""
     
@@ -1038,6 +1038,11 @@ def show_analysis_section_fixed():
         
         if len(envs) > 4:
             st.markdown(f"• ... and {len(envs) - 4} more environments")
+     # Add this line before the analysis button
+    #check_and_refresh_growth_metrics()
+    
+    # Run analysis button
+    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
     
     # API status check
     show_api_status_inline()
@@ -6631,6 +6636,8 @@ def calculate_migration_risks_safe(migration_params: Dict, recommendations: Dict
         print(f"Error in safe risk calculation: {e}")
         return get_fallback_risk_assessment()
 
+
+
 def calculate_engine_compatibility_risk(source: str, target: str) -> float:
     """Calculate engine compatibility risk safely"""
     compatibility_scores = {
@@ -7635,7 +7642,7 @@ def show_timeline_analysis_tab():
 
 
 def show_growth_analysis_dashboard():
-    """Show comprehensive growth analysis dashboard"""
+    """Show comprehensive growth analysis dashboard - FIXED VERSION"""
     
     st.markdown("### 📈 3-Year Growth Analysis & Projections")
     
@@ -7691,13 +7698,24 @@ def show_growth_analysis_dashboard():
             delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
         )
     
-    # Growth Projection Charts
+    # Growth Projection Charts - FIXED VERSION
     st.markdown("#### 📊 Growth Projections")
+    
+    # Create a unique session-based identifier for chart keys
+    if 'chart_session_id' not in st.session_state:
+        import time
+        st.session_state.chart_session_id = int(time.time())
+    
+    session_id = st.session_state.chart_session_id
     
     try:
         charts = create_growth_projection_charts(growth_analysis)
-        for chart in charts:
-            st.plotly_chart(chart, use_container_width=True)
+        
+        # Display charts with truly unique keys
+        for i, chart in enumerate(charts):
+            chart_key = f"growth_dashboard_chart_{session_id}_{i}"
+            st.plotly_chart(chart, use_container_width=True, key=chart_key)
+            
     except Exception as e:
         st.error(f"Error creating growth charts: {str(e)}")
         
@@ -7760,7 +7778,6 @@ def show_growth_analysis_dashboard():
         
         for rec in default_recommendations:
             st.markdown(rec)
-
 
 def create_growth_projection_charts(growth_analysis: Dict) -> List[go.Figure]:
     """Create comprehensive growth projection visualizations"""
@@ -8971,7 +8988,7 @@ def show_analysis_section_fixed():
 # ADD THIS FUNCTION to your streamlit_app.py file:
 
 def run_streamlit_migration_analysis():
-    """Run migration analysis with growth projections - ENHANCED VERSION"""
+    """Run migration analysis - FIXED VERSION without auto-rerun"""
     
     try:
         # Initialize analyzer
@@ -8993,13 +9010,17 @@ def run_streamlit_migration_analysis():
         risk_assessment = create_default_risk_assessment()
         st.session_state.risk_assessment = risk_assessment
         
-        # Step 4: Growth Analysis (NEW)
+        # Step 4: Growth Analysis - NO AUTO-RERUN
         st.write("📈 Calculating 3-year growth projections...")
         growth_analyzer = GrowthAwareCostAnalyzer()
         growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
             cost_analysis, st.session_state.migration_params
         )
         st.session_state.growth_analysis = growth_analysis
+        
+        # Generate a new chart session ID to ensure unique keys
+        import time
+        st.session_state.chart_session_id = int(time.time())
         
         # Step 5: AI insights
         if anthropic_api_key:
@@ -9019,46 +9040,54 @@ def run_streamlit_migration_analysis():
         
         st.success("✅ Analysis complete with growth projections!")
         
-        # Show enhanced summary
-        show_analysis_summary_with_growth()
+        # Show summary WITHOUT auto-rerun
+        show_simple_analysis_summary()
+        
+        # Provide navigation hint
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
         create_basic_fallback()
 
-def show_analysis_summary_with_growth():
-    """Enhanced analysis summary including growth metrics"""
+def show_simple_analysis_summary():
+    """Show simple analysis summary without auto-refresh"""
     
-    st.markdown("#### 🎯 Analysis Summary with Growth Projections")
-    
+    st.markdown("#### 🎯 Analysis Summary")
     col1, col2, col3, col4 = st.columns(4)
     
+    # Base results
     results = st.session_state.analysis_results
     
     with col1:
-        st.metric("Current Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+        st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
     
     with col2:
         migration_cost = results.get('migration_costs', {}).get('total', 0)
         st.metric("Migration Cost", f"${migration_cost:,.0f}")
     
     with col3:
+        # Check for growth analysis
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             growth_percent = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
             st.metric("3-Year Growth", f"{growth_percent:.1f}%")
         else:
-            st.metric("3-Year Growth", "Calculating...")
+            # Fallback to risk level if growth analysis not ready
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+            else:
+                st.metric("Processing...", "⏳")
     
     with col4:
+        # Check for growth analysis investment
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             total_investment = st.session_state.growth_analysis['growth_summary']['total_3_year_investment']
             st.metric("3-Year Investment", f"${total_investment:,.0f}")
         else:
-            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
-                risk_level = st.session_state.risk_assessment['risk_level']['level']
-                st.metric("Risk Level", risk_level)
-    
-    st.info("📈 View detailed growth projections in the 'Results Dashboard' section")
+            annual_cost = results['monthly_aws_cost'] * 12
+            st.metric("Annual Cost", f"${annual_cost:,.0f}")
+
 
 def show_simple_summary():
     """Show simple analysis summary"""
@@ -9488,13 +9517,20 @@ def show_environment_analysis_tab():
                         st.write(rec['reasoning'])
 
 def show_visualizations_tab():
-    """Show visualization charts"""
+    """Show visualization charts - FIXED VERSION"""
     
     st.markdown("### 📊 Cost & Performance Visualizations")
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ Visualizations not available. Please run the migration analysis first.")
         return
+    
+    # Generate unique session-based keys
+    if 'viz_session_id' not in st.session_state:
+        import time
+        st.session_state.viz_session_id = int(time.time())
+    
+    viz_session_id = st.session_state.viz_session_id
     
     try:
         # Cost comparison chart
@@ -9512,7 +9548,7 @@ def show_visualizations_tab():
                 env_names.append(env_name.title())
                 
                 if isinstance(costs, dict):
-                    cost = costs.get('total_monthly_cost', 
+                    cost = costs.get('total_monthly', 
                                    sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
                 else:
                     cost = float(costs) if costs else 0
@@ -9531,25 +9567,24 @@ def show_visualizations_tab():
                     height=400
                 )
                 
-                # FIXED: Added unique key
-                st.plotly_chart(fig, use_container_width=True, key="env_cost_visualization_chart")
+                # Use unique key
+                st.plotly_chart(fig, use_container_width=True, key=f"env_cost_viz_{viz_session_id}")
         
         # Growth visualization if available
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             st.markdown("#### 📈 Growth Projections")
             try:
                 charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                # FIXED: Added unique keys for each chart
+                # Use unique keys for each chart
                 for i, chart in enumerate(charts):
-                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_{viz_session_id}_{i}")
             except Exception as e:
                 st.error(f"Error creating growth charts: {str(e)}")
         
-           # Enhanced cost chart if available
+        # Enhanced cost chart if available
         if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
             st.markdown("#### 💎 Enhanced Cost Analysis")
-            # FIXED: Added unique key
-            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_visualization_chart")
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key=f"enhanced_cost_viz_{viz_session_id}")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
