@@ -10451,39 +10451,16 @@ def show_enhanced_environment_setup_with_cluster_config():
         st.warning("⚠️ Please complete Migration Configuration first.")
         return
     
-    # ADD THIS SECTION:
-    # Initialize vROps analyzer
-    if 'vrops_analyzer' not in st.session_state:
-        st.session_state.vrops_analyzer = VRopsMetricsAnalyzer()
-    
     # Configuration method selection
     config_method = st.radio(
         "Choose configuration method:",
         [
-            "📊 vROps Metrics Import",  # ADD THIS LINE
             "📝 Manual Cluster Configuration", 
             "📁 Bulk Upload with Cluster Details",
             "🔄 Simple Configuration (Legacy)"
         ],
         horizontal=True
     )
-    
-    if config_method == "📊 vROps Metrics Import":  # ADD THIS CONDITION
-        analyzer = st.session_state.vrops_analyzer
-        show_vrops_import_interface(analyzer)
-        return
-    # END OF ADDITION
-    
-    # Configuration method selection
-    #config_method = st.radio(
-     #   "Choose configuration method:",
-     #   [
-     #       "📝 Manual Cluster Configuration", 
-      #      "📁 Bulk Upload with Cluster Details",
-      #      "🔄 Simple Configuration (Legacy)"
-      #  ],
-      #  horizontal=True
-   # )
     
     if config_method == "📝 Manual Cluster Configuration":
         show_manual_cluster_configuration()
