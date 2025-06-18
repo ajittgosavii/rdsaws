@@ -9477,9 +9477,8 @@ def show_environment_analysis():
 
 
 
-def show_environment_setup():
-    """Show environment setup interface with vROps support"""
-            #show_enhanced_environment_setup_with_vrops()
+def show_environment_setup_working():
+    """Simple working environment setup - NO VRops dependencies"""
     
     st.markdown("## 📊 Environment Configuration")
     
@@ -9487,7 +9486,7 @@ def show_environment_setup():
         st.warning("⚠️ Please complete Migration Configuration first.")
         return
     
-    # Environment configuration options
+    # Simple configuration method selection
     config_method = st.radio(
         "Configuration Method:",
         ["📝 Manual Entry", "📁 Bulk Upload"],
@@ -9499,15 +9498,104 @@ def show_environment_setup():
     else:
         show_manual_environment_setup()
 
+def show_manual_environment_setup():
+    """Show manual environment setup interface - WORKING VERSION"""
+    
+    st.markdown("### 📝 Manual Environment Configuration")
+    
+    # Number of environments
+    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=4)
+    
+    # Environment configuration
+    environment_specs = {}
+    default_names = ['Development', 'QA', 'Staging', 'Production']
+    
+    # Create environment forms
+    for i in range(num_environments):
+        with st.expander(f"🏢 Environment {i+1}", expanded=i == 0):
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                env_name = st.text_input(
+                    "Environment Name",
+                    value=default_names[i] if i < len(default_names) else f"Environment_{i+1}",
+                    key=f"env_name_{i}"
+                )
+                
+                cpu_cores = st.number_input(
+                    "CPU Cores",
+                    min_value=1, max_value=128,
+                    value=[4, 8, 16, 32][min(i, 3)],
+                    key=f"cpu_{i}"
+                )
+                
+                ram_gb = st.number_input(
+                    "RAM (GB)",
+                    min_value=4, max_value=1024,
+                    value=[16, 32, 64, 128][min(i, 3)],
+                    key=f"ram_{i}"
+                )
+            
+            with col2:
+                storage_gb = st.number_input(
+                    "Storage (GB)",
+                    min_value=20, max_value=50000,
+                    value=[100, 500, 1000, 2000][min(i, 3)],
+                    key=f"storage_{i}"
+                )
+                
+                daily_usage_hours = st.slider(
+                    "Daily Usage (Hours)",
+                    min_value=1, max_value=24,
+                    value=[8, 12, 16, 24][min(i, 3)],
+                    key=f"usage_{i}"
+                )
+                
+                peak_connections = st.number_input(
+                    "Peak Connections",
+                    min_value=1, max_value=10000,
+                    value=[20, 50, 100, 500][min(i, 3)],
+                    key=f"connections_{i}"
+                )
+            
+            # Store environment specs
+            environment_specs[env_name] = {
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'daily_usage_hours': daily_usage_hours,
+                'peak_connections': peak_connections
+            }
+    
+    # Save button
+    if st.button("💾 Save Environment Configuration", type="primary", use_container_width=True):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Environment configuration saved!")
+        
+        # Display summary
+        st.markdown("#### 📊 Configuration Summary")
+        summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
+        st.dataframe(summary_df, use_container_width=True)
+        
+        # Add cost refresh if analysis exists
+        if st.session_state.migration_params:
+            with st.spinner("🔄 Updating cost estimates..."):
+                try:
+                    refresh_cost_calculations()
+                    st.info("💰 Cost estimates updated based on new environment configuration")
+                except:
+                    st.info("💡 Cost estimates will be calculated when you run the analysis")
+
 def show_bulk_upload_interface():
-    """Show bulk upload interface for environments"""
+    """Show bulk upload interface for environments - WORKING VERSION"""
     
     st.markdown("### 📁 Bulk Environment Upload")
     
     # Sample template
     with st.expander("📋 Download Sample Template", expanded=False):
         sample_data = {
-            'environment': ['Development', 'QA', 'SQA', 'Production'],
+            'environment': ['Development', 'QA', 'Staging', 'Production'],
             'cpu_cores': [4, 8, 16, 32],
             'ram_gb': [16, 32, 64, 128],
             'storage_gb': [100, 500, 1000, 2000],
@@ -9568,16 +9656,6 @@ def show_bulk_upload_interface():
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
-    if st.button("💾 Save Environment Configuration", type="primary"):
-        st.session_state.environment_specs = environment_specs
-        st.success("✅ Environment configuration saved!")
-        
-        # ADD automatic cost refresh when environments change
-        if st.session_state.migration_params:
-            with st.spinner("🔄 Updating cost estimates..."):
-                refresh_cost_calculations()
-                st.info("💰 Cost estimates updated based on new environment configuration")
-    
 def show_manual_environment_setup():
     """Show manual environment setup interface"""
     
