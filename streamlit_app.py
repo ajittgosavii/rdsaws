@@ -18,6 +18,7 @@ import hashlib
 import tempfile
 import os
 import anthropic 
+import uuid
 
 # PDF Generation imports
 from reportlab.lib import colors
@@ -26,6 +27,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
 
 def refresh_cost_calculations():
     """
