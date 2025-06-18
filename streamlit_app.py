@@ -4348,7 +4348,7 @@ def show_vrops_import_interface(analyzer: VRopsMetricsAnalyzer):
             st.error(f"❌ Error processing file: {str(e)}")
             st.code(str(e))
 
-def create_vrops_sample_template() -> pd.DataFrame:
+def create_vrops_sample_template_fixed() -> pd.DataFrame:
     """Create sample vROps template"""
     
     sample_data = {
@@ -4381,7 +4381,7 @@ def create_vrops_sample_template() -> pd.DataFrame:
     
     return pd.DataFrame(sample_data)
 
-def process_vrops_data(df: pd.DataFrame, analyzer: VRopsMetricsAnalyzer) -> Dict:
+def process_vrops_data_fixed(df: pd.DataFrame, analyzer: VRopsMetricsAnalyzer) -> Dict:
     """Process uploaded vROps data into environment specifications"""
     
     st.markdown("##### 🔗 Column Mapping")
@@ -4588,7 +4588,7 @@ def show_vrops_results_tab():
         st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
 
 
-def show_vrops_analysis_summary(analysis_results: Dict):
+def show_vrops_analysis_summary_fixed(analysis_results):
     """Show summary of vROps analysis results"""
     
     st.markdown("#### 🎯 Analysis Results Summary")
@@ -4626,7 +4626,7 @@ def show_vrops_analysis_summary(analysis_results: Dict):
                 top_rec = recommendations[0]
                 st.markdown(f"**{env_name}:** {top_rec['instance_type']} - {top_rec['recommendation_reason']}")
 
-def show_manual_detailed_entry(analyzer: VRopsMetricsAnalyzer):
+def show_manual_detailed_entry_fixed(analyzer: VRopsMetricsAnalyzer):
     """Show manual detailed entry interface"""
     
     st.markdown("### 📝 Manual Detailed Entry")
@@ -4822,7 +4822,7 @@ def show_database_metrics_input(env_metrics: Dict, env_index: int):
             "Observation Period (days)", min_value=7, max_value=365, value=30, key=f"obs_period_{env_index}"
         )
 
-def show_enhanced_bulk_upload(analyzer: VRopsMetricsAnalyzer):
+def show_enhanced_bulk_upload_upload(analyzer: VRopsMetricsAnalyzer):
     """Show enhanced bulk upload with comprehensive template"""
     
     st.markdown("### 📁 Enhanced Bulk Upload")
@@ -5002,7 +5002,7 @@ def process_enhanced_bulk_upload(uploaded_file, analyzer: VRopsMetricsAnalyzer):
     except Exception as e:
         st.error(f"❌ Error processing file: {str(e)}")
 
-def auto_detect_column_mappings(columns: List[str]) -> Dict[str, str]:
+def auto_detect_columns_fixed(columns):
     """Auto-detect column mappings based on common naming patterns"""
     
     mappings = {}
@@ -5036,6 +5036,20 @@ def auto_detect_column_mappings(columns: List[str]) -> Dict[str, str]:
                 break
     
     return mappings
+
+def safe_extract_numeric(row, column_name, default):
+    """Safely extract numeric value from row"""
+    
+    if not column_name or column_name not in row:
+        return default
+    
+    try:
+        value = row[column_name]
+        if pd.isna(value):
+            return default
+        return float(value)
+    except (ValueError, TypeError):
+        return default
 
 def process_enhanced_data(df: pd.DataFrame, mappings: Dict[str, str]) -> Dict:
     """Process enhanced data with comprehensive mappings"""
@@ -5077,7 +5091,7 @@ def process_enhanced_data(df: pd.DataFrame, mappings: Dict[str, str]) -> Dict:
     
     return environments
 
-def show_simple_configuration():
+def show_simple_configuration_fixed():
     """Show simple configuration for backward compatibility"""
     
     st.markdown("### 🔄 Simple Configuration (Legacy)")
@@ -9331,7 +9345,7 @@ def generate_technical_report_pdf(analysis_results: Dict, recommendations: Dict,
 # STREAMLIT APPLICATION
 # ===========================
 
-def initialize_session_state():
+def initialize_session_state_fixed():
     """Initialize session state variables"""
     defaults = {
         'environment_specs': {},
@@ -9812,7 +9826,7 @@ def show_environment_analysis():
 
 
 
-def show_environment_setup():
+def show_environment_setup_fixed():
     """Show environment setup interface with vROps support"""
             #show_enhanced_environment_setup_with_vrops()
     
@@ -9833,6 +9847,80 @@ def show_environment_setup():
         show_bulk_upload_interface()
     else:
         show_manual_environment_setup()
+        
+def show_environment_setup_main_fixed():
+    """Main environment setup function to use in your app - FIXED"""
+    
+    st.markdown("## 📊 Environment Setup")
+    
+    if not st.session_state.migration_params:
+        st.warning("⚠️ Please complete Migration Configuration first.")
+        return
+    
+    # Setup method selection
+    setup_method = st.radio(
+        "Choose Setup Method:",
+        [
+            "🚀 Enhanced Setup (with Performance Analysis)",
+            "📝 Simple Setup (Basic Configuration)"
+        ],
+        horizontal=True
+    )
+    
+    if setup_method == "🚀 Enhanced Setup (with Performance Analysis)":
+        try:
+            show_enhanced_environment_setup_with_vrops_fixed()
+        except Exception as e:
+            st.error(f"❌ Enhanced setup error: {str(e)}")
+            st.warning("🔄 Falling back to simple setup...")
+            show_simple_environment_setup_fallback()
+    else:
+        show_simple_environment_setup_fallback()
+
+def show_simple_environment_setup_fallback():
+    """Simple environment setup as fallback"""
+    
+    st.markdown("### 📝 Simple Environment Setup")
+    
+    # Number of environments
+    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=4)
+    
+    environment_specs = {}
+    default_names = ['Development', 'QA', 'Staging', 'Production']
+    
+    for i in range(num_environments):
+        with st.expander(f"🏢 Environment {i+1}", expanded=i == 0):
+            env_name = st.text_input(
+                "Environment Name",
+                value=default_names[i] if i < len(default_names) else f"Environment_{i+1}",
+                key=f"fallback_env_name_{i}"
+            )
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                cpu_cores = st.number_input("CPU Cores", min_value=1, max_value=128, value=[4, 8, 16, 32][min(i, 3)], key=f"fallback_cpu_{i}")
+                ram_gb = st.number_input("RAM (GB)", min_value=4, max_value=1024, value=[16, 32, 64, 128][min(i, 3)], key=f"fallback_ram_{i}")
+            
+            with col2:
+                storage_gb = st.number_input("Storage (GB)", min_value=20, max_value=50000, value=[100, 500, 1000, 2000][min(i, 3)], key=f"fallback_storage_{i}")
+                daily_usage_hours = st.slider("Daily Usage Hours", 1, 24, [8, 12, 16, 24][min(i, 3)], key=f"fallback_hours_{i}")
+            
+            environment_specs[env_name] = {
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'daily_usage_hours': daily_usage_hours,
+                'peak_connections': [20, 50, 100, 500][min(i, 3)]
+            }
+    
+    if st.button("💾 Save Environment Configuration", type="primary", use_container_width=True):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Environment configuration saved!")
+        
+        # Show summary
+        summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
+        st.dataframe(summary_df, use_container_width=True)
 
 def show_bulk_upload_interface():
     """Show bulk upload interface for environments"""
