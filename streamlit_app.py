@@ -9346,35 +9346,43 @@ def generate_technical_report_pdf(analysis_results: Dict, recommendations: Dict,
 # ===========================
 
 def initialize_session_state():
-    """Initialize session state variables"""
-    defaults = {
+    """Initialize session state variables with bulletproof error handling"""
+    
+    # Define all required session state variables
+    required_vars = {
         'environment_specs': {},
         'migration_params': {},
-        'network_analysis': None,        # <-- ADD THIS LINE
-        'transfer_analysis': None,       # <-- ADD THIS LINE
-        'vrops_analysis': None,        # ADD THIS
-        'vrops_analyzer': None,       # ADD THIS
+        'network_analysis': None,
+        'transfer_analysis': None,
+        'vrops_analysis': None,
+        'vrops_analyzer': None,
         'analysis_results': None,
         'recommendations': None,
         'risk_assessment': None,
         'ai_insights': None,
-        # ADD THESE NEW LINES:
         'enhanced_recommendations': None,
         'enhanced_analysis_results': None,
         'enhanced_cost_chart': None,
-        'growth_analysis': None,  # ADD THIS LINE
-        'growth_projections': None,  # ADD THIS LINE
-        'vrops_analysis': None,
-        'vrops_analyzer': None,        
-        'enhanced_cost_chart': None,
         'growth_analysis': None,
-        'growth_projections': None
-    
+        'growth_projections': None,
+        'network_analyzer': None
     }
     
-    for key, default_value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default_value
+    # Initialize each variable if it doesn't exist
+    for var_name, default_value in required_vars.items():
+        if not hasattr(st.session_state, var_name):
+            setattr(st.session_state, var_name, default_value)
+        elif getattr(st.session_state, var_name, None) is None and var_name in ['environment_specs', 'migration_params']:
+            # Ensure critical dictionaries are never None
+            setattr(st.session_state, var_name, default_value)
+
+def safe_get_session_state(key, default=None):
+    """Safely get session state value"""
+    try:
+        return getattr(st.session_state, key, default)
+    except AttributeError:
+        return default
+    
 def test_claude_ai_connection():
     """Test Claude AI integration"""
     
