@@ -699,12 +699,7 @@ def add_missing_methods_to_migration_analyzer():
                 'success': False
             }
     
-    # Add the method to the class
-    MigrationAnalyzer.generate_ai_insights_sync = generate_ai_insights_sync
-
-# Call this function to add the missing method
-add_missing_methods_to_migration_analyzer()
-    
+       
     def _categorize_environment(self, env_name: str) -> str:
         """Categorize environment type from name"""
         env_lower = env_name.lower()
