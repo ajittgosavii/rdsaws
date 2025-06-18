@@ -1,4 +1,22 @@
 import streamlit as st
+
+# Initialize required session state keys
+required_session_keys = {
+    'migration_params': {},
+    'environment_specs': {},
+    'analysis_results': None,
+    'growth_analysis': {},
+    'recommendations': {},
+    'enhanced_recommendations': {},
+    'risk_assessment': None,
+    'ai_insights': {}
+}
+
+for key, default in required_session_keys.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
+
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -4398,33 +4416,33 @@ def process_vrops_data_fixed(df: pd.DataFrame, analyzer: VRopsMetricsAnalyzer) -
     
     with col1:
         st.markdown("**Environment Identification**")
-        mappings['vm_name'] = st.selectbox("VM/Server Name", available_columns, key="vm_name_col")
-        mappings['environment'] = st.selectbox("Environment Name", available_columns, key="env_name_col")
+        mappings['vm_name'] = st.selectbox("VM/Server Name", available_columns, key="vm_name_col_line4418_#1")
+        mappings['environment'] = st.selectbox("Environment Name", available_columns, key="env_name_col_line4419_#1")
         
         st.markdown("**CPU Metrics**")
-        mappings['max_cpu_usage_percent'] = st.selectbox("Max CPU Usage %", available_columns, key="max_cpu_col")
-        mappings['avg_cpu_usage_percent'] = st.selectbox("Avg CPU Usage %", available_columns, key="avg_cpu_col")
-        mappings['cpu_cores_allocated'] = st.selectbox("CPU Cores", available_columns, key="cpu_cores_col")
+        mappings['max_cpu_usage_percent'] = st.selectbox("Max CPU Usage %", available_columns, key="max_cpu_col_line4422_#1")
+        mappings['avg_cpu_usage_percent'] = st.selectbox("Avg CPU Usage %", available_columns, key="avg_cpu_col_line4423_#1")
+        mappings['cpu_cores_allocated'] = st.selectbox("CPU Cores", available_columns, key="cpu_cores_col_line4424_#1")
         
         st.markdown("**Memory Metrics**")
-        mappings['max_memory_usage_percent'] = st.selectbox("Max Memory Usage %", available_columns, key="max_mem_col")
-        mappings['avg_memory_usage_percent'] = st.selectbox("Avg Memory Usage %", available_columns, key="avg_mem_col")
-        mappings['memory_allocated_gb'] = st.selectbox("Memory Allocated GB", available_columns, key="mem_alloc_col")
+        mappings['max_memory_usage_percent'] = st.selectbox("Max Memory Usage %", available_columns, key="max_mem_col_line4427_#1")
+        mappings['avg_memory_usage_percent'] = st.selectbox("Avg Memory Usage %", available_columns, key="avg_mem_col_line4428_#1")
+        mappings['memory_allocated_gb'] = st.selectbox("Memory Allocated GB", available_columns, key="mem_alloc_col_line4429_#1")
     
     with col2:
         st.markdown("**Storage Metrics**")
-        mappings['max_iops_total'] = st.selectbox("Max IOPS", available_columns, key="max_iops_col")
-        mappings['avg_iops_total'] = st.selectbox("Avg IOPS", available_columns, key="avg_iops_col")
-        mappings['max_disk_latency_ms'] = st.selectbox("Max Disk Latency ms", available_columns, key="max_lat_col")
-        mappings['avg_disk_latency_ms'] = st.selectbox("Avg Disk Latency ms", available_columns, key="avg_lat_col")
-        mappings['storage_allocated_gb'] = st.selectbox("Storage Allocated GB", available_columns, key="storage_col")
+        mappings['max_iops_total'] = st.selectbox("Max IOPS", available_columns, key="max_iops_col_line4433_#1")
+        mappings['avg_iops_total'] = st.selectbox("Avg IOPS", available_columns, key="avg_iops_col_line4434_#1")
+        mappings['max_disk_latency_ms'] = st.selectbox("Max Disk Latency ms", available_columns, key="max_lat_col_line4435_#1")
+        mappings['avg_disk_latency_ms'] = st.selectbox("Avg Disk Latency ms", available_columns, key="avg_lat_col_line4436_#1")
+        mappings['storage_allocated_gb'] = st.selectbox("Storage Allocated GB", available_columns, key="storage_col_line4437_#1")
         
         st.markdown("**Database Metrics**")
-        mappings['database_size_gb'] = st.selectbox("Database Size GB", available_columns, key="db_size_col")
-        mappings['max_database_connections'] = st.selectbox("Max DB Connections", available_columns, key="max_conn_col")
+        mappings['database_size_gb'] = st.selectbox("Database Size GB", available_columns, key="db_size_col_line4440_#1")
+        mappings['max_database_connections'] = st.selectbox("Max DB Connections", available_columns, key="max_conn_col_line4441_#1")
         
         st.markdown("**Optional Metrics**")
-        mappings['observation_period_days'] = st.selectbox("Observation Period Days", available_columns, key="obs_period_col")
+        mappings['observation_period_days'] = st.selectbox("Observation Period Days", available_columns, key="obs_period_col_line4444_#1")
     
     if st.button("🔄 Process vROps Data", type="primary"):
         
@@ -9716,7 +9734,7 @@ def show_migration_configuration():
             st.markdown("### 💰 Current Cost Preview")
             add_realtime_cost_widget()
             
-            if st.button("🔄 Refresh Preview", key="config_refresh"):
+            if st.button("🔄 Refresh Preview", key="config_refresh_line9736_#1"):
                 refresh_cost_calculations()
                 st.experimental_rerun()
 
@@ -10440,7 +10458,7 @@ def show_basic_cost_summary():
     with col1:
         st.markdown("### 💰 Cost Summary")
     with col2:
-        if st.button("🔄 Refresh Costs", key="refresh_costs_summary"):
+        if st.button("🔄 Refresh Costs", key="refresh_costs_summary_line10460_#1"):
             refresh_cost_calculations()
             st.experimental_rerun()
     
@@ -10529,7 +10547,7 @@ def show_growth_analysis_dashboard():
     with col1:
         pass  # Title space
     with col2:
-        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard"):
+        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard_line10549_#1"):
             if st.session_state.analysis_results:
                 monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
                 annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
@@ -11115,7 +11133,7 @@ def create_absolute_fallback_analysis():
         st.markdown("• Risk summary")
         st.markdown("• Key recommendations")
         
-        if st.button("📄 Generate Executive PDF", key="exec_pdf", use_container_width=True):
+        if st.button("📄 Generate Executive PDF", key="exec_pdf_line11135_#1", use_container_width=True):
             with st.spinner("Generating executive summary..."):
                 try:
                     pdf_buffer = generate_executive_summary_pdf_robust(
@@ -11145,7 +11163,7 @@ def create_absolute_fallback_analysis():
         st.markdown("• Detailed cost breakdown")
         st.markdown("• Technical considerations")
         
-        if st.button("📄 Generate Technical PDF", key="tech_pdf", use_container_width=True):
+        if st.button("📄 Generate Technical PDF", key="tech_pdf_line11165_#1", use_container_width=True):
             with st.spinner("Generating technical report..."):
                 try:
                     pdf_buffer = generate_technical_report_pdf_robust(
@@ -11200,7 +11218,7 @@ def create_absolute_fallback_analysis():
     st.markdown("---")
     st.markdown("### 📦 Bulk Download")
     
-    if st.button("📊 Generate All Reports", key="bulk_reports", use_container_width=True):
+    if st.button("📊 Generate All Reports", key="bulk_reports_line11220_#1", use_container_width=True):
         with st.spinner("Generating all reports... This may take a moment..."):
             try:
                 # Create ZIP file with all reports
