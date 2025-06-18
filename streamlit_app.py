@@ -9456,6 +9456,23 @@ def main():
     elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
         main_cost_refresh_section()
     
+     # Status indicators - FIXED with safe access
+        st.markdown("### 📋 Status")
+        
+        # Safe access to session state
+        env_specs = getattr(st.session_state, 'environment_specs', {})
+        migration_params = getattr(st.session_state, 'migration_params', {})
+        
+        if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(env_specs)} environments configured")
+        else:
+            st.warning("⚠️ Configure environments")
+        
+        if migration_params:
+            st.success("✅ Migration parameters set")
+        else:
+            st.warning("⚠️ Set migration parameters")
+    
     health_scores = []
     vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
     if vrops_analysis is not None and isinstance(vrops_analysis, dict):
