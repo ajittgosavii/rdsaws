@@ -9404,7 +9404,7 @@ def test_claude_ai_connection():
 def main():
     """Main Streamlit application"""
     
-    initialize_session_state_fixed()
+    initialize_session_state()
     
     # Header
     st.markdown("""
