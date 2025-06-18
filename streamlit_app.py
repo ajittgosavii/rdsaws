@@ -27,6 +27,314 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
+def refresh_cost_calculations():
+    """
+    Main function to refresh all cost calculations and update the dollar values:
+    - Monthly AWS Cost
+    - Annual AWS Cost  
+    - Migration Cost
+    - 3-Year Growth
+    """
+    
+    try:
+        # Check if required data exists
+        if not st.session_state.migration_params:
+            st.error("❌ Migration parameters required. Please configure migration settings first.")
+            return False
+        
+        if not st.session_state.environment_specs:
+            st.error("❌ Environment specifications required. Please configure environments first.")
+            return False
+        
+        with st.spinner("🔄 Refreshing cost calculations..."):
+            
+            # Step 1: Refresh basic cost analysis
+            monthly_cost, annual_cost, migration_cost = refresh_basic_costs()
+            
+            # Step 2: Refresh growth analysis for 3-year projections
+            growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+            
+            # Step 3: Update session state with new values
+            update_cost_session_state(monthly_cost, annual_cost, migration_cost, growth_percentage)
+            
+            # Step 4: Display refreshed values
+            display_refreshed_metrics(monthly_cost, annual_cost, migration_cost, growth_percentage)
+            
+            st.success("✅ Cost calculations refreshed successfully!")
+            return True
+            
+    except Exception as e:
+        st.error(f"❌ Error refreshing costs: {str(e)}")
+        return False
+
+def refresh_basic_costs():
+    """Refresh basic AWS and migration cost calculations"""
+    
+    # Initialize analyzer
+    from streamlit_app import MigrationAnalyzer
+    analyzer = MigrationAnalyzer(st.session_state.migration_params.get('anthropic_api_key'))
+    
+    # Recalculate instance recommendations
+    recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
+    st.session_state.recommendations = recommendations
+    
+    # Recalculate costs
+    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+    st.session_state.analysis_results = cost_analysis
+    
+    # Extract key values
+    monthly_cost = cost_analysis.get('monthly_aws_cost', 0)
+    annual_cost = cost_analysis.get('annual_aws_cost', monthly_cost * 12)
+    migration_cost = cost_analysis.get('migration_costs', {}).get('total', 0)
+    
+    return monthly_cost, annual_cost, migration_cost
+
+def refresh_growth_analysis(monthly_cost: float, annual_cost: float):
+    """Refresh 3-year growth analysis and calculate growth percentage"""
+    
+    try:
+        # Initialize growth analyzer
+        from streamlit_app import GrowthAwareCostAnalyzer
+        growth_analyzer = GrowthAwareCostAnalyzer()
+        
+        # Calculate 3-year growth projection
+        growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
+            st.session_state.analysis_results, 
+            st.session_state.migration_params
+        )
+        st.session_state.growth_analysis = growth_analysis
+        
+        # Extract 3-year growth percentage
+        growth_percentage = growth_analysis['growth_summary']['total_3_year_growth_percent']
+        
+        return growth_percentage
+        
+    except Exception as e:
+        st.warning(f"Growth analysis failed, using default: {str(e)}")
+        # Fallback calculation based on migration parameters
+        annual_growth_rate = st.session_state.migration_params.get('annual_data_growth', 15)
+        growth_percentage = ((1 + annual_growth_rate/100) ** 3 - 1) * 100
+        return growth_percentage
+
+def update_cost_session_state(monthly_cost: float, annual_cost: float, 
+                             migration_cost: float, growth_percentage: float):
+    """Update session state with refreshed cost values"""
+    
+    # Update main analysis results
+    if not st.session_state.analysis_results:
+        st.session_state.analysis_results = {}
+    
+    st.session_state.analysis_results.update({
+        'monthly_aws_cost': monthly_cost,
+        'annual_aws_cost': annual_cost,
+        'migration_costs': {
+            'total': migration_cost,
+            'last_updated': datetime.now().isoformat()
+        }
+    })
+    
+    # Update growth analysis summary
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.session_state.growth_analysis = {
+            'growth_summary': {
+                'total_3_year_growth_percent': growth_percentage,
+                'year_0_cost': annual_cost,
+                'last_updated': datetime.now().isoformat()
+            }
+        }
+    else:
+        st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent'] = growth_percentage
+
+def display_refreshed_metrics(monthly_cost: float, annual_cost: float, 
+                             migration_cost: float, growth_percentage: float):
+    """Display the refreshed cost metrics in a formatted layout"""
+    
+    st.markdown("### 💰 Refreshed Cost Analysis")
+    
+    # Create columns for metrics display
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="Monthly AWS Cost",
+            value=f"${monthly_cost:,.0f}",
+            delta=f"Updated {datetime.now().strftime('%H:%M')}"
+        )
+    
+    with col2:
+        st.metric(
+            label="Annual AWS Cost", 
+            value=f"${annual_cost:,.0f}",
+            delta=f"${monthly_cost * 12:,.0f}/year"
+        )
+    
+    with col3:
+        st.metric(
+            label="Migration Cost",
+            value=f"${migration_cost:,.0f}",
+            delta="One-time investment"
+        )
+    
+    with col4:
+        st.metric(
+            label="3-Year Growth",
+            value=f"{growth_percentage:.1f}%",
+            delta="Projected growth"
+        )
+
+def refresh_specific_environment_costs(environment_name: str):
+    """Refresh costs for a specific environment"""
+    
+    if environment_name not in st.session_state.environment_specs:
+        st.error(f"Environment '{environment_name}' not found")
+        return
+    
+    # Get current environment specs
+    env_specs = {environment_name: st.session_state.environment_specs[environment_name]}
+    
+    # Recalculate for this environment only
+    from streamlit_app import MigrationAnalyzer
+    analyzer = MigrationAnalyzer()
+    
+    recommendations = analyzer.calculate_instance_recommendations(env_specs)
+    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+    
+    # Update environment-specific costs
+    if st.session_state.analysis_results:
+        st.session_state.analysis_results['environment_costs'][environment_name] = \
+            cost_analysis['environment_costs'][environment_name]
+    
+    st.success(f"✅ Refreshed costs for {environment_name}")
+
+def auto_refresh_costs():
+    """Automatic cost refresh with real-time pricing"""
+    
+    st.markdown("### 🔄 Auto-Refresh Cost Analysis")
+    
+    # Auto-refresh toggle
+    auto_refresh = st.checkbox("Enable Auto-Refresh (every 30 seconds)", value=False)
+    
+    if auto_refresh:
+        # Use Streamlit's auto-refresh capability
+        import time
+        
+        placeholder = st.empty()
+        
+        while auto_refresh:
+            with placeholder.container():
+                refresh_cost_calculations()
+                st.write(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            time.sleep(30)  # Refresh every 30 seconds
+
+def export_refreshed_costs():
+    """Export the refreshed cost data to CSV"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("No cost data available to export")
+        return
+    
+    # Prepare export data
+    export_data = {
+        'Metric': ['Monthly AWS Cost', 'Annual AWS Cost', 'Migration Cost', '3-Year Growth'],
+        'Value': [
+            f"${st.session_state.analysis_results.get('monthly_aws_cost', 0):,.0f}",
+            f"${st.session_state.analysis_results.get('annual_aws_cost', 0):,.0f}",
+            f"${st.session_state.analysis_results.get('migration_costs', {}).get('total', 0):,.0f}",
+            f"{st.session_state.growth_analysis.get('growth_summary', {}).get('total_3_year_growth_percent', 0):.1f}%"
+        ],
+        'Last_Updated': [datetime.now().isoformat()] * 4
+    }
+    
+    df = pd.DataFrame(export_data)
+    csv = df.to_csv(index=False)
+    
+    st.download_button(
+        label="📥 Download Refreshed Costs (CSV)",
+        data=csv,
+        file_name=f"refreshed_costs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
+
+# Integration function for the main Streamlit app
+def integrate_cost_refresh_ui():
+    """Add cost refresh UI elements to the main application"""
+    
+    st.markdown("---")
+    st.markdown("### 🔄 Cost Refresh Controls")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🔄 Refresh All Costs", type="primary", use_container_width=True):
+            refresh_cost_calculations()
+    
+    with col2:
+        if st.button("📊 Refresh Growth Analysis", use_container_width=True):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
+            else:
+                st.warning("Please run full analysis first")
+    
+    with col3:
+        if st.button("📥 Export Costs", use_container_width=True):
+            export_refreshed_costs()
+    
+    # Environment-specific refresh
+    if st.session_state.environment_specs:
+        st.markdown("#### 🏢 Environment-Specific Refresh")
+        
+        selected_env = st.selectbox(
+            "Select Environment to Refresh",
+            list(st.session_state.environment_specs.keys())
+        )
+        
+        if st.button(f"🔄 Refresh {selected_env}", use_container_width=True):
+            refresh_specific_environment_costs(selected_env)
+
+# Usage example for the main application
+def main_cost_refresh_section():
+    """Main section to be added to your Streamlit app"""
+    
+    st.markdown("## 💰 Cost Analysis & Refresh")
+    
+    # Check if analysis has been run
+    if not st.session_state.analysis_results:
+        st.info("👆 Please run the migration analysis first to see cost data")
+        return
+    
+    # Display current values
+    results = st.session_state.analysis_results
+    
+    st.markdown("#### 📊 Current Cost Analysis")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        monthly_cost = results.get('monthly_aws_cost', 0)
+        st.metric("Monthly AWS Cost", f"${monthly_cost:,.0f}")
+    
+    with col2:
+        annual_cost = results.get('annual_aws_cost', monthly_cost * 12)
+        st.metric("Annual AWS Cost", f"${annual_cost:,.0f}")
+    
+    with col3:
+        migration_cost = results.get('migration_costs', {}).get('total', 0)
+        st.metric("Migration Cost", f"${migration_cost:,.0f}")
+    
+    with col4:
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            growth_pct = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+            st.metric("3-Year Growth", f"{growth_pct:.1f}%")
+        else:
+            st.metric("3-Year Growth", "Not calculated")
+    
+    # Add refresh controls
+    integrate_cost_refresh_ui()
+
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
     
@@ -7164,10 +7472,59 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
+    # ADD auto-refresh toggle at the top
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh every 30 seconds", value=False)
+    with col2:
+        if st.button("🔄 Refresh Now", type="primary"):
+            refresh_cost_calculations()
+            st.experimental_rerun()
+    with col3:
+        last_updated = st.session_state.analysis_results.get('migration_costs', {}).get('last_updated', 'Unknown')
+        if last_updated != 'Unknown':
+            from datetime import datetime
+            last_time = datetime.fromisoformat(last_updated).strftime('%H:%M:%S')
+            st.caption(f"Updated: {last_time}")
+    
+    # Implement auto-refresh
+    if auto_refresh:
+        import time
+        time.sleep(30)
+        refresh_cost_calculations()
+        st.experimental_rerun()
+    
     # Check for enhanced results
     has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
                            st.session_state.enhanced_analysis_results is not None)
+def add_realtime_cost_widget():
+    """Add a real-time cost monitoring widget to any page"""
     
+    if st.session_state.analysis_results:
+        with st.container():
+            st.markdown("#### 📊 Current Costs")
+            
+            results = st.session_state.analysis_results
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                monthly = results.get('monthly_aws_cost', 0)
+                st.metric("Monthly", f"${monthly:,.0f}")
+            
+            with col2:
+                annual = results.get('annual_aws_cost', monthly * 12)
+                st.metric("Annual", f"${annual:,.0f}")
+            
+            with col3:
+                migration = results.get('migration_costs', {}).get('total', 0)
+                st.metric("Migration", f"${migration:,.0f}")
+            
+            with col4:
+                if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+                    growth = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+                    st.metric("3-Yr Growth", f"{growth:.1f}%")
+                else:
+                    st.metric("3-Yr Growth", "N/A")    
     # Create tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "💰 Cost Summary",
@@ -7213,7 +7570,7 @@ def show_results_dashboard():
         show_timeline_analysis_tab()
         
 # Alternative simplified version if the above still has issues
-def show_results_dashboard_simple():
+def enhanced_results_dashboard_with_refresh():
     """Simplified results dashboard to avoid indentation issues"""
     
     if not st.session_state.analysis_results:
@@ -7221,6 +7578,7 @@ def show_results_dashboard_simple():
         return
     
     st.markdown("## 📊 Migration Analysis Results")
+    main_cost_refresh_section()
     
     # Check for enhanced results
     has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
@@ -8359,16 +8717,20 @@ def main():
             "Select Section:",
             [
                 "🔧 Migration Configuration",
-                "📊 Environment Setup",
+                "📊 Environment Setup", 
                 "🌐 Network Analysis",
                 "🚀 Analysis & Recommendations",
                 "📈 Results Dashboard",
+                "💰 Cost Refresh",  # <-- ADD THIS LINE
                 "📄 Reports & Export"
             ]
         )
     
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
         st.success("✅ vROps analysis complete")
+        
+    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
+        main_cost_refresh_section()
     
     health_scores = []
     vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
@@ -8599,6 +8961,16 @@ def show_migration_configuration():
             ["Auto-scaling", "Manual scaling", "Over-provision"],
             help="How to handle growth in infrastructure"
         )
+        
+         # ADD cost preview at the bottom
+        if st.session_state.analysis_results:
+            st.markdown("---")
+            st.markdown("### 💰 Current Cost Preview")
+            add_realtime_cost_widget()
+            
+            if st.button("🔄 Refresh Preview", key="config_refresh"):
+                refresh_cost_calculations()
+                st.experimental_rerun()
 
     # AI Configuration
     st.markdown("### 🤖 AI Integration")
@@ -8826,6 +9198,16 @@ def show_bulk_upload_interface():
         except Exception as e:
             st.error(f"Error processing file: {str(e)}")
 
+    if st.button("💾 Save Environment Configuration", type="primary"):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Environment configuration saved!")
+        
+        # ADD automatic cost refresh when environments change
+        if st.session_state.migration_params:
+            with st.spinner("🔄 Updating cost estimates..."):
+                refresh_cost_calculations()
+                st.info("💰 Cost estimates updated based on new environment configuration")
+    
 def show_manual_environment_setup():
     """Show manual environment setup interface"""
     
@@ -9231,6 +9613,15 @@ def show_basic_cost_summary():
     
     results = st.session_state.analysis_results
     
+    # ADD refresh button at the top
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("### 💰 Cost Summary")
+    with col2:
+        if st.button("🔄 Refresh Costs", key="refresh_costs_summary"):
+            refresh_cost_calculations()
+            st.experimental_rerun()
+    
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
@@ -9311,22 +9702,29 @@ def show_growth_analysis_dashboard():
     
     st.markdown("### 📈 3-Year Growth Analysis & Projections")
     
+    # ADD refresh controls
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        pass  # Title space
+    with col2:
+        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard"):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
+                st.experimental_rerun()
+    
     # Check if growth analysis exists
     if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
-        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
         
-        # Show basic growth planning instead
-        st.markdown("#### 🎯 Growth Planning Preview")
-        st.info("""
-        **Growth analysis will show:**
-        - 3-year cost projections with growth factors
-        - Resource scaling requirements
-        - Seasonal peak planning
-        - Cost optimization opportunities
-        - Scaling recommendations by year
-        
-        Run the migration analysis to see detailed growth projections.
-        """)
+            # ADD quick refresh option
+        if st.button("🚀 Calculate Growth Analysis", type="primary"):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.experimental_rerun()
         return
     
     growth_analysis = st.session_state.growth_analysis
