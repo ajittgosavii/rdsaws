@@ -8801,7 +8801,7 @@ def main():
         return
         st.success("✅ vROps analysis complete")
             
-            health_scores = []
+        health_scores = []
             for env_name, analysis in st.session_state.vrops_analysis.items():
                 if isinstance(analysis, dict) and 'performance_scores' in analysis:
                     health_scores.append(analysis['performance_scores'].get('overall_health', 0))
