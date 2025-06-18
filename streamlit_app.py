@@ -8819,7 +8819,7 @@ def main():
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
-        show_enhanced_environment_setup_with_vrops()
+        show_enhanced_environment_setup_with_vrops_fixed()
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
