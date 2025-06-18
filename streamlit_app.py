@@ -8798,50 +8798,26 @@ if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analys
     st.markdown("## 📊 vROps Analysis Results")
     st.success("✅ vROps analysis complete")
     
-    # Calculate average health score across all environments
-    health_scores = []
-    for env_name, analysis in st.session_state.vrops_analysis.items():
-        if isinstance(analysis, dict) and 'performance_scores' in analysis:
-            health_scores.append(analysis['performance_scores'].get('overall_health', 0))
-    
-    if health_scores:
-        avg_health = sum(health_scores) / len(health_scores)
-        st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-    else:
-        st.warning("⚠️ No health scores found in analysis data")
+# vROps Analysis Section
+def show_vrops_analysis():
+    """Display vROps analysis status and results."""
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("## 📊 vROps Analysis Results")
+        st.success("✅ vROps analysis complete")
         
-else:
-    st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
+        # Calculate average health score across all environments
+        health_scores = []
+        for env_name, analysis in st.session_state.vrops_analysis.items():
+            if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                health_scores.append(analysis['performance_scores'].get('overall_health', 0))
         
-        # Debug info (optional)
-    if st.checkbox("🐛 Show Debug Info"):
-            st.markdown("### Debug Information")
-            st.write("Environment specs:", bool(st.session_state.environment_specs))
-            st.write("Migration params:", bool(st.session_state.migration_params))
-            st.write("Analysis results:", bool(st.session_state.analysis_results))
-            st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
-            
-    if st.session_state.environment_specs:
-                st.write("Num environments:", len(st.session_state.environment_specs))
-                st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
-    
-    # Main content area - THIS IS THE KEY FIX
-    if page == "🔧 Migration Configuration":
-        show_migration_configuration()
-    elif page == "📊 Environment Setup":
-        show_enhanced_environment_setup_with_cluster_config()
-    elif page == "🌐 Network Analysis":
-        show_network_transfer_analysis()
-    elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
-    elif page == "📈 Results Dashboard":
-        show_results_dashboard()
-    elif page == "📄 Reports & Export":
-        show_reports_section()
+        if health_scores:
+            avg_health = sum(health_scores) / len(health_scores)
+            st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+        else:
+            st.warning("⚠️ No health scores found in analysis data")
     else:
-        # Default page
-        st.markdown("## Welcome to the AWS Database Migration Tool")
-        st.markdown("Please select a section from the sidebar to get started.")
+        st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
 
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
