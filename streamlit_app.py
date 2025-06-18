@@ -4111,6 +4111,10 @@ def show_vrops_results_tab():
     """Show vROps analysis results in the dashboard"""
     
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("## 📊 vROps Analysis Results")
+    else:
+        st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
+        return
         st.markdown("### 📊 vROps Performance Analysis")
         
         analysis_results = st.session_state.vrops_analysis
@@ -8727,6 +8731,10 @@ def main():
         )
     
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("## 📊 vROps Analysis Results")
+    else:
+        st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
+        return
         st.success("✅ vROps analysis complete")
         
     elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
@@ -8790,6 +8798,10 @@ def main():
         
         # vROps analysis status
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("## 📊 vROps Analysis Results")
+    else:
+        st.info("📊 No vROps data found. Please upload and process vROps metrics in the Environment Setup section.")
+        return
             st.success("✅ vROps analysis complete")
             
             health_scores = []
