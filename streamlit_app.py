@@ -1041,21 +1041,21 @@ def show_analysis_section_fixed():
      # Add this line before the analysis button
     #check_and_refresh_growth_metrics()
     
-    # Run analysis button
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
-    
-    # API status check
-    show_api_status_inline()
-    
-    # Run analysis - FIXED VERSION
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
-        # Clear any previous results
-        st.session_state.analysis_results = None
-        if hasattr(st.session_state, 'enhanced_analysis_results'):
-            st.session_state.enhanced_analysis_results = None
+        # Run analysis button
+        if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
         
-        with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
-            run_streamlit_migration_analysis()  # Use the FIXED synchronous function
+        # API status check
+        show_api_status_inline()
+        
+        # Run analysis - FIXED VERSION
+        if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+            # Clear any previous results
+            st.session_state.analysis_results = None
+            if hasattr(st.session_state, 'enhanced_analysis_results'):
+                st.session_state.enhanced_analysis_results = None
+            
+            with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
+                run_streamlit_migration_analysis()  # Use the FIXED synchronous function
 
 
 def show_api_status_inline():
