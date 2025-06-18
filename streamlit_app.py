@@ -9345,7 +9345,7 @@ def generate_technical_report_pdf(analysis_results: Dict, recommendations: Dict,
 # STREAMLIT APPLICATION
 # ===========================
 
-def initialize_session_state_fixed():
+def initialize_session_state():
     """Initialize session state variables"""
     defaults = {
         'environment_specs': {},
@@ -9418,7 +9418,7 @@ def test_claude_ai_connection():
 def main():
     """Main Streamlit application"""
     
-    initialize_session_state()
+    initialize_session_state
     
     # Header
     st.markdown("""
