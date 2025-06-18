@@ -4187,8 +4187,8 @@ def show_vrops_results_tab():
                     else:
                         st.write("No recommendations available")
     
-    else:
-        st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
+    #else:
+     #   st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
 
 
 def show_vrops_analysis_summary(analysis_results: Dict):
@@ -9625,15 +9625,7 @@ def show_basic_cost_summary():
     
     results = st.session_state.analysis_results
     
-    # ADD refresh button at the top
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown("### 💰 Cost Summary")
-    with col2:
-        if st.button("🔄 Refresh Costs", key="refresh_costs_summary"):
-            refresh_cost_calculations()
-            st.experimental_rerun()
-    
+       
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
