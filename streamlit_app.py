@@ -1041,21 +1041,21 @@ def show_analysis_section_fixed():
      # Add this line before the analysis button
     #check_and_refresh_growth_metrics()
     
-        # Run analysis button
-        if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+    # Run analysis button
+    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+    
+    # API status check
+    show_api_status_inline()
+    
+    # Run analysis - FIXED VERSION
+    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
+        # Clear any previous results
+        st.session_state.analysis_results = None
+        if hasattr(st.session_state, 'enhanced_analysis_results'):
+            st.session_state.enhanced_analysis_results = None
         
-        # API status check
-        show_api_status_inline()
-        
-        # Run analysis - FIXED VERSION
-        if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
-            # Clear any previous results
-            st.session_state.analysis_results = None
-            if hasattr(st.session_state, 'enhanced_analysis_results'):
-                st.session_state.enhanced_analysis_results = None
-            
-            with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
-                run_streamlit_migration_analysis()  # Use the FIXED synchronous function
+        with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
+            run_streamlit_migration_analysis()  # Use the FIXED synchronous function
 
 
 def show_api_status_inline():
@@ -8966,21 +8966,6 @@ def show_analysis_section_fixed():
         
         if len(envs) > 4:
             st.markdown(f"• ... and {len(envs) - 4} more environments")
-    
-    # API status check
-    show_api_status_inline()
-    
-    # Run analysis button - FIXED VERSION (removed duplicate)
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
-        # Clear any previous results
-        st.session_state.analysis_results = None
-        if hasattr(st.session_state, 'enhanced_analysis_results'):
-            st.session_state.enhanced_analysis_results = None
-        
-        with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
-            run_streamlit_migration_analysis()  # Use the FIXED synchronous function
-    
-    
     
     # Detect configuration type
     is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
