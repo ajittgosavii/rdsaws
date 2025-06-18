@@ -992,37 +992,6 @@ def show_analysis_summary():
 
 
 # FIXED: Update the analysis section to use synchronous function
-def add_real_time_growth_monitor():
-    """Add real-time monitoring for growth analysis completion"""
-    
-    # Add this to your analysis section
-    if (st.session_state.analysis_results and 
-        not (hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis)):
-        
-        # Show progress indicator
-        progress_placeholder = st.empty()
-        
-        with progress_placeholder:
-            st.info("🔄 Growth analysis in progress... Values will refresh automatically.")
-            
-            # Add a progress bar
-            progress_bar = st.progress(0)
-            
-            # Simulate progress (replace with actual progress tracking)
-            for i in range(100):
-                time.sleep(0.01)  # Small delay
-                progress_bar.progress(i + 1)
-                
-                # Check if growth analysis is complete
-                if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
-                    progress_bar.progress(100)
-                    progress_placeholder.success("✅ Growth analysis complete! Values refreshed.")
-                    time.sleep(1)
-                    progress_placeholder.empty()
-                    st.rerun()
-                    break
-
-
 def show_analysis_section_fixed():
     """Show analysis and recommendations section - FIXED for Streamlit"""
     
@@ -1069,11 +1038,6 @@ def show_analysis_section_fixed():
         
         if len(envs) > 4:
             st.markdown(f"• ... and {len(envs) - 4} more environments")
-     # Add this line before the analysis button
-    check_and_refresh_growth_metrics()
-    
-    # Run analysis button
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
     
     # API status check
     show_api_status_inline()
@@ -9007,18 +8971,12 @@ def show_analysis_section_fixed():
 # ADD THIS FUNCTION to your streamlit_app.py file:
 
 def run_streamlit_migration_analysis():
-    """Run migration analysis with auto-refreshing growth projections"""
+    """Run migration analysis with growth projections - ENHANCED VERSION"""
     
     try:
         # Initialize analyzer
         anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
         analyzer = MigrationAnalyzer(anthropic_api_key)
-        
-        # Clear previous flags
-        if 'growth_analysis_completed' in st.session_state:
-            del st.session_state.growth_analysis_completed
-        if 'growth_refresh_attempted' in st.session_state:
-            del st.session_state.growth_refresh_attempted
         
         # Step 1: Calculate recommendations
         st.write("📊 Calculating instance recommendations...")
@@ -9035,16 +8993,13 @@ def run_streamlit_migration_analysis():
         risk_assessment = create_default_risk_assessment()
         st.session_state.risk_assessment = risk_assessment
         
-        # Step 4: Growth Analysis with auto-refresh trigger
+        # Step 4: Growth Analysis (NEW)
         st.write("📈 Calculating 3-year growth projections...")
         growth_analyzer = GrowthAwareCostAnalyzer()
         growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
             cost_analysis, st.session_state.migration_params
         )
         st.session_state.growth_analysis = growth_analysis
-        
-        # Mark growth analysis as completed to trigger refresh
-        st.session_state.growth_analysis_completed = True
         
         # Step 5: AI insights
         if anthropic_api_key:
@@ -9064,90 +9019,46 @@ def run_streamlit_migration_analysis():
         
         st.success("✅ Analysis complete with growth projections!")
         
-        # Auto-refresh the summary after analysis completes
-        st.rerun()
+        # Show enhanced summary
+        show_analysis_summary_with_growth()
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
         create_basic_fallback()
 
-
-
-
 def show_analysis_summary_with_growth():
-    """Enhanced analysis summary with auto-refreshing growth metrics"""
+    """Enhanced analysis summary including growth metrics"""
     
     st.markdown("#### 🎯 Analysis Summary with Growth Projections")
     
-    # Create containers for auto-refresh
     col1, col2, col3, col4 = st.columns(4)
     
-    # Base results
     results = st.session_state.analysis_results
     
     with col1:
-        current_cost_container = st.empty()
-        current_cost_container.metric("Current Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+        st.metric("Current Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
     
     with col2:
-        migration_cost_container = st.empty()
         migration_cost = results.get('migration_costs', {}).get('total', 0)
-        migration_cost_container.metric("Migration Cost", f"${migration_cost:,.0f}")
+        st.metric("Migration Cost", f"${migration_cost:,.0f}")
     
     with col3:
-        growth_container = st.empty()
-        # Check for growth analysis and auto-refresh
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             growth_percent = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
-            growth_container.metric("3-Year Growth", f"{growth_percent:.1f}%")
+            st.metric("3-Year Growth", f"{growth_percent:.1f}%")
         else:
-            growth_container.metric("3-Year Growth", "Calculating...", delta="⏳ In Progress")
+            st.metric("3-Year Growth", "Calculating...")
     
     with col4:
-        investment_container = st.empty()
-        # Check for growth analysis and auto-refresh
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             total_investment = st.session_state.growth_analysis['growth_summary']['total_3_year_investment']
-            investment_container.metric("3-Year Investment", f"${total_investment:,.0f}")
+            st.metric("3-Year Investment", f"${total_investment:,.0f}")
         else:
-            # Fallback to risk level if growth analysis not ready
             if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
                 risk_level = st.session_state.risk_assessment['risk_level']['level']
-                investment_container.metric("Risk Level", risk_level)
-            else:
-                investment_container.metric("3-Year Investment", "Calculating...", delta="⏳ In Progress")
-    
-    # Auto-refresh status indicator
-    if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
-        st.success("✅ Growth projections complete! Values are live.")
-    else:
-        # Add a refresh button for manual refresh
-        col_refresh1, col_refresh2, col_refresh3 = st.columns([1, 1, 1])
-        with col_refresh2:
-            if st.button("🔄 Refresh Analysis", key="refresh_growth_summary"):
-                st.rerun()
+                st.metric("Risk Level", risk_level)
     
     st.info("📈 View detailed growth projections in the 'Results Dashboard' section")
-
-def check_and_refresh_growth_metrics():
-    """Check if growth analysis is complete and trigger refresh if needed"""
-    
-    # Check if we have analysis results but no growth analysis yet
-    if (st.session_state.analysis_results and 
-        not hasattr(st.session_state, 'growth_analysis_completed')):
-        
-        # Set a flag to prevent infinite loops
-        if not hasattr(st.session_state, 'growth_refresh_attempted'):
-            st.session_state.growth_refresh_attempted = True
-            
-            # Small delay to allow growth analysis to complete
-            import time
-            time.sleep(1)
-            
-            # Check again and refresh if growth analysis is now available
-            if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
-                st.session_state.growth_analysis_completed = True
-                st.rerun()
 
 def show_simple_summary():
     """Show simple analysis summary"""
