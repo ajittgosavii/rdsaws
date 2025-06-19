@@ -8434,8 +8434,8 @@ def main():
         show_optimized_recommendations()
     
    
-        # Status indicators
-                st.markdown("### 📋 Status")
+    # Status indicators
+        st.markdown("### 📋 Status")
         
     env_specs = getattr(st.session_state, 'environment_specs', {})
     if env_specs and len(env_specs) > 0:
