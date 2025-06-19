@@ -313,7 +313,7 @@ class MigrationAnalyzer:
                 'reader_multi_az': multi_az if environment_type == 'production' else False
             }
      
-      def _calculate_reader_count(self, read_ratio: int, workload_pattern: str, env_type: str) -> int:
+    def _calculate_reader_count(self, read_ratio: int, workload_pattern: str, env_type: str) -> int:
         """Calculate number of read replicas needed"""
         if env_type != 'production':
             return 0  # Only production gets readers
