@@ -7410,6 +7410,211 @@ def create_network_architecture_diagram(selected_pattern: str) -> go.Figure:
 # ===========================
 
 def show_network_transfer_analysis():
+    """Show network transfer analysis with proper error handling"""
+    
+    st.header("🌐 Network Analysis")
+    st.markdown("Analyze data transfer patterns and network optimization opportunities.")
+    
+    # Check if we have environment specs
+    if not st.session_state.get('environment_specs'):
+        st.warning("⚠️ Please complete the Environment Setup first.")
+        st.info("👈 Go to 'Environment Setup' to configure your environments before running network analysis.")
+        return
+    
+    # Show current environment summary
+    st.subheader("📋 Current Environment Summary")
+    env_count = len(st.session_state.environment_specs)
+    st.info(f"📊 Analyzing {env_count} environment(s)")
+    
+    # Display environment details
+    for env_name, specs in st.session_state.environment_specs.items():
+        with st.expander(f"🔍 {env_name} Details"):
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"**Type:** {specs.get('environment_type', 'Unknown')}")
+                st.write(f"**Database Size:** {specs.get('database_size_gb', 'Unknown')} GB")
+            with col2:
+                st.write(f"**Daily Usage:** {specs.get('daily_usage_hours', 'Unknown')} hours")
+                st.write(f"**Peak Connections:** {specs.get('peak_connections', 'Unknown')}")
+    
+    st.divider()
+    
+    # Network Analysis Button
+    if st.button("🚀 Analyze Network Transfer Options", type="primary"):
+        with st.spinner("🔄 Analyzing network transfer patterns..."):
+            try:
+                # Initialize analyzer if not exists or is None
+                if 'analyzer' not in st.session_state or st.session_state.analyzer is None:
+                    st.info("🔧 Initializing analyzer...")
+                    
+                    # Try to create SafeMigrationAnalyzer
+                    try:
+                        from your_module import SafeMigrationAnalyzer  # Replace with actual import
+                        analyzer = SafeMigrationAnalyzer()
+                    except ImportError:
+                        st.warning("⚠️ Using fallback analyzer initialization...")
+                        # Create a minimal analyzer object if the class isn't available
+                        analyzer = create_fallback_analyzer()
+                    
+                    st.session_state.analyzer = analyzer
+                else:
+                    analyzer = st.session_state.analyzer
+                
+                # Check if analyzer has the required method
+                if hasattr(analyzer, 'calculate_transfer_analysis'):
+                    transfer_analysis = analyzer.calculate_transfer_analysis()
+                    st.session_state.transfer_analysis = transfer_analysis
+                    st.success("✅ Network analysis complete!")
+                else:
+                    # Fallback: create transfer analysis manually
+                    st.warning("⚠️ Using fallback transfer analysis...")
+                    transfer_analysis = create_fallback_transfer_analysis()
+                    st.session_state.transfer_analysis = transfer_analysis
+                    st.success("✅ Fallback network analysis complete!")
+                
+            except Exception as e:
+                st.error(f"❌ Error during network analysis: {str(e)}")
+                st.warning("🛡️ Creating emergency fallback analysis...")
+                
+                # Emergency fallback
+                transfer_analysis = create_emergency_transfer_analysis()
+                st.session_state.transfer_analysis = transfer_analysis
+                st.info("💡 Emergency analysis created. Results may be basic estimates.")
+    
+    # Show results if available
+    if st.session_state.get('transfer_analysis'):
+        st.divider()
+        show_transfer_analysis_results()
+
+
+def create_fallback_analyzer():
+    """Create a minimal analyzer when the main class isn't available"""
+    class FallbackAnalyzer:
+        def calculate_transfer_analysis(self):
+            return create_fallback_transfer_analysis()
+    
+    return FallbackAnalyzer()
+
+
+def create_fallback_transfer_analysis():
+    """Create basic transfer analysis when analyzer is not available"""
+    
+    # Get environment specs
+    env_specs = st.session_state.get('environment_specs', {})
+    
+    transfer_analysis = {}
+    
+    for env_name, specs in env_specs.items():
+        # Calculate basic estimates
+        db_size_gb = float(specs.get('database_size_gb', 100))
+        
+        transfer_analysis[env_name] = {
+            'data_size_gb': db_size_gb,
+            'estimated_transfer_time_hours': max(1, db_size_gb / 100),  # 100 GB/hour estimate
+            'network_requirements': {
+                'bandwidth_mbps': min(1000, max(100, db_size_gb * 10)),
+                'connection_type': 'VPN' if db_size_gb < 1000 else 'Direct Connect'
+            },
+            'transfer_methods': {
+                'online': {
+                    'estimated_time_hours': max(1, db_size_gb / 50),
+                    'cost_estimate': db_size_gb * 0.09,  # AWS data transfer pricing
+                    'recommended': db_size_gb < 1000
+                },
+                'offline': {
+                    'estimated_time_days': 7,  # Snowball family estimate
+                    'cost_estimate': max(200, db_size_gb * 0.03),
+                    'recommended': db_size_gb >= 1000
+                }
+            }
+        }
+    
+    return transfer_analysis
+
+
+def create_emergency_transfer_analysis():
+    """Emergency fallback when everything else fails"""
+    
+    env_count = len(st.session_state.get('environment_specs', {}))
+    
+    return {
+        f'Environment_{i+1}': {
+            'data_size_gb': 500,
+            'estimated_transfer_time_hours': 8,
+            'network_requirements': {
+                'bandwidth_mbps': 500,
+                'connection_type': 'VPN'
+            },
+            'transfer_methods': {
+                'online': {
+                    'estimated_time_hours': 10,
+                    'cost_estimate': 45,
+                    'recommended': True
+                },
+                'offline': {
+                    'estimated_time_days': 7,
+                    'cost_estimate': 200,
+                    'recommended': False
+                }
+            }
+        } for i in range(max(1, env_count))
+    }
+
+
+def show_transfer_analysis_results():
+    """Display transfer analysis results"""
+    
+    st.subheader("📊 Network Transfer Analysis Results")
+    
+    try:
+        transfer_data = st.session_state.transfer_analysis
+        
+        for env_name, analysis in transfer_data.items():
+            with st.expander(f"🌐 {env_name} Transfer Analysis", expanded=True):
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "Data Size", 
+                        f"{analysis.get('data_size_gb', 0):,.0f} GB"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Est. Transfer Time", 
+                        f"{analysis.get('estimated_transfer_time_hours', 0):.1f} hours"
+                    )
+                
+                with col3:
+                    bandwidth = analysis.get('network_requirements', {}).get('bandwidth_mbps', 0)
+                    st.metric(
+                        "Bandwidth Needed", 
+                        f"{bandwidth:,.0f} Mbps"
+                    )
+                
+                # Transfer methods comparison
+                st.markdown("#### 🔄 Transfer Method Recommendations")
+                
+                methods = analysis.get('transfer_methods', {})
+                
+                if 'online' in methods:
+                    online = methods['online']
+                    status = "✅ Recommended" if online.get('recommended') else "⚠️ Alternative"
+                    st.info(f"**Online Transfer** {status}")
+                    st.write(f"• Time: {online.get('estimated_time_hours', 0):.1f} hours")
+                    st.write(f"• Cost: ${online.get('cost_estimate', 0):.2f}")
+                
+                if 'offline' in methods:
+                    offline = methods['offline']
+                    status = "✅ Recommended" if offline.get('recommended') else "⚠️ Alternative"
+                    st.info(f"**Offline Transfer (Snowball)** {status}")
+                    st.write(f"• Time: {offline.get('estimated_time_days', 0)} days")
+                    st.write(f"• Cost: ${offline.get('cost_estimate', 0):.2f}")
+    
+    except Exception as e:
+        st.error(f"Error displaying transfer results: {str(e)}")
+        st.info("💡 Please try running the analysis again.")
     """Show network transfer analysis interface"""
     
     st.markdown("## 🌐 Network Transfer Analysis")
