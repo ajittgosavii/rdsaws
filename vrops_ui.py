@@ -1,547 +1,623 @@
-# vrops_ui.py
 import streamlit as st
 import pandas as pd
-from vrops_processor import (
-    create_vrops_sample_template,
-    process_vrops_data,
-    create_comprehensive_template,
-    auto_detect_column_mappings,
-    process_enhanced_data
-)
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from typing import Dict, List, Tuple, Any, Optional
+
+class VRopsMetricsAnalyzer:
+    """Comprehensive vROps metrics analysis for accurate AWS sizing"""
+    
+    def __init__(self):
+        self.required_metrics = self._initialize_required_metrics()
+        self.aws_instance_specs = self._initialize_aws_instance_specs()
+        self.performance_buffers = self._initialize_performance_buffers()
+    
+    def _initialize_required_metrics(self) -> Dict:
+        """Initialize comprehensive vROps metrics mapping"""
+        return {
+            'cpu_metrics': {
+                'max_cpu_usage_percent': {'required': True, 'description': 'Peak CPU utilization over observation period'},
+                'avg_cpu_usage_percent': {'required': True, 'description': 'Average CPU utilization'},
+                'cpu_ready_time_ms': {'required': False, 'description': 'CPU ready time indicating resource contention'},
+                'cpu_cores_allocated': {'required': True, 'description': 'Number of allocated vCPU cores'},
+            },
+            'memory_metrics': {
+                'max_memory_usage_percent': {'required': True, 'description': 'Peak memory utilization'},
+                'avg_memory_usage_percent': {'required': True, 'description': 'Average memory utilization'},
+                'memory_allocated_gb': {'required': True, 'description': 'Total allocated memory to VM'},
+                'memory_balloon_gb': {'required': False, 'description': 'Ballooned memory (overcommit indicator)'},
+            },
+            'storage_metrics': {
+                'max_iops_total': {'required': True, 'description': 'Peak total IOPS (read + write)'},
+                'avg_iops_total': {'required': True, 'description': 'Average total IOPS'},
+                'max_disk_latency_ms': {'required': True, 'description': 'Peak disk latency in milliseconds'},
+                'avg_disk_latency_ms': {'required': True, 'description': 'Average disk latency'},
+                'storage_allocated_gb': {'required': True, 'description': 'Total allocated storage'},
+                'storage_used_gb': {'required': True, 'description': 'Actually used storage'}
+            },
+            'network_metrics': {
+                'max_network_throughput_mbps': {'required': True, 'description': 'Peak network throughput'},
+                'avg_network_throughput_mbps': {'required': True, 'description': 'Average network throughput'},
+            }
+        }
+    
+    def _initialize_aws_instance_specs(self) -> Dict:
+        """Initialize AWS instance specifications for accurate mapping"""
+        return {
+            # T3 instances (Burstable)
+            'db.t3.micro': {'vcpu': 2, 'memory_gb': 1, 'network_gbps': 1.5},
+            'db.t3.small': {'vcpu': 2, 'memory_gb': 2, 'network_gbps': 1.5},
+            'db.t3.medium': {'vcpu': 2, 'memory_gb': 4, 'network_gbps': 1.5},
+            'db.t3.large': {'vcpu': 2, 'memory_gb': 8, 'network_gbps': 1.5},
+            'db.t3.xlarge': {'vcpu': 4, 'memory_gb': 16, 'network_gbps': 1.5},
+            
+            # R5 instances (Memory Optimized)
+            'db.r5.large': {'vcpu': 2, 'memory_gb': 16, 'network_gbps': 10},
+            'db.r5.xlarge': {'vcpu': 4, 'memory_gb': 32, 'network_gbps': 10},
+            'db.r5.2xlarge': {'vcpu': 8, 'memory_gb': 64, 'network_gbps': 10},
+            'db.r5.4xlarge': {'vcpu': 16, 'memory_gb': 128, 'network_gbps': 10},
+            'db.r5.8xlarge': {'vcpu': 32, 'memory_gb': 256, 'network_gbps': 10},
+        }
+    
+    def _initialize_performance_buffers(self) -> Dict:
+        """Initialize performance buffers based on environment type"""
+        return {
+            'production': {
+                'cpu_buffer': 0.3,      # 30% headroom
+                'memory_buffer': 0.25,   # 25% headroom
+                'iops_buffer': 0.4,      # 40% headroom
+            },
+            'staging': {
+                'cpu_buffer': 0.2,
+                'memory_buffer': 0.15,
+                'iops_buffer': 0.3,
+            },
+            'testing': {
+                'cpu_buffer': 0.15,
+                'memory_buffer': 0.1,
+                'iops_buffer': 0.2,
+            },
+            'development': {
+                'cpu_buffer': 0.1,
+                'memory_buffer': 0.05,
+                'iops_buffer': 0.15,
+            }
+        }
+    
+    def analyze_metrics(self, environment_metrics: Dict) -> Dict:
+        """Analyze vROps metrics for all environments"""
+        
+        analysis_results = {}
+        
+        for env_name, metrics in environment_metrics.items():
+            analysis_results[env_name] = self._analyze_single_environment(env_name, metrics)
+        
+        return analysis_results
+    
+    def _analyze_single_environment(self, env_name: str, metrics: Dict) -> Dict:
+        """Analyze a single environment's vROps metrics"""
+        
+        # Determine environment type
+        env_type = self._categorize_environment(env_name)
+        
+        # Get performance buffers
+        buffers = self.performance_buffers[env_type]
+        
+        # Analyze each metric category
+        cpu_analysis = self._analyze_cpu_metrics(metrics, buffers)
+        memory_analysis = self._analyze_memory_metrics(metrics, buffers)
+        storage_analysis = self._analyze_storage_metrics(metrics, buffers)
+        
+        # Generate AWS instance recommendations
+        instance_recommendations = self._recommend_aws_instances(
+            cpu_analysis, memory_analysis, storage_analysis, env_type
+        )
+        
+        # Calculate performance scores
+        performance_scores = self._calculate_performance_scores(metrics)
+        
+        return {
+            'environment_type': env_type,
+            'cpu_analysis': cpu_analysis,
+            'memory_analysis': memory_analysis,
+            'storage_analysis': storage_analysis,
+            'instance_recommendations': instance_recommendations,
+            'performance_scores': performance_scores,
+        }
+    
+    def _categorize_environment(self, env_name: str) -> str:
+        """Categorize environment type from name"""
+        env_lower = env_name.lower()
+        if any(term in env_lower for term in ['prod', 'production', 'prd']):
+            return 'production'
+        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
+            return 'staging'
+        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
+            return 'testing'
+        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
+            return 'development'
+        return 'production'  # Default to production for safety
+    
+    def _analyze_cpu_metrics(self, metrics: Dict, buffers: Dict) -> Dict:
+        """Analyze CPU metrics and requirements"""
+        
+        max_cpu = metrics.get('max_cpu_usage_percent', 0)
+        avg_cpu = metrics.get('avg_cpu_usage_percent', 0)
+        cpu_cores = metrics.get('cpu_cores_allocated', 2)
+        cpu_ready = metrics.get('cpu_ready_time_ms', 0)
+        
+        # Calculate required capacity with buffer
+        required_cpu_percent = max_cpu * (1 + buffers['cpu_buffer'])
+        
+        # Determine if there are performance issues
+        has_cpu_contention = cpu_ready > 5000  # 5+ seconds indicates contention
+        
+        # Recommend CPU scaling
+        if required_cpu_percent > 80:
+            cpu_scaling_recommendation = "Scale up CPU - current peak exceeds comfort zone"
+        elif has_cpu_contention:
+            cpu_scaling_recommendation = "Address CPU contention - consider optimization"
+        else:
+            cpu_scaling_recommendation = "CPU sizing appears adequate"
+        
+        return {
+            'max_usage_percent': max_cpu,
+            'avg_usage_percent': avg_cpu,
+            'required_capacity_percent': required_cpu_percent,
+            'current_cores': cpu_cores,
+            'has_contention': has_cpu_contention,
+            'scaling_recommendation': cpu_scaling_recommendation,
+            'utilization_efficiency': avg_cpu / max_cpu if max_cpu > 0 else 0
+        }
+    
+    def _analyze_memory_metrics(self, metrics: Dict, buffers: Dict) -> Dict:
+        """Analyze memory metrics and requirements"""
+        
+        max_memory = metrics.get('max_memory_usage_percent', 0)
+        avg_memory = metrics.get('avg_memory_usage_percent', 0)
+        memory_allocated = metrics.get('memory_allocated_gb', 8)
+        memory_balloon = metrics.get('memory_balloon_gb', 0)
+        
+        # Calculate required capacity with buffer
+        required_memory_percent = max_memory * (1 + buffers['memory_buffer'])
+        
+        # Identify memory pressure indicators
+        has_memory_pressure = memory_balloon > 0
+        
+        # Memory sizing recommendation
+        if required_memory_percent > 85:
+            memory_scaling_recommendation = "Increase memory allocation - peak usage too high"
+        elif has_memory_pressure:
+            memory_scaling_recommendation = "Address memory pressure - increase allocation"
+        else:
+            memory_scaling_recommendation = "Memory sizing appears adequate"
+        
+        return {
+            'max_usage_percent': max_memory,
+            'avg_usage_percent': avg_memory,
+            'required_capacity_percent': required_memory_percent,
+            'allocated_gb': memory_allocated,
+            'has_pressure': has_memory_pressure,
+            'scaling_recommendation': memory_scaling_recommendation,
+            'utilization_efficiency': avg_memory / max_memory if max_memory > 0 else 0
+        }
+    
+    def _analyze_storage_metrics(self, metrics: Dict, buffers: Dict) -> Dict:
+        """Analyze storage performance metrics"""
+        
+        max_iops = metrics.get('max_iops_total', 0)
+        avg_iops = metrics.get('avg_iops_total', 0)
+        max_latency = metrics.get('max_disk_latency_ms', 0)
+        avg_latency = metrics.get('avg_disk_latency_ms', 0)
+        storage_used = metrics.get('storage_used_gb', 0)
+        storage_allocated = metrics.get('storage_allocated_gb', 0)
+        
+        # Calculate required IOPS with buffer
+        required_iops = max_iops * (1 + buffers['iops_buffer'])
+        
+        # Storage utilization
+        storage_utilization = (storage_used / storage_allocated * 100) if storage_allocated > 0 else 0
+        
+        # Performance assessment
+        if avg_latency > 20:
+            latency_assessment = "High latency detected - consider faster storage"
+        elif avg_latency > 10:
+            latency_assessment = "Moderate latency - monitor closely"
+        else:
+            latency_assessment = "Latency within acceptable range"
+        
+        # Storage type recommendation
+        if required_iops > 20000 or max_latency > 20:
+            recommended_storage_type = "io2 (high IOPS, low latency required)"
+        elif required_iops > 3000:
+            recommended_storage_type = "gp3 (balanced performance)"
+        else:
+            recommended_storage_type = "gp3 (general purpose)"
+        
+        return {
+            'max_iops': max_iops,
+            'avg_iops': avg_iops,
+            'required_iops': required_iops,
+            'max_latency_ms': max_latency,
+            'avg_latency_ms': avg_latency,
+            'storage_utilization_percent': storage_utilization,
+            'latency_assessment': latency_assessment,
+            'recommended_storage_type': recommended_storage_type,
+            'iops_efficiency': avg_iops / max_iops if max_iops > 0 else 0
+        }
+    
+    def _recommend_aws_instances(self, cpu_analysis: Dict, memory_analysis: Dict, 
+                               storage_analysis: Dict, env_type: str) -> List[Dict]:
+        """Recommend AWS RDS instances based on analyzed metrics"""
+        
+        # Calculate requirements
+        required_cpu_cores = max(2, int(cpu_analysis['required_capacity_percent'] / 100 * cpu_analysis['current_cores']))
+        required_memory_gb = max(4, memory_analysis['allocated_gb'] * (memory_analysis['required_capacity_percent'] / 100))
+        
+        recommendations = []
+        
+        # Filter instances that meet requirements
+        for instance_type, specs in self.aws_instance_specs.items():
+            if (specs['vcpu'] >= required_cpu_cores and 
+                specs['memory_gb'] >= required_memory_gb):
+                
+                # Calculate fit score
+                cpu_efficiency = required_cpu_cores / specs['vcpu']
+                memory_efficiency = required_memory_gb / specs['memory_gb']
+                overall_efficiency = (cpu_efficiency + memory_efficiency) / 2
+                
+                # Penalize over-provisioning, reward good fit
+                fit_score = overall_efficiency * 100
+                if overall_efficiency < 0.5:
+                    fit_score *= 0.7  # Penalty for over-provisioning
+                
+                # Environment-specific adjustments
+                if env_type == 'production' and 't3' in instance_type:
+                    fit_score *= 0.9  # Slight penalty for burstable in production
+                
+                recommendations.append({
+                    'instance_type': instance_type,
+                    'vcpu': specs['vcpu'],
+                    'memory_gb': specs['memory_gb'],
+                    'fit_score': fit_score,
+                    'recommendation_reason': self._generate_recommendation_reason(
+                        instance_type, cpu_efficiency, memory_efficiency, env_type
+                    )
+                })
+        
+        # Sort by fit score and return top 3
+        recommendations.sort(key=lambda x: x['fit_score'], reverse=True)
+        return recommendations[:3]
+    
+    def _generate_recommendation_reason(self, instance_type: str, cpu_eff: float, mem_eff: float, env_type: str) -> str:
+        """Generate human-readable recommendation reasoning"""
+        
+        instance_family = instance_type.split('.')[1][:2]
+        
+        reasons = []
+        
+        if instance_family == 't3':
+            reasons.append("Cost-effective burstable performance")
+        elif instance_family == 'r5':
+            reasons.append("Memory-optimized for database workloads")
+        
+        if cpu_eff > 0.8:
+            reasons.append("excellent CPU utilization")
+        elif cpu_eff > 0.6:
+            reasons.append("good CPU utilization")
+        else:
+            reasons.append("conservative CPU sizing for headroom")
+        
+        return f"Recommended for {env_type}: " + ", ".join(reasons)
+    
+    def _calculate_performance_scores(self, metrics: Dict) -> Dict:
+        """Calculate overall performance health scores"""
+        
+        scores = {}
+        
+        # CPU Health Score
+        cpu_usage = metrics.get('avg_cpu_usage_percent', 0)
+        cpu_ready = metrics.get('cpu_ready_time_ms', 0)
+        
+        if cpu_usage < 20:
+            cpu_score = 60  # Under-utilized
+        elif cpu_usage < 70:
+            cpu_score = 100  # Optimal
+        elif cpu_usage < 85:
+            cpu_score = 80  # High but acceptable
+        else:
+            cpu_score = 40  # Over-utilized
+        
+        if cpu_ready > 5000:
+            cpu_score *= 0.7  # Penalty for contention
+        
+        scores['cpu_health'] = min(100, cpu_score)
+        
+        # Memory Health Score
+        memory_usage = metrics.get('avg_memory_usage_percent', 0)
+        memory_balloon = metrics.get('memory_balloon_gb', 0)
+        
+        if memory_usage < 30:
+            memory_score = 70  # Under-utilized
+        elif memory_usage < 80:
+            memory_score = 100  # Optimal
+        elif memory_usage < 90:
+            memory_score = 75  # High but acceptable
+        else:
+            memory_score = 50  # Over-utilized
+        
+        if memory_balloon > 0:
+            memory_score *= 0.8  # Penalty for ballooning
+        
+        scores['memory_health'] = min(100, memory_score)
+        
+        # Storage Health Score
+        avg_latency = metrics.get('avg_disk_latency_ms', 0)
+        
+        if avg_latency < 5:
+            storage_score = 100  # Excellent
+        elif avg_latency < 10:
+            storage_score = 90   # Good
+        elif avg_latency < 20:
+            storage_score = 70   # Acceptable
+        else:
+            storage_score = 40   # Poor
+        
+        scores['storage_health'] = min(100, storage_score)
+        
+        # Overall Health Score
+        scores['overall_health'] = (scores['cpu_health'] + scores['memory_health'] + scores['storage_health']) / 3
+        
+        return scores
+
 
 def show_enhanced_environment_setup_with_vrops():
-    """Enhanced environment setup with vROps integration"""
+    """Show enhanced environment setup with vROps integration"""
     
-    st.markdown("## 📊 Enhanced Environment Configuration")
-    
-    if not st.session_state.migration_params:
-        st.warning("⚠️ Please complete Migration Configuration first.")
-        return
-    
-    # Initialize vROps analyzer
-    if 'vrops_analyzer' not in st.session_state:
-        st.session_state.vrops_analyzer = VRopsMetricsAnalyzer()
-    
-    analyzer = st.session_state.vrops_analyzer
+    st.markdown("## 📊 Enhanced Environment Setup with vROps Metrics")
     
     # Configuration method selection
-    st.markdown("### 🔧 Configuration Method")
-    
     config_method = st.radio(
         "Choose configuration method:",
         [
             "📊 vROps Metrics Import", 
-            "📝 Manual Detailed Entry",
-            "📁 Bulk CSV Upload",
-            "🔄 Simple Configuration (Legacy)"
+            "📝 Manual Configuration",
+            "📁 Bulk Upload"
         ],
         horizontal=True
     )
     
     if config_method == "📊 vROps Metrics Import":
-        show_vrops_import_interface(analyzer)
-    elif config_method == "📝 Manual Detailed Entry":
-        show_manual_detailed_entry(analyzer)
-    elif config_method == "📁 Bulk CSV Upload":
-        show_enhanced_bulk_upload(analyzer)
+        show_vrops_import_interface()
+    elif config_method == "📝 Manual Configuration":
+        show_manual_configuration()
     else:
-        show_simple_configuration()
+        show_bulk_upload_interface()
 
-def show_vrops_import_interface(analyzer: VRopsMetricsAnalyzer):
+def show_vrops_import_interface():
     """Show vROps metrics import interface"""
     
     st.markdown("### 📊 vROps Metrics Import")
     
-    # Sample vROps export template
-    with st.expander("📋 Download vROps Export Template", expanded=False):
-        st.markdown("""
-        **vROps Data Collection Instructions:**
+    # Initialize analyzer
+    if 'vrops_analyzer' not in st.session_state:
+        st.session_state.vrops_analyzer = VRopsMetricsAnalyzer()
+    
+    analyzer = st.session_state.vrops_analyzer
+    
+    # Sample metrics configuration
+    st.markdown("#### 🔧 Configure vROps Metrics")
+    
+    with st.expander("Configure vROps Metrics for Analysis"):
+        st.markdown("### CPU Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_cpu = st.number_input("Max CPU Usage (%)", min_value=0, max_value=100, value=80)
+            avg_cpu = st.number_input("Avg CPU Usage (%)", min_value=0, max_value=100, value=45)
+        with col2:
+            cpu_cores = st.number_input("CPU Cores Allocated", min_value=1, value=8)
+            cpu_ready = st.number_input("CPU Ready Time (ms)", min_value=0, value=500)
         
-        1. **Export Performance Data** from vROps for your database VMs
-        2. **Time Period**: Minimum 30 days, recommended 90 days
-        3. **Metrics to Include**: Use the template below or export all available metrics
-        4. **Format**: CSV export with hourly or daily aggregation
-        """)
+        st.markdown("### Memory Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_mem = st.number_input("Max Memory Usage (%)", min_value=0, max_value=100, value=75)
+            avg_mem = st.number_input("Avg Memory Usage (%)", min_value=0, max_value=100, value=50)
+        with col2:
+            mem_alloc = st.number_input("Memory Allocated (GB)", min_value=1, value=32)
+            mem_balloon = st.number_input("Ballooned Memory (GB)", min_value=0, value=0)
         
-        # Generate sample template
-        sample_metrics = create_vrops_sample_template()
-        csv_data = sample_metrics.to_csv(index=False)
+        st.markdown("### Storage Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_iops = st.number_input("Max IOPS", min_value=0, value=5000)
+            max_latency = st.number_input("Max Disk Latency (ms)", min_value=0, value=10)
+        with col2:
+            storage_used = st.number_input("Storage Used (GB)", min_value=0, value=500)
+            storage_alloc = st.number_input("Storage Allocated (GB)", min_value=0, value=600)
         
-        st.dataframe(sample_metrics.head(), use_container_width=True)
-        
-        st.download_button(
-            label="📥 Download vROps Template (CSV)",
-            data=csv_data,
-            file_name="vrops_metrics_template.csv",
-            mime="text/csv",
-            use_container_width=True
+        # Store metrics in session state
+        st.session_state.vrops_metrics = {
+            'max_cpu_usage_percent': max_cpu,
+            'avg_cpu_usage_percent': avg_cpu,
+            'cpu_cores_allocated': cpu_cores,
+            'cpu_ready_time_ms': cpu_ready,
+            'max_memory_usage_percent': max_mem,
+            'avg_memory_usage_percent': avg_mem,
+            'memory_allocated_gb': mem_alloc,
+            'memory_balloon_gb': mem_balloon,
+            'max_iops_total': max_iops,
+            'max_disk_latency_ms': max_latency,
+            'storage_used_gb': storage_used,
+            'storage_allocated_gb': storage_alloc
+        }
+    
+    if st.button("🚀 Run vROps Analysis", type="primary"):
+        analyzer = VRopsMetricsAnalyzer()
+        st.session_state.vrops_analysis = analyzer.analyze_metrics(
+            {"PROD": st.session_state.vrops_metrics}
         )
-    
-    # File upload
-    uploaded_file = st.file_uploader(
-        "Upload vROps Export File",
-        type=['csv', 'xlsx'],
-        help="Upload your vROps performance metrics export"
-    )
-    
-    if uploaded_file is not None:
-        try:
-            # Load the file
-            if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-            
-            st.success(f"✅ File loaded successfully! Found {len(df)} rows and {len(df.columns)} columns.")
-            
-            # Show data preview
-            st.markdown("#### 📊 Data Preview")
-            st.dataframe(df.head(10), use_container_width=True)
-            
-            # Data mapping interface
-            st.markdown("#### 🔗 Map vROps Metrics to Standard Fields")
-            
-            processed_environments = process_vrops_data(df, analyzer)
-            
-            if processed_environments:
-                st.session_state.environment_specs = processed_environments
-                st.success(f"✅ Successfully processed {len(processed_environments)} environments!")
-                
-                # Show processed summary
-                show_vrops_processing_summary(processed_environments, analyzer)
-        
-        except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
-            st.code(str(e))
-
-def show_vrops_processing_summary(environments: Dict, analyzer: VRopsMetricsAnalyzer):
-    """Show summary of processed vROps data"""
-    
-    st.markdown("#### 📊 Processing Summary")
-    
-    # Environment overview
-    env_summary = []
-    for env_name, metrics in environments.items():
-        env_summary.append({
-            'Environment': env_name,
-            'CPU Cores': metrics.get('cpu_cores_allocated', 'N/A'),
-            'Memory GB': metrics.get('memory_allocated_gb', 'N/A'),
-            'Max CPU %': f"{metrics.get('max_cpu_usage_percent', 0):.1f}%",
-            'Max Memory %': f"{metrics.get('max_memory_usage_percent', 0):.1f}%",
-            'Max IOPS': metrics.get('max_iops_total', 'N/A'),
-            'DB Size GB': metrics.get('database_size_gb', 'N/A')
-        })
-    
-    summary_df = pd.DataFrame(env_summary)
-    st.dataframe(summary_df, use_container_width=True)
-    
-    # Run analysis
-    if st.button("🚀 Analyze vROps Metrics", type="primary"):
-        with st.spinner("🔄 Analyzing performance metrics..."):
-            analysis_results = analyzer.analyze_vrops_metrics(environments)
-            st.session_state.vrops_analysis = analysis_results
-            
-            st.success("✅ vROps analysis complete!")
-            
-            # Show quick insights
-            show_vrops_analysis_summary(analysis_results)
+        st.success("✅ vROps analysis completed!")
 
 def show_vrops_results_tab():
-    """Show vROps analysis results in the dashboard"""
+    """Show vROps analysis results in dashboard"""
     
-    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
-        st.markdown("### 📊 vROps Performance Analysis")
+    st.markdown("### 📊 vROps Metrics Analysis Results")
+    
+    if not hasattr(st.session_state, 'vrops_analysis') or not st.session_state.vrops_analysis:
+        st.warning("⚠️ No vROps analysis results available. Please run the vROps analysis first.")
+        st.info("👆 Go to 'Environment Setup' → 'vROps Metrics Import' to configure and analyze metrics")
+        return
+    
+    results = st.session_state.vrops_analysis
+    
+    # Show results for each environment
+    for env_name, analysis in results.items():
+        st.markdown(f"#### 🏢 {env_name} Environment Analysis")
         
-        analysis_results = st.session_state.vrops_analysis
-        
-        # Performance health overview
-        col1, col2, col3 = st.columns(3)
-        
-        # Calculate overall health scores
-        health_scores = []
-        env_count = 0
-        
-        for env_name, analysis in analysis_results.items():
-            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
-                env_count += 1
-                scores = analysis.get('performance_scores', {})
-                health_scores.append(scores.get('overall_health', 0))
-        
-        avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
+        # Performance scores overview
+        scores = analysis['performance_scores']
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric("Overall Health Score", f"{avg_health:.1f}/100")
+            cpu_health = scores['cpu_health']
+            color = 'normal' if cpu_health > 80 else 'inverse' if cpu_health > 60 else 'off'
+            st.metric("CPU Health", f"{cpu_health:.0f}/100", delta="Good" if cpu_health > 80 else "Review")
         
         with col2:
-            at_risk_envs = len([score for score in health_scores if score < 70])
-            st.metric("At Risk Environments", at_risk_envs)
+            memory_health = scores['memory_health']
+            st.metric("Memory Health", f"{memory_health:.0f}/100", delta="Good" if memory_health > 80 else "Review")
         
         with col3:
-            st.metric("Total Environments", env_count)
+            storage_health = scores['storage_health']
+            st.metric("Storage Health", f"{storage_health:.0f}/100", delta="Good" if storage_health > 80 else "Review")
         
-        # Environment details
-        st.markdown("#### 🏢 Environment Performance Analysis")
+        with col4:
+            overall_health = scores['overall_health']
+            st.metric("Overall Health", f"{overall_health:.0f}/100", delta="Good" if overall_health > 80 else "Review")
         
-        for env_name, analysis in analysis_results.items():
-            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
-                with st.expander(f"📊 {env_name} Performance Details"):
-                    
-                    col1, col2, col3 = st.columns(3)
+        # Detailed analysis in tabs
+        tab1, tab2, tab3, tab4 = st.tabs(["💻 CPU Analysis", "🧠 Memory Analysis", "💾 Storage Analysis", "☁️ AWS Recommendations"])
+        
+        with tab1:
+            cpu_analysis = analysis['cpu_analysis']
+            st.markdown("**CPU Performance Analysis**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Max Usage", f"{cpu_analysis['max_usage_percent']:.1f}%")
+                st.metric("Avg Usage", f"{cpu_analysis['avg_usage_percent']:.1f}%")
+                st.metric("Current Cores", cpu_analysis['current_cores'])
+            
+            with col2:
+                st.metric("Required Capacity", f"{cpu_analysis['required_capacity_percent']:.1f}%")
+                st.metric("Utilization Efficiency", f"{cpu_analysis['utilization_efficiency']:.1%}")
+                if cpu_analysis['has_contention']:
+                    st.error("⚠️ CPU contention detected")
+                else:
+                    st.success("✅ No CPU contention")
+            
+            st.info(f"**Recommendation:** {cpu_analysis['scaling_recommendation']}")
+        
+        with tab2:
+            memory_analysis = analysis['memory_analysis']
+            st.markdown("**Memory Performance Analysis**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Max Usage", f"{memory_analysis['max_usage_percent']:.1f}%")
+                st.metric("Avg Usage", f"{memory_analysis['avg_usage_percent']:.1f}%")
+                st.metric("Allocated", f"{memory_analysis['allocated_gb']:.1f} GB")
+            
+            with col2:
+                st.metric("Required Capacity", f"{memory_analysis['required_capacity_percent']:.1f}%")
+                st.metric("Utilization Efficiency", f"{memory_analysis['utilization_efficiency']:.1%}")
+                if memory_analysis['has_pressure']:
+                    st.error("⚠️ Memory pressure detected")
+                else:
+                    st.success("✅ No memory pressure")
+            
+            st.info(f"**Recommendation:** {memory_analysis['scaling_recommendation']}")
+        
+        with tab3:
+            storage_analysis = analysis['storage_analysis']
+            st.markdown("**Storage Performance Analysis**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Max IOPS", f"{storage_analysis['max_iops']:,}")
+                st.metric("Avg IOPS", f"{storage_analysis['avg_iops']:,}")
+                st.metric("Required IOPS", f"{storage_analysis['required_iops']:,}")
+            
+            with col2:
+                st.metric("Max Latency", f"{storage_analysis['max_latency_ms']:.1f} ms")
+                st.metric("Avg Latency", f"{storage_analysis['avg_latency_ms']:.1f} ms")
+                st.metric("Storage Utilization", f"{storage_analysis['storage_utilization_percent']:.1f}%")
+            
+            st.info(f"**Latency Assessment:** {storage_analysis['latency_assessment']}")
+            st.info(f"**Recommended Storage:** {storage_analysis['recommended_storage_type']}")
+        
+        with tab4:
+            recommendations = analysis['instance_recommendations']
+            st.markdown("**AWS RDS Instance Recommendations**")
+            
+            for i, rec in enumerate(recommendations, 1):
+                with st.expander(f"Option {i}: {rec['instance_type']} (Fit Score: {rec['fit_score']:.1f})"):
+                    col1, col2 = st.columns(2)
                     
                     with col1:
-                        st.markdown("**CPU Analysis**")
-                        cpu_analysis = analysis.get('cpu_analysis', {})
-                        st.write(f"Max Usage: {cpu_analysis.get('max_usage_percent', 0):.1f}%")
-                        st.write(f"Avg Usage: {cpu_analysis.get('avg_usage_percent', 0):.1f}%")
-                        st.write(f"Required Capacity: {cpu_analysis.get('required_capacity_percent', 0):.1f}%")
+                        st.metric("vCPUs", rec['vcpu'])
+                        st.metric("Memory", f"{rec['memory_gb']} GB")
                     
                     with col2:
-                        st.markdown("**Memory Analysis**")
-                        memory_analysis = analysis.get('memory_analysis', {})
-                        st.write(f"Max Usage: {memory_analysis.get('max_usage_percent', 0):.1f}%")
-                        st.write(f"Avg Usage: {memory_analysis.get('avg_usage_percent', 0):.1f}%")
-                        st.write(f"Allocated: {memory_analysis.get('allocated_gb', 0)} GB")
-                    
-                    with col3:
-                        st.markdown("**Storage Analysis**")
-                        storage_analysis = analysis.get('storage_analysis', {})
-                        st.write(f"Max IOPS: {storage_analysis.get('max_iops', 0):,}")
-                        st.write(f"Avg IOPS: {storage_analysis.get('avg_iops', 0):,}")
-                        st.write(f"Storage Utilization: {storage_analysis.get('storage_utilization_percent', 0):.1f}%")
-                    
-                    # Instance recommendations
-                    st.markdown("**🎯 AWS Instance Recommendations**")
-                    recommendations = analysis.get('instance_recommendations', [])
-                    
-                    if recommendations:
-                        for i, rec in enumerate(recommendations[:3], 1):
-                            st.markdown(f"{i}. **{rec['instance_type']}** - "
-                                      f"CPU Efficiency: {rec['cpu_efficiency']:.1%}, "
-                                      f"Memory Efficiency: {rec['memory_efficiency']:.1%}, "
-                                      f"Fit Score: {rec['fit_score']:.1f}")
-                    else:
-                        st.write("No recommendations available")
-    
-    else:
-        st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
+                        st.metric("Fit Score", f"{rec['fit_score']:.1f}/100")
+                        
+                    st.markdown(f"**Reasoning:** {rec['recommendation_reason']}")
 
-def show_vrops_analysis_summary(analysis_results: Dict):
-    """Show summary of vROps analysis results"""
+def show_manual_configuration():
+    """Show manual configuration interface"""
+    st.markdown("### 📝 Manual Environment Configuration")
+    st.info("Configure environments manually with custom specifications")
     
-    st.markdown("#### 🎯 Analysis Results Summary")
-    
-    # Performance health overview
-    col1, col2, col3 = st.columns(3)
-    
-    # Calculate overall health scores
-    health_scores = []
-    for env_name, analysis in analysis_results.items():
-        if env_name != 'overall_recommendations' and isinstance(analysis, dict):
-            scores = analysis.get('performance_scores', {})
-            health_scores.append(scores.get('overall_health', 0))
-    
-    avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
-    
-    with col1:
-        st.metric("Overall Health Score", f"{avg_health:.1f}/100")
-    
-    with col2:
-        at_risk_envs = len([score for score in health_scores if score < 70])
-        st.metric("Environments at Risk", at_risk_envs)
-    
-    with col3:
-        total_envs = len([k for k in analysis_results.keys() if k != 'overall_recommendations'])
-        st.metric("Total Environments", total_envs)
-    
-    # Top recommendations
-    st.markdown("#### 💡 Key Recommendations")
-    
-    for env_name, analysis in analysis_results.items():
-        if env_name != 'overall_recommendations' and isinstance(analysis, dict):
-            recommendations = analysis.get('instance_recommendations', [])
-            if recommendations:
-                top_rec = recommendations[0]
-                st.markdown(f"**{env_name}:** {top_rec['instance_type']} - {top_rec['recommendation_reason']}")
-
-def show_manual_detailed_entry(analyzer: VRopsMetricsAnalyzer):
-    """Show manual detailed entry interface"""
-    
-    st.markdown("### 📝 Manual Detailed Entry")
-    
-    # Number of environments
-    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=2)
-    
-    environments = {}
-    
-    for i in range(num_environments):
-        with st.expander(f"🏢 Environment {i+1} - Detailed Configuration", expanded=i == 0):
-            env_name = st.text_input(f"Environment Name", value=f"Environment_{i+1}", key=f"detailed_env_name_{i}")
-            
-            # Environment type
-            env_type = st.selectbox(
-                "Environment Type",
-                ["Production", "Staging", "QA", "Development"],
-                key=f"env_type_{i}"
-            )
-            
-            # Create tabs for different metric categories
-            tab1, tab2, tab3, tab4, tab5 = st.tabs(["💻 CPU", "🧠 Memory", "💾 Storage", "🌐 Network", "📊 Database"])
-            
-            env_metrics = {'environment_type': env_type}
-            
-            with tab1:
-                show_cpu_metrics_input(env_metrics, i)
-            
-            with tab2:
-                show_memory_metrics_input(env_metrics, i)
-            
-            with tab3:
-                show_storage_metrics_input(env_metrics, i)
-            
-            with tab4:
-                show_network_metrics_input(env_metrics, i)
-            
-            with tab5:
-                show_database_metrics_input(env_metrics, i)
-            
-            environments[env_name] = env_metrics
-    
-    if st.button("💾 Save Detailed Configuration", type="primary", use_container_width=True):
-        st.session_state.environment_specs = environments
-        st.success("✅ Detailed environment configuration saved!")
+    # Basic manual configuration form
+    with st.form("manual_config"):
+        env_name = st.text_input("Environment Name", value="Production")
+        cpu_cores = st.number_input("CPU Cores", min_value=1, value=8)
+        ram_gb = st.number_input("RAM (GB)", min_value=1, value=32)
+        storage_gb = st.number_input("Storage (GB)", min_value=10, value=500)
         
-        # Run analysis
-        with st.spinner("🔄 Analyzing detailed metrics..."):
-            analysis_results = analyzer.analyze_vrops_metrics(environments)
-            st.session_state.vrops_analysis = analysis_results
-            
-        st.success("✅ Analysis complete! Check the Results Dashboard for detailed insights.")
-
-def show_cpu_metrics_input(env_metrics: Dict, env_index: int):
-    """Show CPU metrics input interface"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        env_metrics['cpu_cores_allocated'] = st.number_input(
-            "CPU Cores Allocated", min_value=1, max_value=128, value=8, key=f"cpu_cores_{env_index}"
-        )
-        env_metrics['max_cpu_usage_percent'] = st.slider(
-            "Max CPU Usage %", min_value=0, max_value=100, value=75, key=f"max_cpu_{env_index}"
-        )
-        env_metrics['avg_cpu_usage_percent'] = st.slider(
-            "Average CPU Usage %", min_value=0, max_value=100, value=50, key=f"avg_cpu_{env_index}"
-        )
-    
-    with col2:
-        env_metrics['cpu_ready_time_ms'] = st.number_input(
-            "CPU Ready Time (ms)", min_value=0, max_value=50000, value=1000, key=f"cpu_ready_{env_index}",
-            help="Time VM waited for CPU resources"
-        )
-        env_metrics['cpu_costop_ms'] = st.number_input(
-            "CPU Co-stop Time (ms)", min_value=0, max_value=10000, value=0, key=f"cpu_costop_{env_index}",
-            help="Time multi-vCPU VM waited for all CPUs"
-        )
-
-def show_memory_metrics_input(env_metrics: Dict, env_index: int):
-    """Show memory metrics input interface"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        env_metrics['memory_allocated_gb'] = st.number_input(
-            "Memory Allocated (GB)", min_value=1, max_value=1024, value=32, key=f"mem_allocated_{env_index}"
-        )
-        env_metrics['max_memory_usage_percent'] = st.slider(
-            "Max Memory Usage %", min_value=0, max_value=100, value=80, key=f"max_mem_{env_index}"
-        )
-        env_metrics['avg_memory_usage_percent'] = st.slider(
-            "Average Memory Usage %", min_value=0, max_value=100, value=60, key=f"avg_mem_{env_index}"
-        )
-    
-    with col2:
-        env_metrics['memory_balloon_gb'] = st.number_input(
-            "Memory Balloon (GB)", min_value=0.0, max_value=100.0, value=0.0, key=f"mem_balloon_{env_index}",
-            help="Ballooned memory indicates over-commitment"
-        )
-        env_metrics['memory_swapped_gb'] = st.number_input(
-            "Memory Swapped (GB)", min_value=0.0, max_value=100.0, value=0.0, key=f"mem_swapped_{env_index}",
-            help="Swapped memory indicates severe memory pressure"
-        )
-        env_metrics['memory_compressed_gb'] = st.number_input(
-            "Memory Compressed (GB)", min_value=0.0, max_value=100.0, value=0.0, key=f"mem_compressed_{env_index}"
-        )
-
-def show_storage_metrics_input(env_metrics: Dict, env_index: int):
-    """Show storage metrics input interface"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        env_metrics['storage_allocated_gb'] = st.number_input(
-            "Storage Allocated (GB)", min_value=20, max_value=50000, value=1000, key=f"storage_allocated_{env_index}"
-        )
-        env_metrics['storage_used_gb'] = st.number_input(
-            "Storage Used (GB)", min_value=10, max_value=50000, value=750, key=f"storage_used_{env_index}"
-        )
-        env_metrics['max_iops_total'] = st.number_input(
-            "Max IOPS (Total)", min_value=100, max_value=100000, value=5000, key=f"max_iops_{env_index}"
-        )
-        env_metrics['avg_iops_total'] = st.number_input(
-            "Average IOPS", min_value=50, max_value=50000, value=2500, key=f"avg_iops_{env_index}"
-        )
-    
-    with col2:
-        env_metrics['max_disk_latency_ms'] = st.number_input(
-            "Max Disk Latency (ms)", min_value=0.1, max_value=1000.0, value=15.0, key=f"max_latency_{env_index}"
-        )
-        env_metrics['avg_disk_latency_ms'] = st.number_input(
-            "Average Disk Latency (ms)", min_value=0.1, max_value=500.0, value=8.0, key=f"avg_latency_{env_index}"
-        )
-        env_metrics['max_disk_throughput_mbps'] = st.number_input(
-            "Max Throughput (MB/s)", min_value=10, max_value=10000, value=250, key=f"max_throughput_{env_index}"
-        )
-        env_metrics['disk_queue_depth'] = st.number_input(
-            "Disk Queue Depth", min_value=1, max_value=100, value=5, key=f"queue_depth_{env_index}"
-        )
-
-def show_network_metrics_input(env_metrics: Dict, env_index: int):
-    """Show network metrics input interface"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        env_metrics['max_network_throughput_mbps'] = st.number_input(
-            "Max Network Throughput (Mbps)", min_value=10, max_value=10000, value=200, key=f"max_net_throughput_{env_index}"
-        )
-        env_metrics['avg_network_throughput_mbps'] = st.number_input(
-            "Avg Network Throughput (Mbps)", min_value=5, max_value=5000, value=100, key=f"avg_net_throughput_{env_index}"
-        )
-    
-    with col2:
-        env_metrics['network_latency_ms'] = st.number_input(
-            "Network Latency (ms)", min_value=0.1, max_value=1000.0, value=5.0, key=f"net_latency_{env_index}"
-        )
-        env_metrics['network_packet_loss_percent'] = st.number_input(
-            "Packet Loss %", min_value=0.0, max_value=10.0, value=0.0, key=f"packet_loss_{env_index}"
-        )
-
-def show_database_metrics_input(env_metrics: Dict, env_index: int):
-    """Show database metrics input interface"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        env_metrics['database_size_gb'] = st.number_input(
-            "Database Size (GB)", min_value=1, max_value=100000, value=500, key=f"db_size_{env_index}"
-        )
-        env_metrics['max_database_connections'] = st.number_input(
-            "Max Database Connections", min_value=10, max_value=10000, value=300, key=f"max_connections_{env_index}"
-        )
-        env_metrics['avg_database_connections'] = st.number_input(
-            "Avg Database Connections", min_value=5, max_value=5000, value=150, key=f"avg_connections_{env_index}"
-        )
-        env_metrics['application_type'] = st.selectbox(
-            "Application Type", ["OLTP", "OLAP", "Mixed", "Data Warehouse"], key=f"app_type_{env_index}"
-        )
-    
-    with col2:
-        env_metrics['max_transaction_rate_per_sec'] = st.number_input(
-            "Max Transactions/sec", min_value=1, max_value=100000, value=1000, key=f"max_tps_{env_index}"
-        )
-        env_metrics['avg_query_response_time_ms'] = st.number_input(
-            "Avg Query Response Time (ms)", min_value=1, max_value=10000, value=100, key=f"avg_response_{env_index}"
-        )
-        env_metrics['buffer_cache_hit_ratio_percent'] = st.slider(
-            "Buffer Cache Hit Ratio %", min_value=50, max_value=100, value=95, key=f"cache_hit_{env_index}"
-        )
-        env_metrics['observation_period_days'] = st.number_input(
-            "Observation Period (days)", min_value=7, max_value=365, value=30, key=f"obs_period_{env_index}"
-        )
-
-def show_enhanced_bulk_upload(analyzer: VRopsMetricsAnalyzer):
-    """Show enhanced bulk upload with comprehensive template"""
-    
-    st.markdown("### 📁 Enhanced Bulk Upload")
-    
-    # Use the same template and processing as before
-    with st.expander("📋 Download Comprehensive Template", expanded=False):
-        template_data = create_comprehensive_template()
-        csv_data = template_data.to_csv(index=False)
+        submitted = st.form_submit_button("Save Configuration")
         
-        st.dataframe(template_data, use_container_width=True)
-        
-        st.download_button(
-            label="📥 Download Performance Metrics Template",
-            data=csv_data,
-            file_name="performance_metrics_template.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
+        if submitted:
+            st.session_state.environment_specs = {
+                env_name: {
+                    'cpu_cores': cpu_cores,
+                    'ram_gb': ram_gb,
+                    'storage_gb': storage_gb,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100
+                }
+            }
+            st.success("✅ Configuration saved!")
+
+def show_bulk_upload_interface():
+    """Show bulk upload interface"""
+    st.markdown("### 📁 Bulk Configuration Upload")
+    st.info("Upload CSV or Excel file with environment specifications")
     
-    # File upload with enhanced processing
-    uploaded_file = st.file_uploader(
-        "Upload Performance Data",
-        type=['csv', 'xlsx'],
-        help="Upload CSV or Excel file with performance metrics"
-    )
+    uploaded_file = st.file_uploader("Choose file", type=['csv', 'xlsx'])
     
     if uploaded_file is not None:
         try:
-            # Load file
             if uploaded_file.name.endswith('.csv'):
                 df = pd.read_csv(uploaded_file)
             else:
                 df = pd.read_excel(uploaded_file)
             
-            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            st.success(f"✅ File loaded: {len(df)} rows")
+            st.dataframe(df)
             
-            # Auto-detect column mappings
-            auto_mappings = auto_detect_column_mappings(df.columns.tolist())
-            
-            st.markdown("#### 🔍 Auto-detected Column Mappings")
-            
-            # Show detected mappings
-            mapping_df = pd.DataFrame([
-                {'Required Field': k, 'Detected Column': v, 'Confidence': 'High' if v else 'Not Found'}
-                for k, v in auto_mappings.items()
-            ])
-            
-            st.dataframe(mapping_df, use_container_width=True)
-            
-            # Allow manual override
-            with st.expander("🔧 Override Mappings (Optional)"):
-                st.info("Only modify if auto-detection is incorrect")
-                # Add manual mapping interface here if needed
-            
-            if st.button("🚀 Process Enhanced Data", type="primary"):
-                environments = process_enhanced_data(df, auto_mappings)
-                
-                if environments:
-                    st.session_state.environment_specs = environments
-                    st.success(f"✅ Processed {len(environments)} environments!")
-                    
-                    # Run comprehensive analysis
-                    with st.spinner("🔄 Running comprehensive analysis..."):
-                        analysis_results = analyzer.analyze_vrops_metrics(environments)
-                        st.session_state.vrops_analysis = analysis_results
-                    
-                    st.success("✅ Analysis complete!")
-                    show_vrops_analysis_summary(analysis_results)
-        
         except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
-
-def show_simple_configuration():
-    """Show simple configuration for backward compatibility"""
-    
-    st.markdown("### 🔄 Simple Configuration (Legacy)")
-    st.info("This is the simplified configuration mode. For better AWS sizing accuracy, consider using the vROps metrics import.")
-    
-    # Use the original simple interface
-    show_manual_environment_setup()
-
-def integrate_enhanced_environment_module():
-    """Integration instructions for the enhanced environment module"""
-    # Implementation would go here
-    pass
+            st.error(f"Error loading file: {str(e)}")
