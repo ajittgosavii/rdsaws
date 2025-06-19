@@ -533,6 +533,29 @@ import json
 
 # ADD THIS CLASS to your streamlit_app.py file (put it near the top with other classes):
 
+# Simplified key manager for remaining components
+class SimpleKeyManager:
+    """Simplified key manager that maintains consistency"""
+    
+    def __init__(self):
+        if 'simple_key_counter' not in st.session_state:
+            st.session_state.simple_key_counter = {}
+    
+    def get_key(self, base_key: str, context: str = "") -> str:
+        """Get a consistent key for a given base_key and context"""
+        full_identifier = f"{base_key}_{context}" if context else base_key
+        
+        # Return the same key for the same identifier
+        if full_identifier not in st.session_state.simple_key_counter:
+            st.session_state.simple_key_counter[full_identifier] = len(st.session_state.simple_key_counter)
+        
+        return f"{full_identifier}_{st.session_state.simple_key_counter[full_identifier]}"
+    def initialize_simple_key_manager():
+    """Initialize the simple key manager"""
+    if 'simple_key_manager' not in st.session_state:
+        st.session_state.simple_key_manager = SimpleKeyManager()
+    return st.session_state.simple_key_manager
+
 class EnhancedAWSPricingAPI:
     """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
     
@@ -9490,12 +9513,11 @@ def main_fixed():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar navigation
+   # Sidebar navigation - FIXED VERSION
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
         
-        # FIXED: Unique key for navigation radio
-        nav_key = key_manager.get_unique_key("main_navigation", "sidebar")
+        # SOLUTION: Use a simple, consistent key that never changes
         page = st.radio("Select Section:", [
             "🔧 Migration Configuration",
             "📊 Environment Setup", 
@@ -9503,8 +9525,10 @@ def main_fixed():
             "🚀 Analysis & Recommendations",
             "📈 Results Dashboard",
             "📄 Reports & Export"
-            ], key=nav_key
-        )
+        ], key="main_navigation_radio")  # Simple, consistent key
+        
+        # Optional: Add current page indicator
+        st.markdown(f"**Current:** {page.split(' ', 1)[1]}")
     
     # Main content area
     if page == "🔧 Migration Configuration":
@@ -9516,12 +9540,50 @@ def main_fixed():
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
-        show_results_dashboard_fixed()  # Use fixed version
+        show_results_dashboard_fixed()
     elif page == "📄 Reports & Export":
-        show_reports_section_fixed()  # Use fixed version
+        show_reports_section_fixed()
     else:
-        st.markdown("## Welcome to the AWS Database Migration Tool")
-        st.markdown("Please select a section from the sidebar to get started.")
+        # Default welcome page
+        st.markdown("## 🚀 Welcome to the AWS Database Migration Tool")
+        
+        # Show current status
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### 📋 Quick Status")
+            
+            # Check configuration status
+            if st.session_state.migration_params:
+                st.success("✅ Migration parameters configured")
+            else:
+                st.warning("⚠️ Migration configuration needed")
+            
+            if st.session_state.environment_specs:
+                st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
+            else:
+                st.warning("⚠️ Environment setup needed")
+            
+            if st.session_state.analysis_results:
+                st.success("✅ Analysis completed")
+            else:
+                st.info("ℹ️ Ready for analysis")
+        
+        with col2:
+            st.markdown("### 🎯 Quick Actions")
+            
+            if st.button("⚙️ Start Configuration", use_container_width=True):
+                st.session_state.temp_navigation = "🔧 Migration Configuration"
+                st.experimental_rerun()
+            
+            if st.button("📊 Setup Environments", use_container_width=True):
+                st.session_state.temp_navigation = "📊 Environment Setup"
+                st.experimental_rerun()
+            
+            if st.session_state.migration_params and st.session_state.environment_specs:
+                if st.button("🚀 Run Analysis", use_container_width=True):
+                    st.session_state.temp_navigation = "🚀 Analysis & Recommendations"
+                    st.experimental_rerun()
 
 def show_results_dashboard_fixed():
     """Show comprehensive results dashboard - FIXED KEYS"""
