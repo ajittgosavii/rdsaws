@@ -171,7 +171,7 @@ class StorageConfigurationManager:
 
     
     def show_storage_validation_widget():
-    """Show storage validation widget in environment setup"""
+        """Show storage validation widget in environment setup"""
     
     if not st.session_state.migration_params or not st.session_state.environment_specs:
         return
