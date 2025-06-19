@@ -9491,21 +9491,42 @@ def main_fixed():
     </div>
     """, unsafe_allow_html=True)
     
+     # FIXED: Initialize page selection in session state if not exists
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "🔧 Migration Configuration"
+    
     # Sidebar navigation
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
         
-        # FIXED: Unique key for navigation radio
-        nav_key = key_manager.get_unique_key("main_navigation", "sidebar")
-        page = st.radio("Select Section:", [
+        # FIXED: Use session state for persistence and remove problematic key
+        page_options = [
             "🔧 Migration Configuration",
             "📊 Environment Setup", 
             "🌐 Network Analysis",
             "🚀 Analysis & Recommendations",
             "📈 Results Dashboard",
             "📄 Reports & Export"
-            ], key=nav_key
+        ]
+    # FIXED: Use index-based selection with session state
+        try:
+            current_index = page_options.index(st.session_state.current_page)
+        except ValueError:
+            current_index = 0
+        
+        # FIXED: Simple radio without custom key
+        selected_page = st.radio(
+            "Select Section:", 
+            page_options,
+            index=current_index
         )
+        
+        # Update session state when selection changes
+        if selected_page != st.session_state.current_page:
+            st.session_state.current_page = selected_page
+            st.experimental_rerun()
+        
+        page = st.session_state.current_page
     
     # Main content area
     if page == "🔧 Migration Configuration":
@@ -9517,12 +9538,13 @@ def main_fixed():
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
-        show_results_dashboard_fixed()  # Use fixed version
+        show_results_dashboard_fixed()
     elif page == "📄 Reports & Export":
-        show_reports_section_fixed()  # Use fixed version
+        show_reports_section_fixed()
     else:
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
+
 
 def show_results_dashboard_fixed():
     """Show comprehensive results dashboard - FIXED KEYS"""
