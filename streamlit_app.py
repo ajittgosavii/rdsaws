@@ -3644,9 +3644,9 @@ def show_manual_cluster_configuration():
                         st.success("✅ Standard analysis complete!")
                         st.info("💡 For enhanced cluster analysis, use the cluster configuration options above.")
                     
-                           except Exception as e:
-                           st.error(f"❌ Analysis failed: {str(e)}")
-                           st.code(str(e))
+except Exception as e:
+st.error(f"❌ Analysis failed: {str(e)}")
+st.code(str(e))
 
 class DatabaseClusterConfiguration:
     """Enhanced database cluster configuration with Writer/Reader support"""
