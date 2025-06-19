@@ -171,19 +171,19 @@ class StorageConfigurationManager:
 
     
    def show_storage_validation_widget():
-    """Show storage validation widget in environment setup"""
+       """Show storage validation widget in environment setup"""
     
-    if not st.session_state.migration_params or not st.session_state.environment_specs:
-        return
+        if not st.session_state.migration_params or not st.session_state.environment_specs:
+            return
     
-    migration_data_gb = st.session_state.migration_params.get('data_size_gb', 0)
-    storage_manager = StorageConfigurationManager()
-    
-    st.markdown("#### 🔍 Storage Configuration Validation")
-    
-    validation = storage_manager.validate_storage_configuration(
-        migration_data_gb, st.session_state.environment_specs
-    )
+        migration_data_gb = st.session_state.migration_params.get('data_size_gb', 0)
+        storage_manager = StorageConfigurationManager()
+        
+        st.markdown("#### 🔍 Storage Configuration Validation")
+        
+        validation = storage_manager.validate_storage_configuration(
+            migration_data_gb, st.session_state.environment_specs
+        )
     # Status indicator
     col1, col2, col3 = st.columns(3)
     
