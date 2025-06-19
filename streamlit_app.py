@@ -235,7 +235,7 @@ class SafeMigrationAnalyzer:
                     # Show summary
                     show_fixed_analysis_summary()
 
-            return True
+                return True
                             
                 except Exception as e:
                     st.error(f"❌ Error during analysis: {str(e)}")
