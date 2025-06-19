@@ -45,7 +45,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
-    class SafeMigrationAnalyzer:
+class SafeMigrationAnalyzer:
         """Migration analyzer with robust environment specs handling"""
         
         def __init__(self, anthropic_api_key=None):
