@@ -5656,11 +5656,12 @@ def show_migration_configuration():
         help="Provide your Anthropic API key for AI-powered insights"
     )
     
-    # Save configuration button
-   if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+   # Save configuration button
+if st.button("💾 Save Configuration", type="primary", use_container_width=True):
     # ADD THIS RIGHT BEFORE THE SAVE BUTTON
     if st.session_state.environment_specs:
         st.markdown("### 📊 Current Storage Configuration")
+        # FIXED: Removed extra spaces at start of this line
         total_env_storage = sum([specs.get('storage_gb', 0) for specs in st.session_state.environment_specs.values()])
                      
         col1, col2, col3 = st.columns(3)
