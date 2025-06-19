@@ -43,282 +43,42 @@ from datetime import datetime, timedelta
 import streamlit as st
 import pandas as pd
 
-def apply_fixed_css():
-    """Apply fixed CSS with better alignment and responsive design"""
-    st.markdown("""
-    <style>
-        /* Reset and base styles */
-        .main .block-container {
-            max-width: 1200px;
-            padding-top: 1rem;
-            padding-bottom: 2rem;
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
-        
-        /* Fixed header styling */
-        .enterprise-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 0.8rem;
-            text-align: center;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .enterprise-header h1 {
-            font-size: clamp(1.5rem, 4vw, 2.2rem);
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            line-height: 1.2;
-        }
-        
-        .enterprise-header p {
-            font-size: clamp(0.8rem, 2vw, 1rem);
-            margin: 0;
-            opacity: 0.9;
-        }
-        
-        /* Fixed section styling */
-        .config-section {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.8rem;
-            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
-            margin-bottom: 1.5rem;
-            border: 1px solid #e2e8f0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        /* Fixed metric cards */
-        .metric-card {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            padding: 1rem;
-            border-radius: 0.6rem;
-            border-left: 4px solid #4299e1;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            margin: 0.5rem 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .metric-value {
-            font-size: clamp(1.2rem, 3vw, 1.8rem);
-            font-weight: 700;
-            color: #2d3748;
-            margin: 0 0 0.3rem 0;
-            line-height: 1.1;
-        }
-        
-        /* Fixed columns */
-        .stColumn {
-            padding: 0 0.25rem;
-        }
-        
-        .stColumn:first-child {
-            padding-left: 0;
-        }
-        
-        .stColumn:last-child {
-            padding-right: 0;
-        }
-        
-        /* Fixed expander styling */
-        .streamlit-expanderHeader {
-            font-weight: 600;
-            font-size: 1rem;
-        }
-        
-        .streamlit-expanderContent {
-            padding: 0.5rem 0;
-        }
-        
-        /* Fixed dataframe styling */
-        .stDataFrame {
-            width: 100%;
-            overflow-x: auto;
-        }
-        
-        /* Fixed button styling */
-        .stButton > button {
-            width: 100%;
-            border-radius: 0.5rem;
-            border: none;
-            padding: 0.5rem 1rem;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-        
-        .stButton > button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        /* Fixed tabs */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 0.5rem;
-            overflow-x: auto;
-            flex-wrap: nowrap;
-        }
-        
-        .stTabs [data-baseweb="tab"] {
-            padding: 0.4rem 0.8rem;
-            white-space: nowrap;
-            font-size: 0.9rem;
-        }
-        
-        /* Fixed plotly charts */
-        .js-plotly-plot {
-            width: 100% !important;
-        }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 768px) {
-            .main .block-container {
-                padding-left: 0.5rem;
-                padding-right: 0.5rem;
-            }
-            
-            .enterprise-header {
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            
-            .config-section {
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            
-            .metric-card {
-                padding: 0.8rem;
-                margin: 0.3rem 0;
-            }
-            
-            .stColumn {
-                padding: 0 0.1rem;
-            }
-            
-            .stTabs [data-baseweb="tab"] {
-                padding: 0.3rem 0.6rem;
-                font-size: 0.8rem;
-            }
-        }
-        
-        /* Fix overflow issues */
-        .stMarkdown {
-            max-width: 100%;
-            overflow-wrap: break-word;
-        }
-        
-        /* Fix sidebar */
-        .css-1d391kg {
-            padding-top: 1rem;
-        }
-        
-        /* Fix selectbox and input alignment */
-        .stSelectbox, .stNumberInput, .stTextInput {
-            margin-bottom: 0.5rem;
-        }
-        
-        /* Fix chart container */
-        .plotly-graph-div {
-            width: 100% !important;
-        }
-        
-        /* Fix radio buttons */
-        .stRadio > div {
-            flex-direction: row;
-            flex-wrap: wrap;
-        }
-        
-        /* Fix file uploader */
-        .stFileUploader {
-            width: 100%;
-        }
-        
-        /* Container fixes */
-        div[data-testid="stVerticalBlock"] > div {
-            gap: 0.5rem;
-        }
-        
-        /* Ensure all containers are properly aligned */
-        .element-container {
-            width: 100%;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
 
 def show_simplified_data_configuration():
     """Simplified data size configuration with clear cost implications"""
     
-    st.markdown("## 💾 Data Size Configuration")
+    st.markdown("## 💾 Data Size Configuration - Cost Estimation")
     
-    # Main data size input
+    # Main data size input with clear explanation
+    st.markdown("### 📊 Primary Data Size (What You're Migrating)")
+    
     col1, col2 = st.columns([2, 1])
     
     with col1:
+        # Single primary input for actual data - ADD UNIQUE KEY
         actual_data_size_gb = st.number_input(
             "Current Database Size (GB)",
             min_value=1, 
             max_value=100000, 
             value=1000,
-            key="actual_data_size_gb_input",
-            help="This is your actual database size that needs to be migrated"
+            key="actual_data_size_gb_input",  # UNIQUE KEY ADDED
+            help="💡 This is your actual database size that needs to be migrated. This directly impacts migration time and transfer costs."
         )
         
         st.info(f"""
-        **This will be used for:**
+        **This number is used for:**
         - Migration time calculation
         - Data transfer costs
         - DMS sizing requirements
         """)
     
     with col2:
+        # Visual indicator
         st.metric(
             "Migration Data", 
             f"{actual_data_size_gb:,} GB",
             help="Actual data to migrate"
         )
-    
-    # Storage planning
-    with st.container():
-        st.markdown("### 🗄️ Target Storage Planning")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            sizing_strategy = st.selectbox(
-                "Storage Sizing Strategy",
-                ["Conservative (2x data)", "Standard (2.5x data)", "Growth-Ready (3x data)"],
-                index=1,
-                key="storage_sizing_strategy_select"
-            )
-            
-            multiplier = {
-                "Conservative (2x data)": 2.0,
-                "Standard (2.5x data)": 2.5,
-                "Growth-Ready (3x data)": 3.0
-            }[sizing_strategy]
-            
-            target_storage_gb = int(actual_data_size_gb * multiplier)
-        
-        with col2:
-            st.metric("Target Storage", f"{target_storage_gb:,} GB")
-            st.metric("Growth Buffer", f"{target_storage_gb - actual_data_size_gb:,} GB")
-    
-    return {
-        'actual_data_size_gb': actual_data_size_gb,
-        'target_storage_gb': target_storage_gb,
-        'sizing_strategy': sizing_strategy,
-        'migration_cost_estimate': actual_data_size_gb * 0.05,
-        'monthly_storage_cost_estimate': target_storage_gb * 0.08
-    }
     
     st.markdown("---")
     
@@ -9138,44 +8898,44 @@ def main():
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
     
-    # Apply CSS first
-    apply_fixed_css()
     st.markdown("## 🔧 Migration Configuration")
     
+    # Source and target engine selection
+    col1, col2 = st.columns(2)
     
-    # Use containers for better layout
-    with st.container():
-        # Source and target engine selection
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 📥 Source Database")
-            source_engine = st.selectbox(
-                "Source Engine",
-                options=['oracle-ee', 'oracle-se', 'postgres', 'mysql', 'sql-server', 'mariadb'],
-                index=0,
-                key="source_engine_select"
-            )
+    with col1:
+        st.markdown("### 📥 Source Database")
+        source_engine = st.selectbox(
+            "Source Engine",
+            options=list(DatabaseEngine.ENGINES.keys()),
+            format_func=lambda x: DatabaseEngine.ENGINES[x]['name'],
+            key="source_engine"
+        )
         
-        with col2:
-            st.markdown("### 📤 Target AWS Database")
+        if source_engine:
+            st.info(f"**Features:** {', '.join(DatabaseEngine.ENGINES[source_engine]['features'])}")
+    
+    with col2:
+        st.markdown("### 📤 Target AWS Database")
+        
+        if source_engine:
+            target_options = DatabaseEngine.ENGINES[source_engine]['aws_targets']
             target_engine = st.selectbox(
                 "Target Engine",
-                options=['aurora-postgresql', 'postgres', 'aurora-mysql', 'mysql'],
-                index=0,
-                key="target_engine_select"
-            )    
-    
+                options=target_options,
+                format_func=lambda x: DatabaseEngine.ENGINES.get(x, {'name': x.title()})['name'] if x in DatabaseEngine.ENGINES else x.replace('-', ' ').title(),
+                key="target_engine"
+            )
             
-            #if target_engine:
-            #    migration_type = DatabaseEngine.get_migration_type(source_engine, target_engine)
-            #    complexity = DatabaseEngine.get_complexity_multiplier(source_engine, target_engine)
+            if target_engine:
+                migration_type = DatabaseEngine.get_migration_type(source_engine, target_engine)
+                complexity = DatabaseEngine.get_complexity_multiplier(source_engine, target_engine)
                 
-            #    st.markdown(f"""
-            #    **Migration Type:** {migration_type.title()}  
-            #    **Complexity Factor:** {complexity:.1f}x  
-            #    **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
-            #    """)
+                st.markdown(f"""
+                **Migration Type:** {migration_type.title()}  
+                **Complexity Factor:** {complexity:.1f}x  
+                **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
+                """)
     
         # Migration Parameters Section
     st.markdown("### ⚙️ Migration Parameters")
@@ -9183,70 +8943,22 @@ def show_migration_configuration():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-            st.markdown("#### 📱 Application Configuration")
-            num_applications = st.number_input(
-                "Connected Applications", 
-                min_value=1, max_value=50, value=3,
-                key="num_apps"
-            )
-            num_stored_procedures = st.number_input(
-                "Stored Procedures/Functions", 
-                min_value=0, max_value=10000, value=50,
-                key="num_procedures"
-            )
+        st.markdown("#### 📱 Application Configuration")
+        num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
+        num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
 
-        with col2:
-            st.markdown("#### ⏱️ Timeline & Resources")
-            migration_timeline_weeks = st.slider(
-                "Migration Timeline (weeks)", 
-                min_value=4, max_value=52, value=12,
-                key="timeline_weeks"
-            )
-            team_size = st.number_input(
-                "Team Size", 
-                min_value=2, max_value=20, value=5,
-                key="team_size_input"
-            )
+    with col2:
+        st.markdown("#### ⏱️ Timeline & Resources")
+        migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
+        team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
+        team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
 
-        with col3:
-            st.markdown("#### 🌐 Infrastructure")
-            region = st.selectbox(
-                "AWS Region", 
-                ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], 
-                index=0,
-                key="aws_region"
-            )
-            migration_budget = st.number_input(
-                "Migration Budget ($)", 
-                min_value=10000, max_value=5000000, value=500000,
-                key="migration_budget_input"
-            )
-        
-    # Data Configuration Section
-    with st.container():
-        st.markdown("### 💾 Data Configuration")
-        data_config = show_simplified_data_configuration()
-
-    # Save Configuration
-    with st.container():
-        if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-            st.session_state.migration_params = {
-                'source_engine': source_engine,
-                'target_engine': target_engine,
-                'data_size_gb': data_config['actual_data_size_gb'],
-                'target_storage_gb': data_config['target_storage_gb'],
-                'num_applications': num_applications,
-                'num_stored_procedures': num_stored_procedures,
-                'migration_timeline_weeks': migration_timeline_weeks,
-                'team_size': team_size,
-                'region': region,
-                'migration_budget': migration_budget,
-            }
-            
-            st.success("✅ Configuration saved! Proceed to Environment Setup.")
-            st.balloons()
-    
-    
+    with col3:
+        st.markdown("#### 🌐 Infrastructure")
+        region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
+        use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
+        bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
+        migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
 
     # Growth Planning Section
     st.markdown("### 📈 Growth Planning & Forecasting")
