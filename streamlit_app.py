@@ -604,7 +604,7 @@ class OptimizedReaderWriterAnalyzer:
         return min(100, score)
     
     def _optimize_reader_configuration(self, writer_optimization: Dict, workload_analysis: Dict, environment_type: str) -> Dict:
-    """Optimize Reader configuration based on writer and workload"""
+        """Optimize Reader configuration based on writer and workload"""
 
     recommended_count = workload_analysis['recommended_reader_count']  # Now indented (inside function)
 
