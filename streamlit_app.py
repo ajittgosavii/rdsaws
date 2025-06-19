@@ -151,6 +151,24 @@ class EnhancedAWSPricingAPI:
         self.base_url = "https://pricing.us-east-1.amazonaws.com"
         self.cache = {}
         
+    def calculate_cluster_cost(self, region: str, engine: str, 
+                          writer_instance: str, writer_multi_az: bool,
+                          reader_instances: List[Tuple[str, bool]]) -> float:
+    """Calculate total cost for writer and readers"""
+    total_cost = 0
+    
+    # Writer cost
+    writer_pricing = self.get_rds_pricing(region, engine, writer_instance, writer_multi_az)
+    total_cost += writer_pricing['hourly']
+    
+    # Reader costs
+    for reader_instance, multi_az in reader_instances:
+        reader_pricing = self.get_rds_pricing(region, engine, reader_instance, multi_az)
+        total_cost += reader_pricing['hourly']
+    
+    return total_cost
+    
+        
     def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
         """Get RDS pricing for specific instance with Multi-AZ support"""
         cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
@@ -245,7 +263,7 @@ class MigrationAnalyzer:
     def __init__(self, anthropic_api_key: Optional[str] = None):
         self.pricing_api = EnhancedAWSPricingAPI()
         self.anthropic_api_key = anthropic_api_key
-    
+           
     def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
         """Calculate AWS instance recommendations for environments"""
         
@@ -277,7 +295,137 @@ class MigrationAnalyzer:
             }
         
         return recommendations
+        for env_name, specs in environment_specs.items():
+            
+            # Calculate reader configuration
+            reader_count = self._calculate_reader_count(
+                specs['read_write_ratio'], 
+                specs['workload_pattern'],
+                environment_type
+            )
+            reader_instance = self._calculate_reader_instance_class(
+                instance_class, environment_type
+            )
+            
+            recommendations[env_name] = {
+            'reader_count': reader_count,
+                'reader_instance_class': reader_instance,
+                'reader_multi_az': multi_az if environment_type == 'production' else False
+            }
+     
+      def _calculate_reader_count(self, read_ratio: int, workload_pattern: str, env_type: str) -> int:
+        """Calculate number of read replicas needed"""
+        if env_type != 'production':
+            return 0  # Only production gets readers
+            
+        if workload_pattern == 'read_heavy' and read_ratio >= 70:
+            return 2
+        elif workload_pattern == 'read_heavy' and read_ratio >= 50:
+            return 1
+        elif workload_pattern == 'mixed' and read_ratio >= 60:
+            return 1
+        return 0
     
+    def _calculate_reader_instance_class(self, writer_instance: str, env_type: str) -> str:
+        """Determine appropriate reader instance class"""
+        if env_type != 'production':
+            return "N/A"
+        
+        # Readers typically match writer class or one size smaller
+        instance_map = {
+            'db.r5.8xlarge': 'db.r5.4xlarge',
+            'db.r5.4xlarge': 'db.r5.2xlarge',
+            'db.r5.2xlarge': 'db.r5.xlarge',
+            'db.r5.xlarge': 'db.r5.large',
+            'db.r5.large': 'db.t3.large',
+            'db.t3.large': 'db.t3.medium'
+        }
+        return instance_map.get(writer_instance, writer_instance)
+
+# Update the StreamlitClaudeAIAnalyzer class
+class StreamlitClaudeAIAnalyzer:
+    # ... existing code ...
+    
+    def _prepare_migration_context(self, cost_analysis: Dict, migration_params: Dict, recommendations: Dict) -> str:
+        """Enhanced to include reader/writer configurations"""
+        context = super()._prepare_migration_context(cost_analysis, migration_params)
+        
+        # Add reader/writer details
+        context += "\n\nREADER/WRITER CONFIGURATIONS:"
+        for env_name, rec in recommendations.items():
+            writer = rec['writer_instance_class']
+            readers = rec['reader_count']
+            reader_type = rec['reader_instance_class']
+            
+            context += f"\n- {env_name}: Writer: {writer}, Readers: {readers}x{reader_type}"
+        
+        return context
+
+# Update the show_enhanced_environment_analysis function
+def show_enhanced_environment_analysis():
+    """Enhanced to show AI recommendations for reader/writer"""
+    # ... existing code ...
+    
+    # Add AI recommendations section
+    st.markdown("## 🤖 AI Optimization Recommendations")
+    
+    if "ai_insights" in st.session_state:
+        ai_data = st.session_state.ai_insights
+        if 'key_recommendations' in ai_data:
+            for rec in ai_data['key_recommendations']:
+                st.info(f"• {rec}")
+                
+            if 'reader_writer_analysis' in ai_data:
+                st.subheader("Reader/Writer Optimization")
+                st.write(ai_data['reader_writer_analysis'])
+        else:
+            st.warning("No specific reader/writer recommendations available")
+    else:
+        st.info("Run analysis to generate AI recommendations")
+
+# Update the generate_ai_insights_sync method
+def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
+    """Enhanced to include reader/writer analysis"""
+    # ... existing code ...
+    
+    # Add reader/writer specific analysis
+    ai_response += "\n\nREADER/WRITER ANALYSIS:\n"
+    ai_response += self._generate_reader_writer_analysis(recommendations)
+    
+    # Add to structured insights
+    structured_insights['reader_writer_analysis'] = self._generate_reader_writer_analysis(recommendations)
+    
+    return structured_insights
+
+def _generate_reader_writer_analysis(self, recommendations: Dict) -> str:
+    """Generate specialized analysis for reader/writer configuration"""
+    analysis = "Reader/Writer Configuration Analysis:\n\n"
+    
+    for env, config in recommendations.items():
+        writer = config['writer_instance_class']
+        readers = config['reader_count']
+        reader_type = config['reader_instance_class']
+        env_type = config['environment_type']
+        
+        analysis += f"- {env} ({env_type.title()}):\n"
+        analysis += f"  Writer: {writer}\n"
+        analysis += f"  Readers: {readers} x {reader_type}\n"
+        
+        # Add AI assessment
+        if env_type == 'production':
+            if readers == 0 and config['read_write_ratio'] > 50:
+                analysis += "  ⚠️ Recommendation: Add read replicas for better read scaling\n"
+            elif readers > 0 and config['read_write_ratio'] < 30:
+                analysis += "  ℹ️ Suggestion: Consider reducing read replicas to optimize costs\n"
+            else:
+                analysis += "  ✅ Configuration appears well-balanced\n"
+        else:
+            if readers > 0:
+                analysis += "  💡 Note: Non-production environments typically don't need read replicas\n"
+    
+    return analysis
+     
+        
     def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
         """Calculate migration costs based on recommendations"""
         
@@ -371,6 +519,95 @@ def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict)
         return {'error': 'Run: pip install anthropic', 'source': 'Library Error', 'success': False}
     except Exception as e:
         return {'error': f'Claude AI failed: {str(e)}', 'source': 'API Error', 'success': False}
+    
+    # Add this in your Streamlit UI section (after the existing configuration sections)
+def show_vrops_section():
+    st.markdown("## 📊 vROPS Metrics Analysis")
+    
+    with st.expander("Configure vROPS Metrics"):
+        st.markdown("### CPU Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_cpu = st.number_input("Max CPU Usage (%)", min_value=0, max_value=100, value=80)
+            avg_cpu = st.number_input("Avg CPU Usage (%)", min_value=0, max_value=100, value=45)
+        with col2:
+            cpu_cores = st.number_input("CPU Cores Allocated", min_value=1, value=8)
+            cpu_ready = st.number_input("CPU Ready Time (ms)", min_value=0, value=500)
+        
+        st.markdown("### Memory Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_mem = st.number_input("Max Memory Usage (%)", min_value=0, max_value=100, value=75)
+            avg_mem = st.number_input("Avg Memory Usage (%)", min_value=0, max_value=100, value=50)
+        with col2:
+            mem_alloc = st.number_input("Memory Allocated (GB)", min_value=1, value=32)
+            mem_balloon = st.number_input("Ballooned Memory (GB)", min_value=0, value=0)
+        
+        st.markdown("### Storage Metrics")
+        col1, col2 = st.columns(2)
+        with col1:
+            max_iops = st.number_input("Max IOPS", min_value=0, value=5000)
+            max_latency = st.number_input("Max Disk Latency (ms)", min_value=0, value=10)
+        with col2:
+            storage_used = st.number_input("Storage Used (GB)", min_value=0, value=500)
+            storage_alloc = st.number_input("Storage Allocated (GB)", min_value=0, value=600)
+        
+        # Store metrics in session state
+        st.session_state.vrops_metrics = {
+            'max_cpu_usage_percent': max_cpu,
+            'avg_cpu_usage_percent': avg_cpu,
+            'cpu_cores_allocated': cpu_cores,
+            'cpu_ready_time_ms': cpu_ready,
+            'max_memory_usage_percent': max_mem,
+            'avg_memory_usage_percent': avg_mem,
+            'memory_allocated_gb': mem_alloc,
+            'memory_balloon_gb': mem_balloon,
+            'max_iops_total': max_iops,
+            'max_disk_latency_ms': max_latency,
+            'storage_used_gb': storage_used,
+            'storage_allocated_gb': storage_alloc
+        }
+    
+    if st.button("Run vROPS Analysis", type="primary"):
+        analyzer = VRopsMetricsAnalyzer()
+        st.session_state.vrops_results = analyzer.analyze_metrics(
+            {"PROD": st.session_state.vrops_metrics}
+        )
+        st.success("vROPS analysis completed!")
+
+# Add this to show the results
+def show_vrops_results():
+    if "vrops_results" not in st.session_state:
+        return
+        
+    results = st.session_state.vrops_results["PROD"]
+    
+    st.markdown("### Analysis Results")
+    
+    with st.expander("CPU Analysis"):
+        st.write(f"**Max Usage:** {results['cpu_analysis']['max_usage_percent']}%")
+        st.write(f"**Required Capacity:** {results['cpu_analysis']['required_capacity_percent']}%")
+        st.write(f"**Recommendation:** {results['cpu_analysis']['scaling_recommendation']}")
+    
+    with st.expander("Memory Analysis"):
+        st.write(f"**Max Usage:** {results['memory_analysis']['max_usage_percent']}%")
+        st.write(f"**Required Capacity:** {results['memory_analysis']['required_capacity_percent']}%")
+        st.write(f"**Recommendation:** {results['memory_analysis']['scaling_recommendation']}")
+    
+    with st.expander("Instance Recommendations"):
+        for rec in results['instance_recommendations']:
+            st.write(f"**{rec['instance_type']}**")
+            st.write(f"vCPUs: {rec['vcpu']}, Memory: {rec['memory_gb']}GB")
+            st.write(f"Fit Score: {rec['fit_score']:.1f}")
+            st.write(rec['recommendation_reason'])
+            st.divider()
+    
+    with st.expander("Performance Scores"):
+        scores = results['performance_scores']
+        st.metric("CPU Health", f"{scores['cpu_health']}/100")
+        st.metric("Memory Health", f"{scores['memory_health']}/100")
+        st.metric("Storage Health", f"{scores['storage_health']}/100")
+        st.metric("Overall Health", f"{scores['overall_health']}/100")
     
     def _categorize_environment(self, env_name: str) -> str:
         """Categorize environment type from name"""
@@ -7616,7 +7853,12 @@ def main():
         # Default page
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
-
+      # Add this after your existing sections
+    show_vrops_section()
+    
+    if "vrops_results" in st.session_state:
+        show_vrops_results()
+        
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
     
