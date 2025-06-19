@@ -938,7 +938,594 @@ def run_optimization_analysis():
     display_optimization_results(optimization_results)
     
     return optimization_results
+@dataclass
+class InstanceSpecs:
+    """Instance specifications with performance metrics"""
+    instance_class: str
+    vcpu: int
+    memory_gb: float
+    network_performance: str
+    ebs_bandwidth_mbps: int
+    hourly_cost: float
+    suitable_for: List[str]
+    max_connections: int
+    iops_capability: int
 
+class OptimizedReaderWriterAnalyzer:
+    """Advanced Reader/Writer optimization with intelligent recommendations"""
+    
+    def __init__(self):
+        self.instance_specs = self._initialize_instance_specs()
+        self.pricing_data = self._initialize_pricing_data()
+        self.optimization_goal = 'balanced'
+        self.consider_reserved_instances = True
+        self.environment_priority = 'production_first'
+        
+    def _initialize_instance_specs(self) -> Dict[str, InstanceSpecs]:
+        """Initialize comprehensive instance specifications"""
+        return {
+            # T3 Series - Burstable Performance
+            'db.t3.micro': InstanceSpecs('db.t3.micro', 2, 1, 'Low to Moderate', 87, 0.0255, ['development', 'testing'], 87, 1000),
+            'db.t3.small': InstanceSpecs('db.t3.small', 2, 2, 'Low to Moderate', 174, 0.051, ['development', 'testing'], 174, 2000),
+            'db.t3.medium': InstanceSpecs('db.t3.medium', 2, 4, 'Low to Moderate', 347, 0.102, ['development', 'small_production'], 347, 3000),
+            'db.t3.large': InstanceSpecs('db.t3.large', 2, 8, 'Low to Moderate', 695, 0.204, ['development', 'small_production'], 695, 4000),
+            'db.t3.xlarge': InstanceSpecs('db.t3.xlarge', 4, 16, 'Low to Moderate', 695, 0.408, ['staging', 'medium_production'], 1000, 5000),
+            'db.t3.2xlarge': InstanceSpecs('db.t3.2xlarge', 8, 32, 'Low to Moderate', 695, 0.816, ['staging', 'medium_production'], 1500, 6000),
+            
+            # R5 Series - Memory Optimized
+            'db.r5.large': InstanceSpecs('db.r5.large', 2, 16, 'Up to 10 Gbps', 693, 0.24, ['memory_intensive', 'analytics'], 1000, 7500),
+            'db.r5.xlarge': InstanceSpecs('db.r5.xlarge', 4, 32, 'Up to 10 Gbps', 1387, 0.48, ['memory_intensive', 'production'], 2000, 10000),
+            'db.r5.2xlarge': InstanceSpecs('db.r5.2xlarge', 8, 64, 'Up to 10 Gbps', 2775, 0.96, ['large_production', 'analytics'], 3000, 15000),
+            'db.r5.4xlarge': InstanceSpecs('db.r5.4xlarge', 16, 128, '10 Gbps', 4750, 1.92, ['large_production', 'high_memory'], 5000, 25000),
+            'db.r5.8xlarge': InstanceSpecs('db.r5.8xlarge', 32, 256, '10 Gbps', 6800, 3.84, ['enterprise', 'high_performance'], 8000, 40000),
+            'db.r5.12xlarge': InstanceSpecs('db.r5.12xlarge', 48, 384, '12 Gbps', 9500, 5.76, ['enterprise', 'very_high_memory'], 12000, 60000),
+            'db.r5.16xlarge': InstanceSpecs('db.r5.16xlarge', 64, 512, '20 Gbps', 13600, 7.68, ['enterprise', 'extreme_performance'], 16000, 80000),
+            'db.r5.24xlarge': InstanceSpecs('db.r5.24xlarge', 96, 768, '25 Gbps', 19000, 11.52, ['enterprise', 'maximum_performance'], 24000, 120000),
+            
+            # R6i Series - Latest Generation Memory Optimized
+            'db.r6i.large': InstanceSpecs('db.r6i.large', 2, 16, 'Up to 12.5 Gbps', 1000, 0.252, ['memory_intensive', 'latest_gen'], 1200, 8000),
+            'db.r6i.xlarge': InstanceSpecs('db.r6i.xlarge', 4, 32, 'Up to 12.5 Gbps', 2000, 0.504, ['production', 'latest_gen'], 2400, 12000),
+            'db.r6i.2xlarge': InstanceSpecs('db.r6i.2xlarge', 8, 64, 'Up to 12.5 Gbps', 4000, 1.008, ['large_production', 'latest_gen'], 4000, 18000),
+            'db.r6i.4xlarge': InstanceSpecs('db.r6i.4xlarge', 16, 128, '12.5 Gbps', 8000, 2.016, ['enterprise', 'latest_gen'], 6000, 30000),
+            
+            # C5 Series - Compute Optimized
+            'db.c5.large': InstanceSpecs('db.c5.large', 2, 4, 'Up to 10 Gbps', 693, 0.192, ['compute_intensive', 'low_memory'], 1000, 5000),
+            'db.c5.xlarge': InstanceSpecs('db.c5.xlarge', 4, 8, 'Up to 10 Gbps', 1387, 0.384, ['compute_intensive', 'oltp'], 2000, 8000),
+            'db.c5.2xlarge': InstanceSpecs('db.c5.2xlarge', 8, 16, 'Up to 10 Gbps', 2775, 0.768, ['high_cpu', 'oltp'], 3000, 12000),
+            'db.c5.4xlarge': InstanceSpecs('db.c5.4xlarge', 16, 32, '10 Gbps', 4750, 1.536, ['very_high_cpu', 'oltp'], 5000, 20000),
+        }
+    
+    def _initialize_pricing_data(self) -> Dict:
+        """Initialize comprehensive pricing data"""
+        return {
+            'us-east-1': {
+                'reserved_1_year': {'discount': 0.35, 'upfront_ratio': 0.0},
+                'reserved_3_year': {'discount': 0.55, 'upfront_ratio': 0.0},
+                'spot': {'discount': 0.70, 'availability': 0.85},
+                'multi_az_multiplier': 2.0,
+                'cross_az_transfer_gb': 0.01,
+                'backup_storage_gb': 0.095,
+                'snapshot_storage_gb': 0.095
+            }
+        }
+    
+    def set_optimization_preferences(self, goal='balanced', consider_reserved=True, environment_priority='production_first'):
+        """Set optimization preferences"""
+        self.optimization_goal = goal
+        self.consider_reserved_instances = consider_reserved
+        self.environment_priority = environment_priority
+    
+    def optimize_cluster_configuration(self, environment_specs: Dict) -> Dict:
+        """Generate optimized Reader/Writer recommendations with detailed cost analysis"""
+        
+        optimized_recommendations = {}
+        
+        for env_name, specs in environment_specs.items():
+            optimization = self._optimize_single_environment(env_name, specs)
+            optimized_recommendations[env_name] = optimization
+        
+        return optimized_recommendations
+    
+    def _optimize_single_environment(self, env_name: str, specs: Dict) -> Dict:
+        """Optimize configuration for a single environment"""
+        
+        # Extract environment characteristics
+        cpu_cores = specs.get('cpu_cores', 4)
+        ram_gb = specs.get('ram_gb', 16)
+        storage_gb = specs.get('storage_gb', 500)
+        iops_requirement = specs.get('iops_requirement', 3000)
+        peak_connections = specs.get('peak_connections', 100)
+        workload_pattern = specs.get('workload_pattern', 'balanced')
+        read_write_ratio = specs.get('read_write_ratio', 70)
+        environment_type = specs.get('environment_type', 'production')
+        daily_usage_hours = specs.get('daily_usage_hours', 24)
+        
+        # Analyze workload characteristics
+        workload_analysis = self._analyze_workload_characteristics(
+            cpu_cores, ram_gb, iops_requirement, peak_connections, 
+            workload_pattern, read_write_ratio
+        )
+        
+        # Optimize Writer configuration
+        writer_optimization = self._optimize_writer_instance(workload_analysis, environment_type)
+        
+        # Optimize Reader configuration
+        reader_optimization = self._optimize_reader_configuration(
+            writer_optimization, workload_analysis, environment_type
+        )
+        
+        # Calculate comprehensive costs
+        cost_analysis = self._calculate_comprehensive_costs(
+            writer_optimization, reader_optimization, storage_gb, 
+            iops_requirement, environment_type, daily_usage_hours
+        )
+        
+        # Generate recommendations
+        recommendations = self._generate_optimization_recommendations(
+            workload_analysis, writer_optimization, reader_optimization, cost_analysis
+        )
+        
+        return {
+            'environment_name': env_name,
+            'environment_type': environment_type,
+            'workload_analysis': workload_analysis,
+            'writer_optimization': writer_optimization,
+            'reader_optimization': reader_optimization,
+            'cost_analysis': cost_analysis,
+            'recommendations': recommendations,
+            'optimization_score': self._calculate_optimization_score(
+                workload_analysis, writer_optimization, reader_optimization, cost_analysis
+            )
+        }
+    
+    def _analyze_workload_characteristics(self, cpu_cores: int, ram_gb: int, 
+                                        iops_requirement: int, peak_connections: int,
+                                        workload_pattern: str, read_write_ratio: int) -> Dict:
+        """Analyze workload characteristics to determine optimal configuration"""
+        
+        # Calculate workload intensity
+        cpu_intensity = min(100, (cpu_cores / 64) * 100)
+        memory_intensity = min(100, (ram_gb / 768) * 100)
+        io_intensity = min(100, (iops_requirement / 80000) * 100)
+        connection_intensity = min(100, (peak_connections / 16000) * 100)
+        
+        # Determine workload type
+        if workload_pattern == 'read_heavy' or read_write_ratio >= 80:
+            workload_type = 'read_heavy'
+            read_scaling_factor = 2.0
+        elif workload_pattern == 'write_heavy' or read_write_ratio <= 30:
+            workload_type = 'write_heavy'
+            read_scaling_factor = 0.5
+        elif workload_pattern == 'analytics':
+            workload_type = 'analytics'
+            read_scaling_factor = 3.0
+        else:
+            workload_type = 'balanced'
+            read_scaling_factor = 1.2
+        
+        # Calculate complexity score
+        complexity_score = (cpu_intensity + memory_intensity + io_intensity + connection_intensity) / 4
+        
+        # Calculate optimal reader count
+        base_readers = {
+            'read_heavy': 3,
+            'analytics': 2,
+            'balanced': 1,
+            'write_heavy': 0
+        }
+        
+        complexity_adjustment = int(complexity_score / 30)
+        connection_adjustment = int(peak_connections / 2000)
+        optimal_reader_count = base_readers.get(workload_type, 1) + complexity_adjustment + connection_adjustment
+        optimal_reader_count = min(5, max(0, optimal_reader_count))
+        
+        # Determine performance requirements
+        avg_intensity = (cpu_intensity + memory_intensity + io_intensity) / 3
+        if avg_intensity >= 80:
+            performance_requirements = 'high_performance'
+        elif avg_intensity >= 60:
+            performance_requirements = 'medium_performance'
+        elif avg_intensity >= 40:
+            performance_requirements = 'standard_performance'
+        else:
+            performance_requirements = 'basic_performance'
+        
+        return {
+            'cpu_intensity': cpu_intensity,
+            'memory_intensity': memory_intensity,
+            'io_intensity': io_intensity,
+            'connection_intensity': connection_intensity,
+            'complexity_score': complexity_score,
+            'workload_type': workload_type,
+            'read_scaling_factor': read_scaling_factor,
+            'recommended_reader_count': optimal_reader_count,
+            'performance_requirements': performance_requirements
+        }
+    
+    def _optimize_writer_instance(self, workload_analysis: Dict, environment_type: str) -> Dict:
+        """Optimize Writer instance selection"""
+        
+        performance_req = workload_analysis['performance_requirements']
+        complexity_score = workload_analysis['complexity_score']
+        
+        # Filter suitable instances
+        suitable_instances = []
+        
+        for instance_class, specs in self.instance_specs.items():
+            if self._is_instance_suitable_for_writer(specs, performance_req, environment_type, complexity_score):
+                suitable_instances.append((instance_class, specs))
+        
+        # Score instances
+        scored_instances = []
+        for instance_class, specs in suitable_instances:
+            score = self._score_writer_instance(specs, workload_analysis, environment_type)
+            scored_instances.append((score, instance_class, specs))
+        
+        # Sort by score
+        scored_instances.sort(reverse=True)
+        
+        # Get top recommendation
+        if scored_instances:
+            score, instance_class, specs = scored_instances[0]
+            
+            return {
+                'instance_class': instance_class,
+                'specs': specs,
+                'score': score,
+                'multi_az': environment_type in ['production', 'staging'],
+                'reasoning': self._generate_writer_reasoning(specs, workload_analysis, environment_type),
+                'monthly_cost': self._calculate_instance_monthly_cost(specs, environment_type),
+                'annual_cost': self._calculate_instance_monthly_cost(specs, environment_type) * 12
+            }
+        else:
+            # Fallback
+            fallback_instance = 'db.r5.large'
+            fallback_specs = self.instance_specs[fallback_instance]
+            
+            return {
+                'instance_class': fallback_instance,
+                'specs': fallback_specs,
+                'score': 50.0,
+                'multi_az': True,
+                'reasoning': 'Fallback recommendation',
+                'monthly_cost': self._calculate_instance_monthly_cost(fallback_specs, environment_type),
+                'annual_cost': self._calculate_instance_monthly_cost(fallback_specs, environment_type) * 12
+            }
+    
+    def _is_instance_suitable_for_writer(self, specs: InstanceSpecs, performance_req: str, 
+                                       environment_type: str, complexity_score: float) -> bool:
+        """Check if instance is suitable for writer role"""
+        
+        performance_minimums = {
+            'high_performance': {'min_vcpu': 16, 'min_memory': 64, 'min_iops': 20000},
+            'medium_performance': {'min_vcpu': 8, 'min_memory': 32, 'min_iops': 10000},
+            'standard_performance': {'min_vcpu': 4, 'min_memory': 16, 'min_iops': 5000},
+            'basic_performance': {'min_vcpu': 2, 'min_memory': 8, 'min_iops': 2000}
+        }
+        
+        minimums = performance_minimums.get(performance_req, performance_minimums['standard_performance'])
+        
+        if (specs.vcpu < minimums['min_vcpu'] or 
+            specs.memory_gb < minimums['min_memory'] or 
+            specs.iops_capability < minimums['min_iops']):
+            return False
+        
+        if environment_type == 'production':
+            if specs.vcpu < 4 or specs.memory_gb < 16:
+                return False
+            if 't3' in specs.instance_class and complexity_score > 50:
+                return False
+        
+        return True
+    
+    def _score_writer_instance(self, specs: InstanceSpecs, workload_analysis: Dict, environment_type: str) -> float:
+        """Score writer instance based on multiple criteria"""
+        
+        score = 0.0
+        
+        # Performance scoring (40% weight)
+        performance_score = min(100, (specs.vcpu * 10 + specs.memory_gb / 4 + specs.iops_capability / 500))
+        score += performance_score * 0.4
+        
+        # Cost efficiency scoring (30% weight)
+        cost_per_vcpu = specs.hourly_cost / specs.vcpu
+        cost_per_gb_memory = specs.hourly_cost / specs.memory_gb
+        cost_efficiency = max(0, 100 - (cost_per_vcpu * 100 + cost_per_gb_memory * 10))
+        score += cost_efficiency * 0.3
+        
+        # Suitability scoring (20% weight)
+        suitability_score = 60
+        if environment_type in specs.suitable_for:
+            suitability_score = 100
+        elif any(env in specs.suitable_for for env in ['production', 'large_production', 'enterprise']):
+            suitability_score = 80
+        score += suitability_score * 0.2
+        
+        # Network performance scoring (10% weight)
+        network_score = 60
+        if '25 Gbps' in specs.network_performance:
+            network_score = 100
+        elif '20 Gbps' in specs.network_performance:
+            network_score = 90
+        elif '12' in specs.network_performance:
+            network_score = 80
+        elif '10 Gbps' in specs.network_performance:
+            network_score = 70
+        score += network_score * 0.1
+        
+        return min(100, score)
+    
+    def _optimize_reader_configuration(self, writer_optimization: Dict, workload_analysis: Dict, environment_type: str) -> Dict:
+        """Optimize Reader configuration"""
+        
+        recommended_count = workload_analysis['recommended_reader_count']
+        
+        if recommended_count == 0:
+            return {
+                'count': 0,
+                'instance_class': None,
+                'specs': None,
+                'single_reader_monthly_cost': 0,
+                'total_monthly_cost': 0,
+                'total_annual_cost': 0,
+                'multi_az': False,
+                'reasoning': 'No read replicas needed for this workload pattern'
+            }
+        
+        # Determine optimal reader instance size
+        writer_specs = writer_optimization['specs']
+        reader_instance_class = self._calculate_optimal_reader_size(writer_specs, workload_analysis, environment_type)
+        reader_specs = self.instance_specs[reader_instance_class]
+        
+        # Calculate costs
+        single_reader_monthly_cost = self._calculate_instance_monthly_cost(reader_specs, environment_type, is_reader=True)
+        total_monthly_cost = single_reader_monthly_cost * recommended_count
+        total_annual_cost = total_monthly_cost * 12
+        
+        return {
+            'count': recommended_count,
+            'instance_class': reader_instance_class,
+            'specs': reader_specs,
+            'single_reader_monthly_cost': single_reader_monthly_cost,
+            'total_monthly_cost': total_monthly_cost,
+            'total_annual_cost': total_annual_cost,
+            'multi_az': environment_type == 'production',
+            'reasoning': self._generate_reader_reasoning(recommended_count, reader_specs, workload_analysis)
+        }
+    
+    def _calculate_optimal_reader_size(self, writer_specs: InstanceSpecs, workload_analysis: Dict, environment_type: str) -> str:
+        """Calculate optimal reader instance size"""
+        
+        workload_type = workload_analysis['workload_type']
+        read_scaling_factor = workload_analysis['read_scaling_factor']
+        
+        if workload_type == 'read_heavy' or workload_type == 'analytics':
+            target_vcpu = int(writer_specs.vcpu * read_scaling_factor)
+            target_memory = writer_specs.memory_gb * read_scaling_factor
+        else:
+            target_vcpu = max(2, int(writer_specs.vcpu * 0.7))
+            target_memory = writer_specs.memory_gb * 0.7
+        
+        # Find best matching instance
+        best_match = None
+        best_score = 0
+        
+        for instance_class, specs in self.instance_specs.items():
+            if specs.vcpu >= target_vcpu * 0.8 and specs.memory_gb >= target_memory * 0.8:
+                size_match_score = 100 - abs(specs.vcpu - target_vcpu) * 5 - abs(specs.memory_gb - target_memory) * 2
+                cost_efficiency_score = 100 - (specs.hourly_cost * 10)
+                overall_score = size_match_score * 0.7 + cost_efficiency_score * 0.3
+                
+                if overall_score > best_score:
+                    best_score = overall_score
+                    best_match = instance_class
+        
+        return best_match or 'db.r5.large'
+    
+    def _calculate_instance_monthly_cost(self, specs: InstanceSpecs, environment_type: str, is_reader: bool = False) -> float:
+        """Calculate monthly cost for an instance"""
+        
+        base_hourly_cost = specs.hourly_cost
+        
+        # Apply Multi-AZ multiplier if needed
+        if environment_type in ['production', 'staging'] and not is_reader:
+            base_hourly_cost *= self.pricing_data['us-east-1']['multi_az_multiplier']
+        
+        # Calculate monthly cost (730 hours per month)
+        monthly_cost = base_hourly_cost * 730
+        
+        return monthly_cost
+    
+    def _calculate_comprehensive_costs(self, writer_optimization: Dict, reader_optimization: Dict,
+                                     storage_gb: int, iops_requirement: int, environment_type: str,
+                                     daily_usage_hours: int) -> Dict:
+        """Calculate comprehensive cost analysis"""
+        
+        # Instance costs
+        writer_monthly_cost = writer_optimization['monthly_cost']
+        reader_monthly_cost = reader_optimization['total_monthly_cost']
+        total_instance_monthly_cost = writer_monthly_cost + reader_monthly_cost
+        
+        # Storage costs
+        storage_costs = self._calculate_storage_costs(storage_gb, iops_requirement, environment_type)
+        
+        # Additional costs
+        backup_monthly_cost = storage_gb * 0.095
+        monitoring_monthly_cost = 50 if environment_type == 'production' else 20
+        cross_az_monthly_cost = 0
+        
+        if reader_optimization['count'] > 0:
+            estimated_cross_az_gb = storage_gb * 0.1
+            cross_az_monthly_cost = estimated_cross_az_gb * 0.01
+        
+        total_monthly_cost = (total_instance_monthly_cost + storage_costs['total_monthly'] + 
+                            backup_monthly_cost + monitoring_monthly_cost + cross_az_monthly_cost)
+        
+        # Reserved Instance calculations
+        reserved_1_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 1)
+        reserved_3_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 3)
+        
+        return {
+            'monthly_breakdown': {
+                'writer_instance': writer_monthly_cost,
+                'reader_instances': reader_monthly_cost,
+                'storage': storage_costs['total_monthly'],
+                'backup': backup_monthly_cost,
+                'monitoring': monitoring_monthly_cost,
+                'cross_az_transfer': cross_az_monthly_cost,
+                'total': total_monthly_cost
+            },
+            'annual_breakdown': {
+                'writer_instance': writer_monthly_cost * 12,
+                'reader_instances': reader_monthly_cost * 12,
+                'storage': storage_costs['total_monthly'] * 12,
+                'backup': backup_monthly_cost * 12,
+                'monitoring': monitoring_monthly_cost * 12,
+                'cross_az_transfer': cross_az_monthly_cost * 12,
+                'total': total_monthly_cost * 12
+            },
+            'storage_details': storage_costs,
+            'reserved_instance_options': {
+                '1_year': reserved_1_year,
+                '3_year': reserved_3_year
+            },
+            'cost_optimization_opportunities': []
+        }
+    
+    def _calculate_storage_costs(self, storage_gb: int, iops_requirement: int, environment_type: str) -> Dict:
+        """Calculate detailed storage costs"""
+        
+        if iops_requirement > 16000:
+            storage_type = 'io2'
+            base_cost_per_gb = 0.125
+            iops_cost_per_iops = 0.065
+        elif iops_requirement > 3000:
+            storage_type = 'gp3'
+            base_cost_per_gb = 0.08
+            additional_iops = max(0, iops_requirement - 3000)
+            iops_cost_per_iops = 0.005 if additional_iops > 0 else 0
+        else:
+            storage_type = 'gp3'
+            base_cost_per_gb = 0.08
+            iops_cost_per_iops = 0
+            additional_iops = 0
+        
+        base_storage_cost = storage_gb * base_cost_per_gb
+        iops_cost = (additional_iops if storage_type == 'gp3' else iops_requirement) * iops_cost_per_iops
+        total_monthly_cost = base_storage_cost + iops_cost
+        
+        return {
+            'storage_type': storage_type,
+            'storage_gb': storage_gb,
+            'iops_provisioned': iops_requirement,
+            'base_storage_cost': base_storage_cost,
+            'iops_cost': iops_cost,
+            'total_monthly': total_monthly_cost,
+            'cost_per_gb': base_cost_per_gb,
+            'cost_per_iops': iops_cost_per_iops
+        }
+    
+    def _calculate_reserved_instance_savings(self, monthly_instance_cost: float, years: int) -> Dict:
+        """Calculate Reserved Instance savings"""
+        
+        if years == 1:
+            discount = self.pricing_data['us-east-1']['reserved_1_year']['discount']
+        else:
+            discount = self.pricing_data['us-east-1']['reserved_3_year']['discount']
+        
+        annual_on_demand = monthly_instance_cost * 12
+        annual_reserved = annual_on_demand * (1 - discount)
+        total_on_demand = annual_on_demand * years
+        total_reserved = annual_reserved * years
+        total_savings = total_on_demand - total_reserved
+        
+        return {
+            'term_years': years,
+            'discount_percentage': discount * 100,
+            'annual_cost': annual_reserved,
+            'total_cost': total_reserved,
+            'total_savings': total_savings,
+            'monthly_cost': annual_reserved / 12
+        }
+    
+    def _generate_optimization_recommendations(self, workload_analysis: Dict, writer_optimization: Dict,
+                                             reader_optimization: Dict, cost_analysis: Dict) -> List[str]:
+        """Generate comprehensive optimization recommendations"""
+        
+        recommendations = []
+        
+        if workload_analysis['complexity_score'] > 80:
+            recommendations.append("Consider upgrading to latest generation instances (R6i) for better price/performance")
+        
+        total_annual_cost = cost_analysis['annual_breakdown']['total']
+        if total_annual_cost > 50000:
+            recommendations.append("Evaluate Reserved Instances for significant cost savings on predictable workloads")
+        
+        if reader_optimization['count'] > 1:
+            recommendations.append("Implement Aurora Auto Scaling to optimize reader count based on actual demand")
+        
+        recommendations.append("Set up Enhanced Monitoring and Performance Insights for optimization opportunities")
+        recommendations.append("Configure CloudWatch alarms for CPU, memory, and connection metrics")
+        
+        return recommendations
+    
+    def _calculate_optimization_score(self, workload_analysis: Dict, writer_optimization: Dict,
+                                    reader_optimization: Dict, cost_analysis: Dict) -> float:
+        """Calculate overall optimization score"""
+        
+        performance_score = min(100, writer_optimization['score'])
+        cost_per_vcpu = cost_analysis['monthly_breakdown']['total'] / writer_optimization['specs'].vcpu
+        cost_efficiency_score = max(0, 100 - (cost_per_vcpu / 10))
+        
+        config_score = 80
+        if reader_optimization['count'] > 0 and workload_analysis['workload_type'] in ['read_heavy', 'analytics']:
+            config_score += 15
+        elif reader_optimization['count'] == 0 and workload_analysis['workload_type'] == 'write_heavy':
+            config_score += 15
+        
+        overall_score = (performance_score * 0.4 + cost_efficiency_score * 0.4 + config_score * 0.2)
+        
+        return min(100, overall_score)
+    
+    def _generate_writer_reasoning(self, specs: InstanceSpecs, workload_analysis: Dict, environment_type: str) -> str:
+        """Generate reasoning for writer instance recommendation"""
+        
+        reasoning_parts = []
+        
+        if workload_analysis['complexity_score'] > 70:
+            reasoning_parts.append(f"High complexity workload requires {specs.vcpu} vCPUs and {specs.memory_gb}GB memory")
+        else:
+            reasoning_parts.append(f"Balanced configuration with {specs.vcpu} vCPUs and {specs.memory_gb}GB memory")
+        
+        if environment_type == 'production':
+            reasoning_parts.append("Production-grade instance with high availability features")
+        else:
+            reasoning_parts.append(f"Cost-optimized for {environment_type} environment")
+        
+        if '25 Gbps' in specs.network_performance:
+            reasoning_parts.append("Enhanced networking for high-throughput workloads")
+        
+        return ". ".join(reasoning_parts) + "."
+    
+    def _generate_reader_reasoning(self, count: int, specs: InstanceSpecs, workload_analysis: Dict) -> str:
+        """Generate reasoning for reader configuration"""
+        
+        if count == 0:
+            return "No read replicas needed for write-heavy or low-complexity workloads"
+        
+        workload_type = workload_analysis['workload_type']
+        
+        reasoning_parts = [
+            f"{count} read replica{'s' if count > 1 else ''} recommended for {workload_type} workload",
+            f"Each reader: {specs.vcpu} vCPUs, {specs.memory_gb}GB memory"
+        ]
+        
+        if workload_type == 'read_heavy':
+            reasoning_parts.append("Multiple readers will distribute read load effectively")
+        elif workload_type == 'analytics':
+            reasoning_parts.append("Dedicated readers for analytical queries to avoid impact on primary")
+        
+        return ". ".join(reasoning_parts) + "."
 # Integration with your existing Streamlit app
 def integrate_with_existing_app():
     """Integration instructions for your existing app"""
@@ -9236,6 +9823,120 @@ def show_visualizations_tab():
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
 
+def display_optimization_results(optimization_results: Dict):
+    """Display comprehensive optimization results in Streamlit"""
+    
+    st.markdown("# 🚀 Optimized Reader/Writer Recommendations")
+    
+    # Overall summary
+    total_monthly_cost = sum([env['cost_analysis']['monthly_breakdown']['total'] 
+                             for env in optimization_results.values()])
+    total_annual_cost = total_monthly_cost * 12
+    avg_optimization_score = sum([env['optimization_score'] 
+                                 for env in optimization_results.values()]) / len(optimization_results)
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Monthly Cost", f"${total_monthly_cost:,.0f}")
+    
+    with col2:
+        st.metric("Total Annual Cost", f"${total_annual_cost:,.0f}")
+    
+    with col3:
+        st.metric("Avg Optimization Score", f"{avg_optimization_score:.1f}/100")
+    
+    with col4:
+        total_instances = sum([1 + env['reader_optimization']['count'] 
+                              for env in optimization_results.values()])
+        st.metric("Total Instances", total_instances)
+    
+    # Detailed results for each environment
+    for env_name, optimization in optimization_results.items():
+        with st.expander(f"🏢 {env_name.title()} - Optimization Score: {optimization['optimization_score']:.1f}/100", expanded=True):
+            
+            # Configuration overview
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### ✍️ Writer Configuration")
+                writer = optimization['writer_optimization']
+                st.info(f"""
+                **Instance:** {writer['instance_class']}  
+                **vCPUs:** {writer['specs'].vcpu}  
+                **Memory:** {writer['specs'].memory_gb} GB  
+                **Network:** {writer['specs'].network_performance}  
+                **Multi-AZ:** {'✅ Yes' if writer['multi_az'] else '❌ No'}  
+                **Monthly Cost:** ${writer['monthly_cost']:,.0f}  
+                **Annual Cost:** ${writer['annual_cost']:,.0f}
+                """)
+                
+                st.markdown("**Reasoning:**")
+                st.write(writer['reasoning'])
+            
+            with col2:
+                st.markdown("#### 📖 Reader Configuration")
+                reader = optimization['reader_optimization']
+                
+                if reader['count'] > 0:
+                    st.success(f"""
+                    **Count:** {reader['count']} replicas  
+                    **Instance:** {reader['instance_class']}  
+                    **vCPUs:** {reader['specs'].vcpu} each  
+                    **Memory:** {reader['specs'].memory_gb} GB each  
+                    **Multi-AZ:** {'✅ Yes' if reader['multi_az'] else '❌ No'}  
+                    **Cost per Reader:** ${reader['single_reader_monthly_cost']:,.0f}/month  
+                    **Total Monthly Cost:** ${reader['total_monthly_cost']:,.0f}  
+                    **Total Annual Cost:** ${reader['total_annual_cost']:,.0f}
+                    """)
+                else:
+                    st.warning("**No read replicas recommended**")
+                
+                st.markdown("**Reasoning:**")
+                st.write(reader['reasoning'])
+            
+            # Cost breakdown chart
+            st.markdown("#### 💰 Cost Breakdown")
+            
+            cost_data = optimization['cost_analysis']['monthly_breakdown']
+            
+            fig = go.Figure(data=[go.Pie(
+                labels=['Writer Instance', 'Reader Instances', 'Storage', 'Backup', 'Monitoring', 'Cross-AZ Transfer'],
+                values=[cost_data['writer_instance'], cost_data['reader_instances'], 
+                       cost_data['storage'], cost_data['backup'], cost_data['monitoring'], cost_data['cross_az_transfer']],
+                hole=0.4,
+                textinfo='label+percent+value',
+                texttemplate='%{label}<br>%{percent}<br>$%{value:,.0f}'
+            )])
+            
+            fig.update_layout(
+                title=f"{env_name} Monthly Cost Distribution - Total: ${cost_data['total']:,.0f}",
+                height=400
+            )
+            
+            st.plotly_chart(fig, use_container_width=True, key=f"optimization_cost_chart_{env_name}")
+            
+            # Reserved Instance savings
+            st.markdown("#### 💳 Reserved Instance Savings Opportunities")
+            
+            ri_1_year = optimization['cost_analysis']['reserved_instance_options']['1_year']
+            ri_3_year = optimization['cost_analysis']['reserved_instance_options']['3_year']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**1-Year Reserved Instances**")
+                st.metric("Annual Savings", f"${ri_1_year['total_savings']:,.0f}", 
+                         delta=f"{ri_1_year['discount_percentage']:.0f}% discount")
+                st.write(f"Monthly cost: ${ri_1_year['monthly_cost']:,.0f}")
+            
+            with col2:
+                st.markdown("**3-Year Reserved Instances**")
+                st.metric("Total 3-Year Savings", f"${ri_3_year['total_savings']:,.0f}", 
+                         delta=f"{ri_3_year['discount_percentage']:.0f}% discount")
+                st.write(f"Monthly cost: ${ri_3_year['monthly_cost']:,.0f}")
+
+
 def show_ai_insights_tab():
     """Show AI insights if available"""
     
@@ -9494,6 +10195,117 @@ def show_reports_section():
                     st.error("Failed to generate reports package")
             except Exception as e:
                 st.error(f"Error generating bulk reports: {str(e)}")
+
+def show_optimized_recommendations():
+    """Show optimized Reader/Writer recommendations"""
+    
+    st.markdown("## 🧠 AI-Optimized Reader/Writer Recommendations")
+    
+    if not st.session_state.environment_specs:
+        st.warning("⚠️ Please configure environments first.")
+        st.info("👆 Go to 'Environment Setup' section to configure your database environments")
+        return
+    
+    # Show current environment count
+    env_count = len(st.session_state.environment_specs)
+    is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Environments Configured", env_count)
+    with col2:
+        config_type = "Enhanced Cluster Config" if is_enhanced else "Basic Config"
+        st.metric("Configuration Type", config_type)
+    
+    if not is_enhanced:
+        st.info("💡 For best results, use the Enhanced Environment Setup with cluster configuration")
+    
+    # Configuration options
+    st.markdown("### ⚙️ Optimization Settings")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        optimization_goal = st.selectbox(
+            "Optimization Goal",
+            ["Cost Efficiency", "Performance", "Balanced"],
+            index=2,
+            help="Choose whether to prioritize cost savings, performance, or a balance of both"
+        )
+    
+    with col2:
+        consider_reserved_instances = st.checkbox(
+            "Include Reserved Instance Analysis",
+            value=True,
+            help="Calculate potential savings with 1-year and 3-year Reserved Instances"
+        )
+    
+    with col3:
+        environment_priority = st.selectbox(
+            "Environment Priority",
+            ["Production First", "All Equal", "Cost First"],
+            index=0,
+            help="Prioritization strategy for resource allocation"
+        )
+    
+    # Run optimization button
+    if st.button("🧠 Generate AI Recommendations", type="primary", use_container_width=True):
+        with st.spinner("🔄 Analyzing workloads and optimizing configurations..."):
+            
+            try:
+                # Initialize optimizer
+                optimizer = OptimizedReaderWriterAnalyzer()
+                
+                # Apply optimization settings
+                optimizer.set_optimization_preferences(
+                    goal=optimization_goal.lower().replace(" ", "_"),
+                    consider_reserved=consider_reserved_instances,
+                    environment_priority=environment_priority.lower().replace(" ", "_")
+                )
+                
+                # Run optimization
+                optimization_results = optimizer.optimize_cluster_configuration(st.session_state.environment_specs)
+                
+                # Store results
+                st.session_state.optimization_results = optimization_results
+                
+                st.success("✅ Optimization complete!")
+                
+                # Show quick summary
+                total_monthly = sum([env['cost_analysis']['monthly_breakdown']['total'] 
+                                   for env in optimization_results.values()])
+                avg_score = sum([env['optimization_score'] 
+                               for env in optimization_results.values()]) / len(optimization_results)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Monthly Cost", f"${total_monthly:,.0f}")
+                with col2:
+                    st.metric("Average Optimization Score", f"{avg_score:.1f}/100")
+                with col3:
+                    potential_ri_savings = sum([
+                        env['cost_analysis']['reserved_instance_options']['3_year']['total_savings']
+                        for env in optimization_results.values()
+                    ])
+                    st.metric("Potential 3-Year RI Savings", f"${potential_ri_savings:,.0f}")
+                
+            except Exception as e:
+                st.error(f"❌ Optimization failed: {str(e)}")
+                st.code(str(e))
+    
+    # Display results if available
+    if hasattr(st.session_state, 'optimization_results') and st.session_state.optimization_results:
+        st.markdown("---")
+        display_optimization_results(st.session_state.optimization_results)
+
+# STEP 6: UPDATE YOUR SESSION STATE (find initialize_session_state function and add this line)
+# Add this line to your defaults dictionary:
+# 'optimization_results': None,
+
+# STEP 7: UPDATE YOUR MAIN NAVIGATION (find your main() function and update the page radio)
+# Add "🧠 AI Optimizer" to your page options and add the routing case:
+# elif page == "🧠 AI Optimizer":
+#     show_optimized_recommendations()
 
 def prepare_csv_export_data(results, recommendations):
     """Prepare CSV data for export"""
