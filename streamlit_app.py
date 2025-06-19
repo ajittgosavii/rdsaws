@@ -9150,20 +9150,19 @@ with col2:
         )
 
     # AI Configuration
-    st.markdown("### 🤖 AI Integration")
-    
-    anthropic_api_key = st.text_input(
-        "Anthropic API Key (Optional)",
-        type="password",
-        help="Provide your Anthropic API key for AI-powered insights"
-    )
-    
-    if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-        # ADD THIS RIGHT BEFORE THE SAVE BUTTON
+    st.markdown("### 🤖 AI Integration")          
+anthropic_api_key = st.text_input(         
+    "Anthropic API Key (Optional)",         
+    type="password",         
+    help="Provide your Anthropic API key for AI-powered insights"     
+)          
+
+if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+    # ADD THIS RIGHT BEFORE THE SAVE BUTTON
     if st.session_state.environment_specs:
         st.markdown("### 📊 Current Storage Configuration")
         total_env_storage = sum([specs.get('storage_gb', 0) for specs in st.session_state.environment_specs.values()])
-        
+                     
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Migration Data", f"{data_size_gb:,} GB")
