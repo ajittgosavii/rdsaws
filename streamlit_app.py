@@ -7355,7 +7355,7 @@ def create_risk_heatmap(risk_assessment: Dict) -> go.Figure:
     
     return fig
 def show_results_dashboard():
-    """Show comprehensive results dashboard with vROps analysis"""
+    """Show comprehensive results dashboard with all analysis views"""
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
@@ -7364,14 +7364,15 @@ def show_results_dashboard():
     st.markdown("## 📊 Migration Analysis Results")
     
     # Check for enhanced results
-    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
-                           st.session_state.enhanced_analysis_results is not None)
+    has_enhanced_results = (
+        hasattr(st.session_state, 'enhanced_analysis_results') and 
+        st.session_state.enhanced_analysis_results is not None
+    )
     
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    # FIXED: Match the number of variables with the number of tabs
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "💰 Cost Summary",
         "📈 Growth Projections",
-        "📊 vROps Analysis",
         "💎 Enhanced Analysis",
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
@@ -7384,29 +7385,28 @@ def show_results_dashboard():
         show_basic_cost_summary()
     
     with tab2:
-        show_growth_analysis_dashboard()  # FIXED ABOVE
+        show_growth_analysis_dashboard()
     
-       
-    with tab4:
+    with tab3:
         if has_enhanced_results:
             show_enhanced_cost_analysis()
         else:
             st.info("💡 Enhanced cost analysis not available.")
             show_basic_cost_summary()
 
-    with tab5:
+    with tab4:
         show_risk_assessment_tab()
 
-    with tab6:
+    with tab5:
         show_environment_analysis_tab()
 
-    with tab7:
+    with tab6:
         show_visualizations_tab()
 
-    with tab8:
+    with tab7:
         show_ai_insights_tab()
 
-    with tab9:
+    with tab8:
         show_timeline_analysis_tab()
         
 # Alternative simplified version if the above still has issues
@@ -8492,7 +8492,8 @@ def initialize_session_state():
         'enhanced_cost_chart': None,
         'growth_analysis': None,
         'growth_projections': None,
-        'optimization_results': None,  # <-- ADD THIS LINE
+        'optimization_results': None, 
+        'reconciliation_settings': {}# <-- ADD THIS LINE
     
     }
     
@@ -11337,6 +11338,9 @@ def show_enhanced_cost_analysis():
     
     results = st.session_state.enhanced_analysis_results
     
+    # Initialize chart counter to avoid undefined variable error
+    chart_counter = 0
+    
     # Overall cost metrics
     col1, col2, col3, col4 = st.columns(4)
     
@@ -11349,8 +11353,8 @@ def show_enhanced_cost_analysis():
     
     with col2:
         # Calculate writer vs reader costs
-        total_writer_cost = sum([env['writer_instance_cost'] for env in results['environment_costs'].values()])
-        total_reader_cost = sum([env['reader_costs'] for env in results['environment_costs'].values()])
+        total_writer_cost = sum([env.get('writer_instance_cost', 0) for env in results['environment_costs'].values()])
+        total_reader_cost = sum([env.get('reader_costs', 0) for env in results['environment_costs'].values()])
         
         st.metric(
             "Writer Instances",
@@ -11366,7 +11370,7 @@ def show_enhanced_cost_analysis():
         )
     
     with col4:
-        total_storage_cost = sum([env['storage_cost'] for env in results['environment_costs'].values()])
+        total_storage_cost = sum([env.get('storage_cost', 0) for env in results['environment_costs'].values()])
         st.metric(
             "Storage & I/O",
             f"${total_storage_cost:,.0f}/month",
@@ -11377,17 +11381,17 @@ def show_enhanced_cost_analysis():
     st.markdown("#### 🏢 Environment Cost Breakdown")
     
     for env_name, costs in results['environment_costs'].items():
-        with st.expander(f"💵 {env_name} - Total: ${costs['total_monthly']:,.0f}/month"):
+        with st.expander(f"💵 {env_name} - Total: ${costs.get('total_monthly', 0):,.0f}/month"):
             
-            # Create cost breakdown chart
+            # Create cost breakdown chart with safe data access
             cost_categories = ['Writer Instance', 'Reader Instances', 'Storage', 'Backup', 'Monitoring', 'Cross-AZ Transfer']
             cost_values = [
-                costs['writer_instance_cost'],
-                costs['reader_costs'],
-                costs['storage_cost'],
-                costs['backup_cost'],
-                costs['monitoring_cost'],
-                costs['cross_az_cost']
+                costs.get('writer_instance_cost', 0),
+                costs.get('reader_costs', 0),
+                costs.get('storage_cost', 0),
+                costs.get('backup_cost', 0),
+                costs.get('monitoring_cost', 0),
+                costs.get('cross_az_cost', 0)
             ]
             
             fig = go.Figure(data=[go.Pie(
@@ -11403,54 +11407,10 @@ def show_enhanced_cost_analysis():
                 height=400
             )
             
-             # FIXED: Added unique key using counter
-            st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_breakdown_{chart_counter}")
+            # FIXED: Use unique key with environment name
+            st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_breakdown_{env_name}_{chart_counter}")
             chart_counter += 1
-            
-                       
-            # Detailed breakdown table
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Instance Costs**")
-                st.write(f"Writer: ${costs['writer_instance_cost']:,.0f}")
-                if costs['reader_count'] > 0:
-                    st.write(f"Readers ({costs['reader_count']}): ${costs['reader_costs']:,.0f}")
-                    st.write(f"Reader cost per instance: ${costs['reader_costs']/costs['reader_count']:,.0f}")
-                else:
-                    st.write("Readers: No read replicas")
-            
-            with col2:
-                st.markdown("**Storage Breakdown**")
-                storage_breakdown = costs['storage_breakdown']
-                st.write(f"Base Storage: ${storage_breakdown['base_storage_cost']:,.0f}")
-                if storage_breakdown['iops_cost'] > 0:
-                    st.write(f"Provisioned IOPS: ${storage_breakdown['iops_cost']:,.0f}")
-                if storage_breakdown['io_request_cost'] > 0:
-                    st.write(f"I/O Requests: ${storage_breakdown['io_request_cost']:,.0f}")
-                st.write(f"Storage Type: {storage_breakdown['storage_type'].upper()}")
-                st.write(f"Size: {storage_breakdown['storage_size_gb']:,} GB")
-            
-            # Configuration details
-            st.markdown("**Configuration Details**")
-            writer_config = costs['writer_config']
-            reader_config = costs['reader_config']
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("*Writer:*")
-                st.write(f"Instance: {writer_config['instance_class']}")
-                st.write(f"Multi-AZ: {'✅ Yes' if writer_config['multi_az'] else '❌ No'}")
-            
-            with col2:
-                st.markdown("*Readers:*")
-                if reader_config['count'] > 0:
-                    st.write(f"Count: {reader_config['count']}")
-                    st.write(f"Instance: {reader_config['instance_class']}")
-                    st.write(f"Multi-AZ: {'✅ Yes' if reader_config['multi_az'] else '❌ No'}")
-                else:
-                    st.write("No read replicas configured")
+
 
 # Enhanced Analysis Runner
 def run_enhanced_migration_analysis():
@@ -11717,8 +11677,9 @@ def is_enhanced_environment_data(environment_specs):
     if not environment_specs:
         return False
     
+    # Check if any environment has enhanced fields
     sample_spec = next(iter(environment_specs.values()))
-    enhanced_fields = ['workload_pattern', 'read_write_ratio', 'multi_az_writer']
+    enhanced_fields = ['workload_pattern', 'read_write_ratio', 'multi_az_writer', 'environment_type']
     
     return any(field in sample_spec for field in enhanced_fields)
 
