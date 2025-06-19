@@ -18,6 +18,12 @@ import hashlib
 import tempfile
 import os
 import anthropic 
+import asyncio
+import streamlit as st
+import anthropic
+import boto3
+from typing import Dict, Optional
+import json
 
 # PDF Generation imports
 from reportlab.lib import colors
@@ -135,12 +141,7 @@ def show_enhanced_environment_analysis():
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
 
-import asyncio
-import streamlit as st
-import anthropic
-import boto3
-from typing import Dict, Optional
-import json
+
 
 # ADD THIS CLASS to your streamlit_app.py file (put it near the top with other classes):
 
