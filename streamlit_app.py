@@ -235,14 +235,14 @@ class SafeMigrationAnalyzer:
                     # Show summary
                     show_fixed_analysis_summary()
 
-                return True
+            return True
                             
-                 except Exception as e:
+                except Exception as e:
                     st.error(f"❌ Error during analysis: {str(e)}")
                     return False
             
             # Create emergency fallback
-            create_emergency_fallback_analysis()
+                    create_emergency_fallback_analysis()
             return False
 
     def show_fixed_analysis_summary():
