@@ -8162,11 +8162,11 @@ def show_growth_analysis_dashboard():
         
         for rec in default_recommendations:
             st.markdown(rec)
+            
+def show_risk_assessment_tab():
+    """Show risk assessment results"""
     
-
-"""Show risk assessment results"""
-    
-        st.markdown("### ⚠️ Migration Risk Assessment")
+    st.markdown("### ⚠️ Migration Risk Assessment")
     
     # Create a basic risk assessment if none exists
     if not hasattr(st.session_state, 'risk_assessment') or not st.session_state.risk_assessment:
@@ -8218,6 +8218,99 @@ def show_growth_analysis_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
+def show_environment_analysis_tab():
+    """Show environment analysis"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Environment analysis not available. Please run the migration analysis first.")
+        return
+        
+    st.markdown("### 🏢 Environment Analysis")
+    
+    # Show environment specifications
+    if hasattr(st.session_state, 'environment_specs') and st.session_state.environment_specs:
+        st.markdown("#### 📋 Environment Specifications")
+        
+        for env_name, specs in st.session_state.environment_specs.items():
+            with st.expander(f"🏢 {env_name.title()} Environment"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Current Specs:**")
+                    st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                    st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                    st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                    st.write(f"Daily Usage: {specs.get('daily_usage_hours', 'N/A')} hours")
+                
+                with col2:
+                    st.markdown("**Workload:**")
+                    st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
+                    st.write(f"Workload Pattern: {specs.get('workload_pattern', 'N/A')}")
+                    st.write(f"Environment Type: {specs.get('environment_type', 'N/A')}")
+
+def show_visualizations_tab():
+    """Show visualization charts"""
+    
+    st.markdown("### 📊 Cost & Performance Visualizations")
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Visualizations not available. Please run the migration analysis first.")
+        return
+    
+    try:
+        # Cost comparison chart
+        results = st.session_state.analysis_results
+        
+        # Create simple cost visualization
+        env_costs = results.get('environment_costs', {})
+        
+        if env_costs:
+            # Environment cost comparison
+            env_names = []
+            monthly_costs = []
+            
+            for env_name, costs in env_costs.items():
+                env_names.append(env_name.title())
+                
+                if isinstance(costs, dict):
+                    cost = costs.get('total_monthly', 
+                                   sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
+                else:
+                    cost = float(costs) if costs else 0
+                
+                monthly_costs.append(cost)
+            
+            if env_names and monthly_costs:
+                fig = go.Figure(data=[
+                    go.Bar(x=env_names, y=monthly_costs, marker_color='#3182ce')
+                ])
+                
+                fig.update_layout(
+                    title='Monthly Cost by Environment',
+                    xaxis_title='Environment',
+                    yaxis_title='Monthly Cost ($)',
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True, key=f"env_cost_viz_{hash(str(env_names))}")
+        
+        # Growth visualization if available
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            st.markdown("#### 📈 Growth Projections")
+            try:
+                charts = create_growth_projection_charts(st.session_state.growth_analysis)
+                for i, chart in enumerate(charts):
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}_{hash(str(i))}")
+            except Exception as e:
+                st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.markdown("#### 💎 Enhanced Cost Analysis")
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_chart")
+        
+    except Exception as e:
+        st.error(f"Error creating visualizations: {str(e)}")
 
 def show_environment_analysis_tab():
     """Show environment analysis - FIXED VERSION"""
