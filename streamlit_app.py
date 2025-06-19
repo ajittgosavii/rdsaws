@@ -9479,7 +9479,7 @@ def test_claude_ai_connection():
             st.error(f"❌ Test failed: {str(e)}")
 
 def main_fixed():
-    """Main Streamlit application with fixed key management"""
+    """Main Streamlit application with FIXED navigation - NO RERUN VERSION"""
     
     initialize_session_state()
     
@@ -9491,42 +9491,19 @@ def main_fixed():
     </div>
     """, unsafe_allow_html=True)
     
-     # FIXED: Initialize page selection in session state if not exists
-    if 'current_page' not in st.session_state:
-        st.session_state.current_page = "🔧 Migration Configuration"
-    
-    # Sidebar navigation
+    # Sidebar navigation - SIMPLIFIED VERSION
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
         
-        # FIXED: Use session state for persistence and remove problematic key
-        page_options = [
+        # BEST FIX: Direct radio without any session state complications
+        page = st.radio("Select Section:", [
             "🔧 Migration Configuration",
             "📊 Environment Setup", 
             "🌐 Network Analysis",
             "🚀 Analysis & Recommendations",
             "📈 Results Dashboard",
             "📄 Reports & Export"
-        ]
-    # FIXED: Use index-based selection with session state
-        try:
-            current_index = page_options.index(st.session_state.current_page)
-        except ValueError:
-            current_index = 0
-        
-        # FIXED: Simple radio without custom key
-        selected_page = st.radio(
-            "Select Section:", 
-            page_options,
-            index=current_index
-        )
-        
-        # Update session state when selection changes
-        if selected_page != st.session_state.current_page:
-            st.session_state.current_page = selected_page
-            st.experimental_rerun()
-        
-        page = st.session_state.current_page
+        ])
     
     # Main content area
     if page == "🔧 Migration Configuration":
@@ -9545,6 +9522,78 @@ def main_fixed():
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
 
+# Alternative: If radio still doesn't work, use selectbox
+def main_selectbox():
+    """Main function using selectbox instead of radio"""
+    
+    initialize_session_state()
+    
+    # Header
+    st.markdown("""
+    <div class="enterprise-header">
+        <h1>🚀 Enterprise AWS Database Migration Tool</h1>
+        <p>AI-Powered Analysis • Real-time AWS Pricing • Comprehensive Risk Assessment</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Sidebar navigation with selectbox
+    with st.sidebar:
+        st.markdown("## 🧭 Navigation")
+        
+        page = st.selectbox("Select Section:", [
+            "🔧 Migration Configuration",
+            "📊 Environment Setup", 
+            "🌐 Network Analysis",
+            "🚀 Analysis & Recommendations",
+            "📈 Results Dashboard",
+            "📄 Reports & Export"
+        ])
+    
+    # Main content area (same as above)
+    if page == "🔧 Migration Configuration":
+        show_migration_configuration()
+    elif page == "📊 Environment Setup":
+        show_environment_setup_main_fixed()
+    elif page == "🌐 Network Analysis":
+        show_network_transfer_analysis()
+    elif page == "🚀 Analysis & Recommendations":
+        show_analysis_section_fixed()
+    elif page == "📈 Results Dashboard":
+        show_results_dashboard_fixed()
+    elif page == "📄 Reports & Export":
+        show_reports_section_fixed()
+    else:
+        st.markdown("## Welcome to the AWS Database Migration Tool")
+        st.markdown("Please select a section from the sidebar to get started.")
+
+# Also fix any other instances of experimental_rerun in your code:
+
+def refresh_with_rerun_fix():
+    """Fixed version of refresh functions"""
+    if st.button("🔄 Refresh"):
+        refresh_cost_calculations()
+        st.rerun()  # Changed from st.experimental_rerun()
+
+# Find and replace all instances of st.experimental_rerun() with st.rerun()
+# Common places to check:
+# 1. show_basic_cost_summary_fixed()
+# 2. show_growth_analysis_dashboard_fixed() 
+# 3. Any refresh buttons
+# 4. Configuration save functions
+
+def fix_all_reruns_in_file():
+    """
+    Search your file for these patterns and replace:
+    
+    OLD: st.experimental_rerun()
+    NEW: st.rerun()
+    
+    This affects multiple functions in your code including:
+    - show_basic_cost_summary_fixed()
+    - show_growth_analysis_dashboard_fixed()
+    - Any function with refresh buttons
+    """
+    pass
 
 def show_results_dashboard_fixed():
     """Show comprehensive results dashboard - FIXED KEYS"""
