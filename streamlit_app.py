@@ -29,7 +29,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from vrops_ui import show_enhanced_environment_setup_with_vrops, show_vrops_results_tab
-from vrops_ui import VRopsMetricsAnalyzer
+#from vrops_ui import VRopsMetricsAnalyzer
 #from reader_writer_optimizer import OptimizedReaderWriterAnalyzer, display_optimization_results
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Any, Optional
@@ -8966,40 +8966,7 @@ def main():
     if "vrops_results" in st.session_state:
         show_vrops_results()
         
-    # In your main() function, add this to the page options:
-if page == "🧪 Test Storage":  # Add this as a temporary option
-    st.markdown("## 🧪 Storage Management Test")
-    
-    # Test the storage manager
-    if st.button("Test Storage Manager"):
-        test_storage_manager()
-    
-    # Show current state
-    st.markdown("### Current Configuration State")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**Migration Params:**")
-        if st.session_state.migration_params:
-            data_size = st.session_state.migration_params.get('data_size_gb', 0)
-            st.write(f"Migration Data Size: {data_size:,} GB")
-        else:
-            st.write("No migration params configured")
-    
-    with col2:
-        st.markdown("**Environment Specs:**")
-        if st.session_state.environment_specs:
-            total_env_storage = sum([specs.get('storage_gb', 0) for specs in st.session_state.environment_specs.values()])
-            st.write(f"Total Environment Storage: {total_env_storage:,} GB")
-            st.write(f"Number of Environments: {len(st.session_state.environment_specs)}")
-        else:
-            st.write("No environments configured")
-    
-    # Test validation if both are available
-    if st.session_state.migration_params and st.session_state.environment_specs:
-        if st.button("Test Storage Validation"):
-            show_storage_validation_widget()
+ 
         
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
