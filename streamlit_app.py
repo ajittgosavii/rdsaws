@@ -236,94 +236,84 @@ class SafeMigrationAnalyzer:
                 return False
 
 def show_fixed_analysis_summary():
-        """Show analysis summary with error handling"""
+    """Show analysis summary with error handling"""
+    
+    st.markdown("#### 🎯 Analysis Summary")
+    
+    try:
+        results = st.session_state.analysis_results
         
-        st.markdown("#### 🎯 Analysis Summary")
+        col1, col2, col3 = st.columns(3)
         
-        try:
-            results = st.session_state.analysis_results
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                monthly_cost = results.get('monthly_aws_cost', 0)
-                st.metric("Monthly Cost", f"${monthly_cost:,.0f}")
-            
-            with col2:
-                migration_cost = results.get('migration_costs', {}).get('total', 0)
-                st.metric("Migration Cost", f"${migration_cost:,.0f}")
-            
-            with col3:
-                env_count = len(st.session_state.environment_specs)
-                st.metric("Environments", env_count)
-            
-            # Check for any fallback recommendations
-            fallback_count = sum(1 for rec in st.session_state.recommendations.values() 
-                               if rec.get('fallback', False))
-            
-            if fallback_count > 0:
-                st.warning(f"⚠️ {fallback_count} environment(s) used fallback configurations due to data issues")
-            
-            st.info("📈 View detailed results in the 'Results Dashboard' section")
-            
-        except Exception as e:
-            st.error(f"Error displaying summary: {str(e)}")
+        with col1:
+            monthly_cost = results.get('monthly_aws_cost', 0)
+            st.metric("Monthly Cost", f"${monthly_cost:,.0f}")
+        
+        with col2:
+            migration_cost = results.get('migration_costs', {}).get('total', 0)
+            st.metric("Migration Cost", f"${migration_cost:,.0f}")
+        
+        with col3:
+            env_count = len(st.session_state.environment_specs)
+            st.metric("Environments", env_count)
+        
+        # Check for any fallback recommendations
+        fallback_count = sum(1 for rec in st.session_state.recommendations.values() 
+                           if rec.get('fallback', False))
+        
+        if fallback_count > 0:
+            st.warning(f"⚠️ {fallback_count} environment(s) used fallback configurations due to data issues")
+        
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        
+    except Exception as e:
+        st.error(f"Error displaying summary: {str(e)}")
 
-    # 6. Emergency fallback when everything fails
+
 def create_emergency_fallback_analysis():
-        """Create minimal working analysis when everything else fails"""
+    """Create minimal working analysis when everything else fails"""
+    
+    st.warning("🛡️ Creating emergency fallback analysis...")
+    
+    try:
+        # Get environment count
+        env_count = len(st.session_state.environment_specs) if st.session_state.environment_specs else 1
+        env_names = list(st.session_state.environment_specs.keys()) if st.session_state.environment_specs else ['Environment_1']
         
-        st.warning("🛡️ Creating emergency fallback analysis...")
-        
-        try:
-            # Get environment count
-            env_count = len(st.session_state.environment_specs) if st.session_state.environment_specs else 1
-            env_names = list(st.session_state.environment_specs.keys()) if st.session_state.environment_specs else ['Environment_1']
-            
-            # Create minimal recommendations
-            recommendations = {}
-            for i, env_name in enumerate(env_names):
-                recommendations[env_name] = {
-                    'environment_type': 'production' if i == 0 else 'development',
-                    'instance_class': 'db.r5.large',
-                    'cpu_cores': 4,
-                    'ram_gb': 16,
-                    'storage_gb': 500,
-                    'multi_az': i == 0,
-                    'daily_usage_hours': 24,
-                    'peak_connections': 100,
-                    'emergency_fallback': True
-                }
-            
-            st.session_state.recommendations = recommendations
-            
-            # Create minimal cost analysis
-            total_monthly_cost = env_count * 500  # $500 per environment
-            st.session_state.analysis_results = {
-                'monthly_aws_cost': total_monthly_cost,
-                'annual_aws_cost': total_monthly_cost * 12,
-                'environment_costs': {env: {'total_monthly': 500} for env in env_names},
-                'migration_costs': {'total': 100000, 'dms_instance': 40000, 'data_transfer': 20000, 'professional_services': 40000}
+        # Create minimal recommendations
+        recommendations = {}
+        for i, env_name in enumerate(env_names):
+            recommendations[env_name] = {
+                'environment_type': 'production' if i == 0 else 'development',
+                'instance_class': 'db.r5.large',
+                'cpu_cores': 4,
+                'ram_gb': 16,
+                'storage_gb': 500,
+                'multi_az': i == 0,
+                'daily_usage_hours': 24,
+                'peak_connections': 100,
+                'emergency_fallback': True
             }
-            
-            # Create minimal risk assessment
-            st.session_state.risk_assessment = get_fallback_risk_assessment()
-            
-            st.success("✅ Emergency fallback analysis created")
-            st.info("💡 This is a basic estimate. Please check your environment configuration for more accurate results.")
-            
-        except Exception as e:
-            st.error(f"❌ Even emergency fallback failed: {str(e)}")
-
-    return {
-        'safe_normalize_environment_specs': safe_normalize_environment_specs,
-        'safe_get_spec_value': safe_get_spec_value,
-        'SafeMigrationAnalyzer': SafeMigrationAnalyzer,
-        'run_fixed_migration_analysis': run_fixed_migration_analysis,
-        'show_fixed_analysis_summary': show_fixed_analysis_summary,
-        'create_emergency_fallback_analysis': create_emergency_fallback_analysis
+        
+        st.session_state.recommendations = recommendations
+        
+        # Create minimal cost analysis
+        total_monthly_cost = env_count * 500  # $500 per environment
+        st.session_state.analysis_results = {
+            'monthly_aws_cost': total_monthly_cost,
+            'annual_aws_cost': total_monthly_cost * 12,
+            'environment_costs': {env: {'total_monthly': 500} for env in env_names},
+            'migration_costs': {'total': 100000, 'dms_instance': 40000, 'data_transfer': 20000, 'professional_services': 40000}
         }
-  
+        
+        # Create minimal risk assessment
+        st.session_state.risk_assessment = get_fallback_risk_assessment()
+        
+        st.success("✅ Emergency fallback analysis created")
+        st.info("💡 This is a basic estimate. Please check your environment configuration for more accurate results.")
+        
+    except Exception as e:
+        st.error(f"❌ Even emergency fallback failed: {str(e)}")
         
 class StreamlitKeyManager:
     """Centralized key management to prevent duplicate keys"""
