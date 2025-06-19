@@ -943,6 +943,9 @@ class OptimizedReaderWriterAnalyzer:
 # NETWORK TRANSFER ANALYZER
 # ===========================
 
+# Fixed NetworkTransferAnalyzer Class
+# Replace the existing NetworkTransferAnalyzer class with this implementation
+
 class NetworkTransferAnalyzer:
     """Comprehensive network transfer analysis for AWS database migration"""
     
@@ -972,135 +975,295 @@ class NetworkTransferAnalyzer:
                 'pros': ['Secure connection', 'Quick setup'],
                 'cons': ['Internet-dependent', 'Bandwidth limitations'],
                 'complexity': 'Medium'
+            },
+            'dx_datasync_vpc': {
+                'name': 'Direct Connect + DataSync',
+                'description': 'Direct Connect with AWS DataSync for optimized transfers',
+                'pros': ['Optimized bandwidth usage', 'Built-in validation'],
+                'cons': ['Complex setup', 'Higher infrastructure cost'],
+                'complexity': 'High'
+            },
+            'hybrid_snowball_dms': {
+                'name': 'Hybrid Snowball + DMS',
+                'description': 'AWS Snowball for initial load, DMS for ongoing sync',
+                'pros': ['Fast large transfers', 'No bandwidth concerns for bulk'],
+                'cons': ['Physical device logistics', 'Multi-step process'],
+                'complexity': 'High'
+            },
+            'multipath_redundant': {
+                'name': 'Multi-path Redundant',
+                'description': 'Multiple transfer paths for redundancy and speed',
+                'pros': ['High reliability', 'Optimal performance'],
+                'cons': ['Highest cost', 'Complex management'],
+                'complexity': 'Very High'
             }
         }
     
-def calculate_transfer_analysis(self, migration_params: Dict) -> Dict:
-    """Calculate comprehensive transfer analysis for all patterns"""
-    
-    try:
-        data_size_gb = migration_params.get('data_size_gb', 1000)
-        region = migration_params.get('region', 'us-east-1')
-        available_bandwidth_mbps = migration_params.get('bandwidth_mbps', 1000)
-        security_requirements = migration_params.get('security_requirements', 'standard')
-        timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        budget_constraints = migration_params.get('budget_constraints', 'medium')
+    def calculate_transfer_analysis(self, migration_params: Dict) -> Dict:
+        """Calculate comprehensive transfer analysis for all patterns"""
         
-        results = {}
-        
-        for pattern_id, pattern_info in self.transfer_patterns.items():
+        try:
+            data_size_gb = migration_params.get('data_size_gb', 1000)
+            region = migration_params.get('region', 'us-east-1')
+            available_bandwidth_mbps = migration_params.get('bandwidth_mbps', 1000)
+            security_requirements = migration_params.get('security_requirements', 'standard')
+            timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+            budget_constraints = migration_params.get('budget_constraints', 'medium')
+            
+            results = {}
+            
+            for pattern_id, pattern_info in self.transfer_patterns.items():
+                try:
+                    results[pattern_id] = self._calculate_pattern_metrics(
+                        pattern_id, pattern_info, data_size_gb, region, 
+                        available_bandwidth_mbps, security_requirements, timeline_weeks
+                    )
+                except Exception as e:
+                    print(f"Error calculating pattern {pattern_id}: {e}")
+                    # Add fallback result for this pattern
+                    results[pattern_id] = self._get_fallback_metrics(data_size_gb)
+            
+            # Add recommendation engine
             try:
-                results[pattern_id] = self._calculate_pattern_metrics(
-                    pattern_id, pattern_info, data_size_gb, region, 
-                    available_bandwidth_mbps, security_requirements, timeline_weeks
+                results['recommendations'] = self._generate_recommendations(
+                    results, migration_params
                 )
             except Exception as e:
-                print(f"Error calculating pattern {pattern_id}: {e}")
-                # Add fallback result for this pattern
-                results[pattern_id] = {
-                    'transfer_time_hours': 24,
-                    'transfer_time_days': 1,
-                    'data_transfer_cost': data_size_gb * 0.09,
-                    'infrastructure_cost': 1000,
-                    'setup_cost': 5000,
-                    'total_cost': data_size_gb * 0.09 + 6000,
-                    'bandwidth_utilization': 70,
-                    'reliability_score': 75,
-                    'security_score': 60,
-                    'complexity_score': 50
-                }
-        
-        # Add recommendation engine
-        try:
-            results['recommendations'] = self._generate_recommendations(
-                results, migration_params
-            )
+                print(f"Error generating recommendations: {e}")
+                results['recommendations'] = self._get_fallback_recommendations()
+            
+            return results
+            
         except Exception as e:
-            print(f"Error generating recommendations: {e}")
-            results['recommendations'] = {
-                'primary_recommendation': {
-                    'pattern_id': 'internet_dms',
-                    'pattern_name': 'Internet + DMS',
-                    'description': 'Standard internet connection with AWS Database Migration Service',
-                    'score': 75.0,
-                    'reasoning': 'Fallback recommendation due to analysis error'
-                },
-                'alternative_options': [],
-                'cost_optimization': ['Consider Direct Connect for large data volumes'],
-                'risk_considerations': ['Plan for variable internet speeds'],
-                'timeline_impact': {
-                    'fastest_option': {'pattern': 'Internet + DMS', 'duration_days': 1}
-                }
+            print(f"Error in calculate_transfer_analysis: {e}")
+            # Return minimal fallback result
+            return {
+                'internet_dms': self._get_fallback_metrics(migration_params.get('data_size_gb', 1000)),
+                'recommendations': self._get_fallback_recommendations()
             }
+    
+    def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict, 
+                                 data_size_gb: int, region: str, bandwidth_mbps: int,
+                                 security_req: str, timeline_weeks: int) -> Dict:
+        """Calculate metrics for a specific transfer pattern"""
         
-        return results
+        try:
+            # Pattern-specific calculations
+            if pattern_id == 'internet_dms':
+                return self._calc_internet_dms(data_size_gb, bandwidth_mbps, region)
+            elif pattern_id == 'dx_dms':
+                return self._calc_dx_dms(data_size_gb, bandwidth_mbps, region)
+            elif pattern_id == 'dx_datasync_vpc':
+                return self._calc_dx_datasync_vpc(data_size_gb, bandwidth_mbps, region)
+            elif pattern_id == 'vpn_dms':
+                return self._calc_vpn_dms(data_size_gb, bandwidth_mbps, region)
+            elif pattern_id == 'hybrid_snowball_dms':
+                return self._calc_hybrid_snowball(data_size_gb, bandwidth_mbps, region)
+            elif pattern_id == 'multipath_redundant':
+                return self._calc_multipath_redundant(data_size_gb, bandwidth_mbps, region)
+            else:
+                return self._get_fallback_metrics(data_size_gb)
+                
+        except Exception as e:
+            print(f"Error calculating metrics for pattern {pattern_id}: {e}")
+            return self._get_fallback_metrics(data_size_gb)
+    
+    def _calc_internet_dms(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for Internet + DMS pattern"""
+        # Convert bandwidth to effective throughput (accounting for protocol overhead)
+        effective_mbps = bandwidth_mbps * 0.8  # 80% efficiency
         
-    except Exception as e:
-        print(f"Error in calculate_transfer_analysis: {e}")
-        # Return minimal fallback result
+        # Calculate transfer time
+        data_size_bits = data_size_gb * 8 * 1024 * 1024 * 1024  # Convert to bits
+        transfer_time_seconds = data_size_bits / (effective_mbps * 1000000)
+        transfer_time_hours = transfer_time_seconds / 3600
+        transfer_time_days = transfer_time_hours / 24
+        
+        # Calculate costs
+        data_transfer_cost = data_size_gb * 0.09  # Standard AWS data transfer pricing
+        infrastructure_cost = 500  # Basic setup costs
+        setup_cost = 2000  # DMS setup and configuration
+        total_cost = data_transfer_cost + infrastructure_cost + setup_cost
+        
         return {
-            'internet_dms': {
-                'transfer_time_hours': 24,
-                'transfer_time_days': 1,
-                'data_transfer_cost': 1000,
-                'infrastructure_cost': 1000,
-                'setup_cost': 5000,
-                'total_cost': 7000,
-                'bandwidth_utilization': 70,
-                'reliability_score': 75,
-                'security_score': 60,
-                'complexity_score': 50
-            },
-            'recommendations': {
-                'primary_recommendation': {
-                    'pattern_id': 'internet_dms',
-                    'pattern_name': 'Internet + DMS',
-                    'description': 'Fallback recommendation',
-                    'score': 75.0,
-                    'reasoning': 'Default configuration'
-                }
-            }
+            'transfer_time_hours': transfer_time_hours,
+            'transfer_time_days': transfer_time_days,
+            'data_transfer_cost': data_transfer_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 80,
+            'reliability_score': 75,
+            'security_score': 70,
+            'complexity_score': 30
         }
     
-def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict, 
-                             data_size_gb: int, region: str, bandwidth_mbps: int,
-                             security_req: str, timeline_weeks: int) -> Dict:
-    """Calculate metrics for a specific transfer pattern - WITH ERROR HANDLING"""
-    
-    try:
-        # Base calculations
-        data_size_tb = data_size_gb / 1024
+    def _calc_dx_dms(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for Direct Connect + DMS pattern"""
+        effective_mbps = bandwidth_mbps * 0.95  # 95% efficiency with Direct Connect
         
-        # Pattern-specific calculations
-        if pattern_id == 'internet_dms':
-            return self._calc_internet_dms(data_size_gb, bandwidth_mbps, region)
-        elif pattern_id == 'dx_dms':
-            return self._calc_dx_dms(data_size_gb, bandwidth_mbps, region)
-        elif pattern_id == 'dx_datasync_vpc':
-            return self._calc_dx_datasync_vpc(data_size_gb, bandwidth_mbps, region)
-        elif pattern_id == 'vpn_dms':
-            return self._calc_vpn_dms(data_size_gb, bandwidth_mbps, region)
-        elif pattern_id == 'hybrid_snowball_dms':
-            return self._calc_hybrid_snowball(data_size_gb, bandwidth_mbps, region)
-        elif pattern_id == 'multipath_redundant':
-            return self._calc_multipath_redundant(data_size_gb, bandwidth_mbps, region)
-        else:
-            # Return default/fallback metrics
-            return {
-                'transfer_time_hours': 24,
-                'transfer_time_days': 1,
-                'data_transfer_cost': data_size_gb * 0.09,
-                'infrastructure_cost': 1000,
-                'setup_cost': 5000,
-                'total_cost': data_size_gb * 0.09 + 6000,
-                'bandwidth_utilization': 70,
-                'reliability_score': 75,
-                'security_score': 60,
-                'complexity_score': 50
-            }
-    except Exception as e:
-        print(f"Error calculating metrics for pattern {pattern_id}: {e}")
-        # Return fallback metrics
+        data_size_bits = data_size_gb * 8 * 1024 * 1024 * 1024
+        transfer_time_seconds = data_size_bits / (effective_mbps * 1000000)
+        transfer_time_hours = transfer_time_seconds / 3600
+        transfer_time_days = transfer_time_hours / 24
+        
+        # Direct Connect costs
+        dx_hourly_cost = 0.30  # 1Gbps Direct Connect port
+        dx_total_cost = dx_hourly_cost * transfer_time_hours
+        data_transfer_cost = data_size_gb * 0.02  # Reduced cost with Direct Connect
+        infrastructure_cost = 2000  # Higher setup for Direct Connect
+        setup_cost = 5000  # More complex setup
+        total_cost = dx_total_cost + data_transfer_cost + infrastructure_cost + setup_cost
+        
+        return {
+            'transfer_time_hours': transfer_time_hours,
+            'transfer_time_days': transfer_time_days,
+            'data_transfer_cost': data_transfer_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'dx_cost': dx_total_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 95,
+            'reliability_score': 90,
+            'security_score': 85,
+            'complexity_score': 65
+        }
+    
+    def _calc_dx_datasync_vpc(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for Direct Connect + DataSync pattern"""
+        effective_mbps = bandwidth_mbps * 0.92
+        
+        data_size_bits = data_size_gb * 8 * 1024 * 1024 * 1024
+        transfer_time_seconds = data_size_bits / (effective_mbps * 1000000)
+        transfer_time_hours = transfer_time_seconds / 3600
+        transfer_time_days = transfer_time_hours / 24
+        
+        dx_hourly_cost = 0.30
+        dx_total_cost = dx_hourly_cost * transfer_time_hours
+        datasync_cost = data_size_gb * 0.0125  # DataSync pricing
+        data_transfer_cost = data_size_gb * 0.02
+        infrastructure_cost = 3000
+        setup_cost = 7000
+        total_cost = dx_total_cost + datasync_cost + data_transfer_cost + infrastructure_cost + setup_cost
+        
+        return {
+            'transfer_time_hours': transfer_time_hours,
+            'transfer_time_days': transfer_time_days,
+            'data_transfer_cost': data_transfer_cost,
+            'datasync_cost': datasync_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'dx_cost': dx_total_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 92,
+            'reliability_score': 95,
+            'security_score': 90,
+            'complexity_score': 80
+        }
+    
+    def _calc_vpn_dms(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for VPN + DMS pattern"""
+        effective_mbps = bandwidth_mbps * 0.75  # VPN overhead
+        
+        data_size_bits = data_size_gb * 8 * 1024 * 1024 * 1024
+        transfer_time_seconds = data_size_bits / (effective_mbps * 1000000)
+        transfer_time_hours = transfer_time_seconds / 3600
+        transfer_time_days = transfer_time_hours / 24
+        
+        vpn_cost = 0.05 * transfer_time_hours  # VPN gateway cost
+        data_transfer_cost = data_size_gb * 0.09
+        infrastructure_cost = 1000
+        setup_cost = 3000
+        total_cost = vpn_cost + data_transfer_cost + infrastructure_cost + setup_cost
+        
+        return {
+            'transfer_time_hours': transfer_time_hours,
+            'transfer_time_days': transfer_time_days,
+            'data_transfer_cost': data_transfer_cost,
+            'vpn_cost': vpn_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 75,
+            'reliability_score': 80,
+            'security_score': 85,
+            'complexity_score': 50
+        }
+    
+    def _calc_hybrid_snowball(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for Hybrid Snowball + DMS pattern"""
+        # Assume 80% of data via Snowball, 20% via DMS sync
+        snowball_data_gb = data_size_gb * 0.8
+        sync_data_gb = data_size_gb * 0.2
+        
+        # Snowball transfer time (fixed ~1 week for logistics)
+        snowball_days = 7
+        
+        # DMS sync time for remaining data
+        effective_mbps = bandwidth_mbps * 0.8
+        sync_data_bits = sync_data_gb * 8 * 1024 * 1024 * 1024
+        sync_time_seconds = sync_data_bits / (effective_mbps * 1000000)
+        sync_time_hours = sync_time_seconds / 3600
+        sync_time_days = sync_time_hours / 24
+        
+        total_days = max(snowball_days, sync_time_days)
+        
+        # Costs
+        snowball_cost = 250 + (snowball_data_gb * 0.03)  # Snowball device + storage
+        sync_transfer_cost = sync_data_gb * 0.09
+        infrastructure_cost = 1500
+        setup_cost = 4000
+        total_cost = snowball_cost + sync_transfer_cost + infrastructure_cost + setup_cost
+        
+        return {
+            'transfer_time_hours': total_days * 24,
+            'transfer_time_days': total_days,
+            'snowball_cost': snowball_cost,
+            'data_transfer_cost': sync_transfer_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 60,
+            'reliability_score': 85,
+            'security_score': 95,
+            'complexity_score': 85
+        }
+    
+    def _calc_multipath_redundant(self, data_size_gb: int, bandwidth_mbps: int, region: str) -> Dict:
+        """Calculate metrics for Multi-path Redundant pattern"""
+        # Assume 2x Direct Connect + Internet backup
+        effective_mbps = bandwidth_mbps * 1.5  # Multiple paths
+        
+        data_size_bits = data_size_gb * 8 * 1024 * 1024 * 1024
+        transfer_time_seconds = data_size_bits / (effective_mbps * 1000000)
+        transfer_time_hours = transfer_time_seconds / 3600
+        transfer_time_days = transfer_time_hours / 24
+        
+        # High-end costs for redundancy
+        dx_cost = 0.60 * transfer_time_hours  # 2x Direct Connect
+        redundancy_cost = 2000  # Additional infrastructure
+        data_transfer_cost = data_size_gb * 0.02
+        infrastructure_cost = 5000
+        setup_cost = 10000
+        total_cost = dx_cost + redundancy_cost + data_transfer_cost + infrastructure_cost + setup_cost
+        
+        return {
+            'transfer_time_hours': transfer_time_hours,
+            'transfer_time_days': transfer_time_days,
+            'data_transfer_cost': data_transfer_cost,
+            'dx_cost': dx_cost,
+            'redundancy_cost': redundancy_cost,
+            'infrastructure_cost': infrastructure_cost,
+            'setup_cost': setup_cost,
+            'total_cost': total_cost,
+            'bandwidth_utilization': 98,
+            'reliability_score': 99,
+            'security_score': 95,
+            'complexity_score': 95
+        }
+    
+    def _get_fallback_metrics(self, data_size_gb: int) -> Dict:
+        """Return fallback metrics when calculation fails"""
         return {
             'transfer_time_hours': 24,
             'transfer_time_days': 1,
@@ -1117,6 +1280,8 @@ def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict,
     def _generate_recommendations(self, results: Dict, migration_params: Dict) -> Dict:
         """Generate recommendations for network transfer patterns"""
         data_size_gb = migration_params.get('data_size_gb', 1000)
+        budget_constraints = migration_params.get('budget_constraints', 'medium')
+        timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
         
         # Score each pattern
         pattern_scores = {}
@@ -1124,10 +1289,19 @@ def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict,
             if pattern_id == 'recommendations':
                 continue
             
-            # Simple scoring based on cost and time
+            # Scoring based on cost, time, and reliability
             cost_score = max(0, 100 - (metrics['total_cost'] / 1000))
             time_score = max(0, 100 - (metrics['transfer_time_days'] * 10))
-            composite_score = (cost_score + time_score) / 2
+            reliability_score = metrics.get('reliability_score', 75)
+            security_score = metrics.get('security_score', 60)
+            
+            # Weight based on budget constraints
+            if budget_constraints == 'low':
+                composite_score = cost_score * 0.5 + time_score * 0.2 + reliability_score * 0.2 + security_score * 0.1
+            elif budget_constraints == 'high':
+                composite_score = cost_score * 0.2 + time_score * 0.3 + reliability_score * 0.3 + security_score * 0.2
+            else:  # medium
+                composite_score = cost_score * 0.3 + time_score * 0.3 + reliability_score * 0.25 + security_score * 0.15
             
             pattern_scores[pattern_id] = {
                 'composite_score': composite_score,
@@ -1135,16 +1309,125 @@ def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict,
             }
         
         # Get best pattern
-        best_pattern = max(pattern_scores.items(), key=lambda x: x[1]['composite_score'])
-        pattern_info = self.transfer_patterns[best_pattern[0]]
+        if pattern_scores:
+            best_pattern = max(pattern_scores.items(), key=lambda x: x[1]['composite_score'])
+            pattern_info = self.transfer_patterns[best_pattern[0]]
+            
+            # Generate alternatives
+            sorted_patterns = sorted(pattern_scores.items(), key=lambda x: x[1]['composite_score'], reverse=True)
+            alternatives = []
+            
+            for pattern_id, score_data in sorted_patterns[1:3]:  # Top 2 alternatives
+                alt_pattern_info = self.transfer_patterns[pattern_id]
+                alternatives.append({
+                    'pattern_id': pattern_id,
+                    'pattern_name': alt_pattern_info['name'],
+                    'score': score_data['composite_score'],
+                    'reason': f"Alternative with {alt_pattern_info['complexity'].lower()} complexity"
+                })
+            
+            return {
+                'primary_recommendation': {
+                    'pattern_id': best_pattern[0],
+                    'pattern_name': pattern_info['name'],
+                    'description': pattern_info['description'],
+                    'score': best_pattern[1]['composite_score'],
+                    'reasoning': f"Best balance of cost and performance for {data_size_gb:,} GB migration"
+                },
+                'alternative_options': alternatives,
+                'cost_optimization': self._generate_cost_optimizations(results, migration_params),
+                'risk_considerations': self._generate_risk_considerations(results, migration_params),
+                'timeline_impact': self._generate_timeline_impact(results, migration_params)
+            }
+        else:
+            return self._get_fallback_recommendations()
+    
+    def _generate_cost_optimizations(self, results: Dict, migration_params: Dict) -> List[str]:
+        """Generate cost optimization suggestions"""
+        optimizations = []
+        data_size_gb = migration_params.get('data_size_gb', 1000)
         
+        if data_size_gb > 10000:
+            optimizations.append("Consider AWS Snowball for large data volumes to reduce transfer costs")
+        
+        if migration_params.get('has_direct_connect', False):
+            optimizations.append("Leverage existing Direct Connect for reduced data transfer fees")
+        
+        optimizations.append("Use compression to reduce effective data transfer volume")
+        optimizations.append("Schedule transfers during off-peak hours for better performance")
+        
+        return optimizations
+    
+    def _generate_risk_considerations(self, results: Dict, migration_params: Dict) -> List[str]:
+        """Generate risk considerations"""
+        risks = []
+        bandwidth_mbps = migration_params.get('bandwidth_mbps', 1000)
+        
+        if bandwidth_mbps < 1000:
+            risks.append("Limited bandwidth may extend migration timeline")
+        
+        if migration_params.get('security_requirements') == 'very_high':
+            risks.append("High security requirements may limit transfer option flexibility")
+        
+        risks.append("Plan for network congestion during peak business hours")
+        risks.append("Implement data validation checkpoints throughout transfer process")
+        
+        return risks
+    
+    def _generate_timeline_impact(self, results: Dict, migration_params: Dict) -> Dict:
+        """Generate timeline impact analysis"""
+        fastest_pattern = None
+        fastest_time = float('inf')
+        
+        for pattern_id, metrics in results.items():
+            if pattern_id == 'recommendations':
+                continue
+            
+            transfer_days = metrics.get('transfer_time_days', float('inf'))
+            if transfer_days < fastest_time:
+                fastest_time = transfer_days
+                fastest_pattern = pattern_id
+        
+        if fastest_pattern:
+            pattern_name = self.transfer_patterns[fastest_pattern]['name']
+            return {
+                'fastest_option': {
+                    'pattern': pattern_name,
+                    'duration_days': fastest_time
+                },
+                'timeline_considerations': [
+                    "Account for testing and validation time beyond data transfer",
+                    "Plan for cutover window and rollback procedures",
+                    "Consider staging environment setup for parallel testing"
+                ]
+            }
+        else:
+            return {
+                'fastest_option': {
+                    'pattern': 'Internet + DMS',
+                    'duration_days': 1
+                },
+                'timeline_considerations': [
+                    "Plan for comprehensive testing phases",
+                    "Account for potential migration delays"
+                ]
+            }
+    
+    def _get_fallback_recommendations(self) -> Dict:
+        """Return fallback recommendations when analysis fails"""
         return {
             'primary_recommendation': {
-                'pattern_id': best_pattern[0],
-                'pattern_name': pattern_info['name'],
-                'description': pattern_info['description'],
-                'score': best_pattern[1]['composite_score'],
-                'reasoning': f"Best balance of cost and performance for {data_size_gb:,} GB migration"
+                'pattern_id': 'internet_dms',
+                'pattern_name': 'Internet + DMS',
+                'description': 'Standard internet connection with AWS Database Migration Service',
+                'score': 75.0,
+                'reasoning': 'Fallback recommendation due to analysis error'
+            },
+            'alternative_options': [],
+            'cost_optimization': ['Consider Direct Connect for large data volumes'],
+            'risk_considerations': ['Plan for variable internet speeds'],
+            'timeline_impact': {
+                'fastest_option': {'pattern': 'Internet + DMS', 'duration_days': 1}
             }
         }
 
