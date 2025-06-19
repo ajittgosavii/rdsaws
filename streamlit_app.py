@@ -9064,8 +9064,8 @@ if st.button("💾 Save Configuration", type="primary", use_container_width=True
         'scaling_strategy': scaling_strategy
     }
         
-        st.success("✅ Configuration saved! Proceed to Environment Setup.")
-        st.balloons()
+    st.success("✅ Configuration saved! Proceed to Environment Setup.")
+    st.balloons()
 
 def show_environment_analysis():
     """Show environment analysis dashboard"""
