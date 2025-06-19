@@ -975,7 +975,7 @@ class NetworkTransferAnalyzer:
             }
         }
     
-    def calculate_transfer_analysis(self, migration_params: Dict) -> Dict:
+def calculate_transfer_analysis(self, migration_params: Dict) -> Dict:
     """Calculate comprehensive transfer analysis for all patterns"""
     
     try:
