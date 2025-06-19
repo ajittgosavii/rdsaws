@@ -391,31 +391,33 @@ def main_cost_refresh_section_fixed():
             st.metric("3-Year Growth", "Not calculated")
     
     # Add refresh controls with fixed keys
-    st.markdown("---")
-    st.markdown("### 🔄 Cost Refresh Controls")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        refresh_all_key = key_manager.get_unique_key("refresh_all_costs", "cost_refresh_section")
-        if st.button("🔄 Refresh All Costs", type="primary", key=refresh_all_key, use_container_width=True):
-            refresh_cost_calculations()
-    
-    with col2:
-        refresh_growth_key = key_manager.get_unique_key("refresh_growth_analysis", "cost_refresh_section")
-        if st.button("📊 Refresh Growth Analysis", key=refresh_growth_key, use_container_width=True):
-            if st.session_state.analysis_results:
-                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
-                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
-                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
-                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
-            else:
-                st.warning("Please run full analysis first")
-    
-    with col3:
+    # Add refresh controls with fixed keys
+st.markdown("---")
+st.markdown("### 🔄 Cost Refresh Controls")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    refresh_all_key = key_manager.get_unique_key("refresh_all_costs", "cost_refresh_section")
+    if st.button("🔄 Refresh All Costs", type="primary", key=refresh_all_key, use_container_width=True):
+        refresh_cost_calculations()
+
+with col2:
+    refresh_growth_key = key_manager.get_unique_key("refresh_growth_analysis", "cost_refresh_section")
+    if st.button("📊 Refresh Growth Analysis", key=refresh_growth_key, use_container_width=True):
+        if st.session_state.analysis_results:
+            monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+            annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+            growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+            st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
+        else:
+            st.warning("Please run full analysis first")
+
+with col3:
     export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
     if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
         export_refreshed_costs()
+
 
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
