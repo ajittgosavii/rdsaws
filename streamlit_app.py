@@ -155,7 +155,7 @@ class EnhancedAWSPricingAPI:
                           writer_instance: str, writer_multi_az: bool,
                           reader_instances: List[Tuple[str, bool]]) -> float:
     """Calculate total cost for writer and readers"""
-    total_cost = 0
+        total_cost = 0
     
     # Writer cost
     writer_pricing = self.get_rds_pricing(region, engine, writer_instance, writer_multi_az)
