@@ -237,9 +237,9 @@ class SafeMigrationAnalyzer:
 
                 return True
                             
-                except Exception as e:
-                    st.error(f"❌ Analysis failed: {str(e)}")
-                    st.code(f"Error details: {str(e)}")
+                 except Exception as e:
+                    st.error(f"❌ Error during analysis: {str(e)}")
+                    return False
             
             # Create emergency fallback
             create_emergency_fallback_analysis()
