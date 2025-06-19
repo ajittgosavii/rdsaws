@@ -10852,18 +10852,17 @@ def create_bulk_reports_zip(results, recommendations, migration_params):
 # Enhanced Environment Setup Interface
 def show_enhanced_environment_setup_with_cluster_config():
     """Enhanced environment setup with Writer/Reader configuration"""
-    
-    st.markdown("## 📊 Enhanced Database Cluster Configuration")
+    st.markdown("## 📊 Database Cluster Configuration")
     
     # ADD THIS RIGHT AFTER THE TITLE
-if st.session_state.migration_params:
-    with st.expander("🤖 Storage Auto-Calculator (Optional)", expanded=False):
-        show_storage_auto_calculator()
-    st.markdown("---")  # Add a separator
+    if st.session_state.migration_params:
+        with st.expander("🤖 Storage Auto-Calculator (Optional)", expanded=False):
+            show_storage_auto_calculator()
+        st.markdown("---")  # Add a separator
     
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
-        return
+        return  # This return is now properly inside the function
     
     # Configuration method selection
     config_method = st.radio(
@@ -10882,11 +10881,12 @@ if st.session_state.migration_params:
         show_bulk_cluster_upload()
     else:
         show_simple_configuration()
+    
     # Add this near the end of your environment setup function
     if st.session_state.migration_params and st.session_state.environment_specs:
         st.markdown("---")  # Add a separator
         show_storage_validation_widget()
-
+        
 def show_manual_cluster_configuration():
     """Show manual cluster configuration with Writer/Reader options"""
     
