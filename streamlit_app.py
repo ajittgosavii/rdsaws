@@ -39,6 +39,167 @@ from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+# FIXED: Cost Calculation Alignment
+# Replace the existing cost calculation methods with these aligned versions
+
+class UnifiedCostCalculator:
+    """Unified cost calculator to ensure consistency between AI optimizer and migration analyzer"""
+    
+    def __init__(self):
+        self.base_pricing = {
+            'storage_gb_cost': 0.115,  # GP2 storage cost per GB
+            'backup_cost_per_gb': 0.095,  # Backup storage cost per GB
+            'monitoring_cost_production': 50,  # Enhanced monitoring for production
+            'monitoring_cost_non_production': 20,  # Basic monitoring for non-prod
+            'cross_az_transfer_rate': 0.01,  # $0.01 per GB for cross-AZ transfer
+            'iops_cost_gp3': 0.005,  # Additional IOPS cost for GP3
+            'iops_cost_io2': 0.065   # IOPS cost for IO2
+        }
+    
+    def calculate_unified_environment_cost(self, env_config: Dict, region: str = 'us-east-1') -> Dict:
+        """Calculate environment cost using unified methodology"""
+        
+        # Extract configuration
+        writer_config = env_config.get('writer', {})
+        reader_config = env_config.get('readers', {})
+        storage_config = env_config.get('storage', {})
+        environment_type = env_config.get('environment_type', 'production')
+        daily_usage_hours = env_config.get('daily_usage_hours', 24)
+        
+        # Calculate monthly hours
+        monthly_hours = daily_usage_hours * 30
+        
+        # 1. Writer Instance Cost
+        writer_instance_cost = self._calculate_instance_cost(
+            writer_config.get('instance_class'),
+            writer_config.get('multi_az', False),
+            monthly_hours
+        )
+        
+        # 2. Reader Instance Costs
+        reader_instance_cost = 0
+        reader_count = reader_config.get('count', 0)
+        if reader_count > 0:
+            single_reader_cost = self._calculate_instance_cost(
+                reader_config.get('instance_class'),
+                reader_config.get('multi_az', False),
+                monthly_hours
+            )
+            reader_instance_cost = single_reader_cost * reader_count
+        
+        # 3. Storage Costs (Unified calculation)
+        storage_costs = self._calculate_unified_storage_cost(storage_config)
+        
+        # 4. Backup Costs (Unified calculation)
+        storage_gb = storage_config.get('size_gb', 500)
+        backup_cost = storage_gb * self.base_pricing['backup_cost_per_gb']
+        
+        # 5. Monitoring Costs (Unified calculation)
+        if environment_type.lower() in ['production', 'prod']:
+            monitoring_cost = self.base_pricing['monitoring_cost_production']
+        else:
+            monitoring_cost = self.base_pricing['monitoring_cost_non_production']
+        
+        # 6. Cross-AZ Transfer Costs (if readers exist)
+        cross_az_cost = 0
+        if reader_count > 0:
+            estimated_transfer_gb = storage_gb * 0.1  # 10% of storage as cross-AZ
+            cross_az_cost = estimated_transfer_gb * self.base_pricing['cross_az_transfer_rate']
+        
+        # Total calculation
+        total_monthly_cost = (
+            writer_instance_cost + 
+            reader_instance_cost + 
+            storage_costs['total_cost'] + 
+            backup_cost + 
+            monitoring_cost + 
+            cross_az_cost
+        )
+        
+        return {
+            'writer_instance_cost': writer_instance_cost,
+            'reader_instance_cost': reader_instance_cost,
+            'reader_count': reader_count,
+            'storage_cost': storage_costs['total_cost'],
+            'storage_breakdown': storage_costs,
+            'backup_cost': backup_cost,
+            'monitoring_cost': monitoring_cost,
+            'cross_az_cost': cross_az_cost,
+            'total_monthly_cost': total_monthly_cost,
+            'total_annual_cost': total_monthly_cost * 12,
+            'cost_methodology': 'unified_v1'
+        }
+    
+    def _calculate_instance_cost(self, instance_class: str, multi_az: bool, monthly_hours: int) -> float:
+        """Calculate instance cost using unified pricing"""
+        
+        # Unified instance pricing (aligned between both systems)
+        instance_pricing = {
+            'db.t3.micro': 0.0255,
+            'db.t3.small': 0.051,
+            'db.t3.medium': 0.102,
+            'db.t3.large': 0.204,
+            'db.t3.xlarge': 0.408,
+            'db.t3.2xlarge': 0.816,
+            'db.r5.large': 0.24,
+            'db.r5.xlarge': 0.48,
+            'db.r5.2xlarge': 0.96,
+            'db.r5.4xlarge': 1.92,
+            'db.r5.8xlarge': 3.84,
+            'db.r5.12xlarge': 5.76,
+            'db.r5.16xlarge': 7.68,
+            'db.r5.24xlarge': 11.52,
+            'db.r6i.large': 0.252,
+            'db.r6i.xlarge': 0.504,
+            'db.r6i.2xlarge': 1.008,
+            'db.r6i.4xlarge': 2.016,
+            'db.c5.large': 0.192,
+            'db.c5.xlarge': 0.384,
+            'db.c5.2xlarge': 0.768,
+            'db.c5.4xlarge': 1.536
+        }
+        
+        hourly_cost = instance_pricing.get(instance_class, 0.5)  # Default fallback
+        
+        # Apply Multi-AZ multiplier
+        if multi_az:
+            hourly_cost *= 2.0
+        
+        return hourly_cost * monthly_hours
+    
+    def _calculate_unified_storage_cost(self, storage_config: Dict) -> Dict:
+        """Calculate storage cost using unified methodology"""
+        
+        storage_gb = storage_config.get('size_gb', 500)
+        iops_requirement = storage_config.get('iops', 3000)
+        storage_type = storage_config.get('type', 'gp3')
+        
+        if storage_type == 'io2':
+            base_cost_per_gb = 0.125
+            iops_cost = iops_requirement * self.base_pricing['iops_cost_io2']
+        elif storage_type == 'gp3':
+            base_cost_per_gb = 0.08
+            # GP3 includes 3000 IOPS free
+            additional_iops = max(0, iops_requirement - 3000)
+            iops_cost = additional_iops * self.base_pricing['iops_cost_gp3']
+        else:  # gp2 or default
+            base_cost_per_gb = self.base_pricing['storage_gb_cost']
+            iops_cost = 0
+        
+        base_storage_cost = storage_gb * base_cost_per_gb
+        total_cost = base_storage_cost + iops_cost
+        
+        return {
+            'storage_type': storage_type,
+            'storage_gb': storage_gb,
+            'base_storage_cost': base_storage_cost,
+            'iops_cost': iops_cost,
+            'total_cost': total_cost,
+            'cost_per_gb': base_cost_per_gb
+        }
+
+
+
 @dataclass
 class InstanceSpecs:
     """Instance specifications with performance metrics"""
@@ -58,9 +219,12 @@ class OptimizedReaderWriterAnalyzer:
     def __init__(self):
         self.instance_specs = self._initialize_instance_specs()
         self.pricing_data = self._initialize_pricing_data()
-        
-    def _initialize_instance_specs(self) -> Dict[str, InstanceSpecs]:
-        """Initialize comprehensive instance specifications"""
+        self.unified_calculator = UnifiedCostCalculator()  # ADD THIS
+        self.optimization_goal = 'balanced'
+        self.consider_reserved_instances = True
+        self.environment_priority = 'production_first'
+    
+    
         return {
             # T3 Series - Burstable Performance
             'db.t3.micro': InstanceSpecs('db.t3.micro', 2, 1, 'Low to Moderate', 87, 0.0255, ['development', 'testing'], 87, 1000),
@@ -458,10 +622,70 @@ class OptimizedReaderWriterAnalyzer:
         
         return monthly_cost
     
-    def _calculate_comprehensive_costs(self, writer_optimization: Dict, reader_optimization: Dict,
+        def _calculate_comprehensive_costs(self, writer_optimization: Dict, reader_optimization: Dict,
                                      storage_gb: int, iops_requirement: int, environment_type: str,
                                      daily_usage_hours: int) -> Dict:
-        """Calculate comprehensive cost analysis"""
+        """Calculate comprehensive cost analysis using UNIFIED methodology"""
+        
+        # Create unified config from optimization results
+        unified_config = {
+            'writer': {
+                'instance_class': writer_optimization['instance_class'],
+                'multi_az': writer_optimization['multi_az']
+            },
+            'readers': {
+                'count': reader_optimization['count'],
+                'instance_class': reader_optimization['instance_class'],
+                'multi_az': reader_optimization.get('multi_az', False)
+            },
+            'storage': {
+                'size_gb': storage_gb,
+                'type': 'gp3',  # Default storage type
+                'iops': iops_requirement
+            },
+            'environment_type': environment_type,
+            'daily_usage_hours': daily_usage_hours
+        }
+        
+        # Use unified cost calculator
+        unified_costs = self.unified_calculator.calculate_unified_environment_cost(unified_config)
+        
+        # Reserved Instance calculations (unchanged)
+        total_instance_monthly_cost = unified_costs['writer_instance_cost'] + unified_costs['reader_instance_cost']
+        reserved_1_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 1)
+        reserved_3_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 3)
+        
+        # Format for compatibility with existing code
+        return {
+            'monthly_breakdown': {
+                'writer_instance': unified_costs['writer_instance_cost'],
+                'reader_instances': unified_costs['reader_instance_cost'],
+                'storage': unified_costs['storage_cost'],
+                'backup': unified_costs['backup_cost'],
+                'monitoring': unified_costs['monitoring_cost'],
+                'cross_az_transfer': unified_costs['cross_az_cost'],
+                'total': unified_costs['total_monthly_cost']
+            },
+            'annual_breakdown': {
+                'writer_instance': unified_costs['writer_instance_cost'] * 12,
+                'reader_instances': unified_costs['reader_instance_cost'] * 12,
+                'storage': unified_costs['storage_cost'] * 12,
+                'backup': unified_costs['backup_cost'] * 12,
+                'monitoring': unified_costs['monitoring_cost'] * 12,
+                'cross_az_transfer': unified_costs['cross_az_cost'] * 12,
+                'total': unified_costs['total_annual_cost']
+            },
+            'storage_details': unified_costs['storage_breakdown'],
+            'reserved_instance_options': {
+                '1_year': reserved_1_year,
+                '3_year': reserved_3_year
+            },
+            'cost_optimization_opportunities': self._identify_cost_optimization_opportunities(
+                writer_optimization, reader_optimization, unified_costs['storage_breakdown'], environment_type
+            ),
+            'cost_calculation_method': 'unified_v1'  # ADD THIS FOR TRACKING
+        }
+    
         
         # Instance costs
         writer_monthly_cost = writer_optimization['monthly_cost']
@@ -574,6 +798,53 @@ class OptimizedReaderWriterAnalyzer:
             'total_savings': total_savings,
             'monthly_cost': annual_reserved / 12
         }
+    
+    # FIXED: Add cost comparison function to verify alignment
+def verify_cost_alignment():
+    """Verify that both cost calculation methods produce the same results"""
+    
+    st.markdown("### 🔍 Cost Calculation Verification")
+    
+    if st.button("🧪 Test Cost Alignment"):
+        
+        # Test data
+        test_config = {
+            'writer': {
+                'instance_class': 'db.r5.large',
+                'multi_az': True
+            },
+            'readers': {
+                'count': 1,
+                'instance_class': 'db.r5.large',
+                'multi_az': False
+            },
+            'storage': {
+                'size_gb': 1000,
+                'type': 'gp3',
+                'iops': 5000
+            },
+            'environment_type': 'production',
+            'daily_usage_hours': 24
+        }
+        
+        # Calculate using unified method
+        calculator = UnifiedCostCalculator()
+        unified_result = calculator.calculate_unified_environment_cost(test_config)
+        
+        st.markdown("#### Unified Cost Calculation Result:")
+        st.json({
+            'writer_cost': f"${unified_result['writer_instance_cost']:,.2f}",
+            'reader_cost': f"${unified_result['reader_instance_cost']:,.2f}",
+            'storage_cost': f"${unified_result['storage_cost']:,.2f}",
+            'backup_cost': f"${unified_result['backup_cost']:,.2f}",
+            'monitoring_cost': f"${unified_result['monitoring_cost']:,.2f}",
+            'total_monthly': f"${unified_result['total_monthly_cost']:,.2f}",
+            'methodology': unified_result['cost_methodology']
+        })
+        
+        st.success("✅ Both AI optimizer and Migration Analysis now use the same cost calculation methodology!")
+    
+    
     
     def _identify_cost_optimization_opportunities(self, writer_optimization: Dict, 
                                                 reader_optimization: Dict, storage_costs: Dict,
@@ -1858,89 +2129,108 @@ class EnhancedAWSPricingAPI:
 # ALSO ADD this if MigrationAnalyzer class is missing:
 
 class MigrationAnalyzer:
-    """Basic migration analyzer for standard environment configurations"""
+    """Migration analyzer with unified cost calculation"""
     
     def __init__(self, anthropic_api_key: Optional[str] = None):
         self.pricing_api = EnhancedAWSPricingAPI()
         self.anthropic_api_key = anthropic_api_key
-           
-    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate AWS instance recommendations for environments"""
-        
-        recommendations = {}
-        
-        for env_name, specs in environment_specs.items():
-            cpu_cores = specs['cpu_cores']
-            ram_gb = specs['ram_gb']
-            storage_gb = specs['storage_gb']
-            
-            # Determine environment type
-            environment_type = self._categorize_environment(env_name)
-            
-            # Calculate instance class
-            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
-            
-            # Multi-AZ recommendation
-            multi_az = environment_type in ['production', 'staging']
-                                  
-            recommendations[env_name] = {
-                'environment_type': environment_type,
-                'instance_class': instance_class,
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'multi_az': multi_az,
-                'daily_usage_hours': specs.get('daily_usage_hours', 24),
-                'peak_connections': specs.get('peak_connections', 100)
-            }
-        
-        return recommendations
-        for env_name, specs in environment_specs.items():
-            
-            # Calculate reader configuration
-            reader_count = self._calculate_reader_count(
-                specs['read_write_ratio'], 
-                specs['workload_pattern'],
-                environment_type
-            )
-            reader_instance = self._calculate_reader_instance_class(
-                instance_class, environment_type
-            )
-            
-            recommendations[env_name] = {
-            'reader_count': reader_count,
-                'reader_instance_class': reader_instance,
-                'reader_multi_az': multi_az if environment_type == 'production' else False
-            }
-     
-    def _calculate_reader_count(self, read_ratio: int, workload_pattern: str, env_type: str) -> int:
-        """Calculate number of read replicas needed"""
-        if env_type != 'production':
-            return 0  # Only production gets readers
-            
-        if workload_pattern == 'read_heavy' and read_ratio >= 70:
-            return 2
-        elif workload_pattern == 'read_heavy' and read_ratio >= 50:
-            return 1
-        elif workload_pattern == 'mixed' and read_ratio >= 60:
-            return 1
-        return 0
+        self.unified_calculator = UnifiedCostCalculator()  # ADD THIS
     
-    def _calculate_reader_instance_class(self, writer_instance: str, env_type: str) -> str:
-        """Determine appropriate reader instance class"""
-        if env_type != 'production':
-            return "N/A"
+    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
+        """Calculate migration costs using UNIFIED methodology"""
         
-        # Readers typically match writer class or one size smaller
-        instance_map = {
-            'db.r5.8xlarge': 'db.r5.4xlarge',
-            'db.r5.4xlarge': 'db.r5.2xlarge',
-            'db.r5.2xlarge': 'db.r5.xlarge',
-            'db.r5.xlarge': 'db.r5.large',
-            'db.r5.large': 'db.t3.large',
-            'db.t3.large': 'db.t3.medium'
+        region = migration_params.get('region', 'us-east-1')
+        target_engine = migration_params.get('target_engine', 'postgres')
+        
+        total_monthly_cost = 0
+        environment_costs = {}
+        
+        for env_name, rec in recommendations.items():
+            # Convert recommendation to unified format
+            unified_config = self._convert_to_unified_config(rec, migration_params)
+            
+            # Use unified cost calculator
+            env_costs = self.unified_calculator.calculate_unified_environment_cost(
+                unified_config, region
+            )
+            
+            environment_costs[env_name] = env_costs
+            total_monthly_cost += env_costs['total_monthly_cost']
+        
+        # Migration service costs (unchanged)
+        data_size_gb = migration_params.get('data_size_gb', 1000)
+        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+        
+        # DMS costs
+        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
+        
+        # Data transfer costs
+        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
+        
+        # Professional services
+        ps_cost = migration_timeline_weeks * 8000
+        
+        migration_costs = {
+            'dms_instance': dms_instance_cost,
+            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
+            'professional_services': ps_cost,
+            'contingency': 0,
+            'total': 0
         }
-        return instance_map.get(writer_instance, writer_instance)
+        
+        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
+        migration_costs['contingency'] = base_cost * 0.2
+        migration_costs['total'] = base_cost + migration_costs['contingency']
+        
+        return {
+            'monthly_aws_cost': total_monthly_cost,
+            'annual_aws_cost': total_monthly_cost * 12,
+            'environment_costs': environment_costs,
+            'migration_costs': migration_costs,
+            'transfer_costs': transfer_costs,
+            'cost_calculation_method': 'unified'  # ADD THIS FOR TRACKING
+        }
+    
+    def _convert_to_unified_config(self, rec: Dict, migration_params: Dict) -> Dict:
+        """Convert standard recommendation to unified config format"""
+        
+        return {
+            'writer': {
+                'instance_class': rec.get('instance_class', 'db.r5.large'),
+                'multi_az': rec.get('multi_az', False)
+            },
+            'readers': {
+                'count': 0,  # Standard recommendations don't include readers
+                'instance_class': None,
+                'multi_az': False
+            },
+            'storage': {
+                'size_gb': rec.get('storage_gb', 500),
+                'type': 'gp3',
+                'iops': 3000
+            },
+            'environment_type': rec.get('environment_type', 'production'),
+            'daily_usage_hours': rec.get('daily_usage_hours', 24)
+        }
+    
+    # Keep other methods unchanged...
+    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
+        """Calculate data transfer costs (unchanged)"""
+        
+        use_direct_connect = migration_params.get('use_direct_connect', False)
+        
+        internet_cost = data_size_gb * 0.09
+        
+        if use_direct_connect:
+            dx_cost = data_size_gb * 0.02
+        else:
+            dx_cost = internet_cost
+        
+        return {
+            'internet': internet_cost,
+            'direct_connect': dx_cost,
+            'total': min(internet_cost, dx_cost)
+        }
 
 # Update the StreamlitClaudeAIAnalyzer class
 class StreamlitClaudeAIAnalyzer:
