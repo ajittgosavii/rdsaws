@@ -7223,7 +7223,7 @@ def show_migration_configuration():
     
     col1, col2 = st.columns(2)
     
-     with col1:
+    with col1:
         st.markdown("#### 📝 **Writer Configuration**")
         
         default_writer_strategy = st.selectbox(
