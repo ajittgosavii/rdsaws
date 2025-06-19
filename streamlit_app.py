@@ -8484,7 +8484,7 @@ def show_environment_setup():
     """Show environment setup interface with vROps support"""
             #show_enhanced_environment_setup_with_vrops()
 
-            st.markdown("## 📊 Environment Configuration")
+    st.markdown("## 📊 Environment Configuration")
 
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
