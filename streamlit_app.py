@@ -8161,42 +8161,42 @@ elif has_regular_results:
 else:
     st.info("ℹ️ Analysis pending")
 
-        # Network analysis status
-        if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
-            st.success("✅ Network analysis complete")
-            recommendations = st.session_state.transfer_analysis.get('recommendations', {})
-            primary = recommendations.get('primary_recommendation', {})
-            if primary:
-                st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
-        else:
-            st.info("ℹ️ Network analysis pending")
+# Network analysis status
+if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+    st.success("✅ Network analysis complete")
+    recommendations = st.session_state.transfer_analysis.get('recommendations', {})
+    primary = recommendations.get('primary_recommendation', {})
+    if primary:
+        st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
+    else:
+        st.info("ℹ️ Network analysis pending")
 
-        # vROps analysis status
-        if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
-            st.success("✅ vROps analysis complete")
+# vROps analysis status
+if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+    st.success("✅ vROps analysis complete")
 
-            health_scores = []
-            for env_name, analysis in st.session_state.vrops_analysis.items():
-                if isinstance(analysis, dict) and 'performance_scores' in analysis:
-                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+    health_scores = []
+    for env_name, analysis in st.session_state.vrops_analysis.items():
+        if isinstance(analysis, dict) and 'performance_scores' in analysis:
+            health_scores.append(analysis['performance_scores'].get('overall_health', 0))
 
-            if health_scores:
-                avg_health = sum(health_scores) / len(health_scores)
-                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+        if health_scores:
+            avg_health = sum(health_scores) / len(health_scores)
+            st.metric("Avg Health Score", f"{avg_health:.1f}/100")
         else:
             st.info("ℹ️ vROps analysis pending")
 
-        # Debug info (optional)
-        if st.checkbox("🐛 Show Debug Info"):
-            st.markdown("### Debug Information")
-            st.write("Environment specs:", bool(st.session_state.environment_specs))
-            st.write("Migration params:", bool(st.session_state.migration_params))
-            st.write("Analysis results:", bool(st.session_state.analysis_results))
-            st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
+# Debug info (optional)
+if st.checkbox("🐛 Show Debug Info"):
+    st.markdown("### Debug Information")
+    st.write("Environment specs:", bool(st.session_state.environment_specs))
+    st.write("Migration params:", bool(st.session_state.migration_params))
+    st.write("Analysis results:", bool(st.session_state.analysis_results))
+    st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
 
-            if st.session_state.environment_specs:
-                st.write("Num environments:", len(st.session_state.environment_specs))
-                st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
+if st.session_state.environment_specs:
+    st.write("Num environments:", len(st.session_state.environment_specs))
+    st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
 
     # Main content area - THIS IS THE KEY FIX
     if page == "🔧 Migration Configuration":
