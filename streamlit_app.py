@@ -42,6 +42,203 @@ from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+class StorageConfigurationManager:
+    """Centralized storage configuration management"""
+    
+    def __init__(self):
+        self.default_environment_multipliers = {
+            'production': 1.5,      # Production needs more storage for safety
+            'staging': 1.0,         # Staging matches production data
+            'testing': 0.7,         # Testing with subset of data
+            'qa': 0.6,              # QA with sample data  
+            'development': 0.3      # Development with minimal data
+        }
+        self.growth_buffer = 0.3    # 30% growth buffer
+        self.replication_overhead = 0.1  # 10% for transaction logs, backups
+    
+    def calculate_recommended_storage(self, migration_data_gb: int, environment_type: str, 
+                                    environment_count: int = 1) -> Dict:
+        """Calculate recommended storage for an environment"""
+        
+        env_type = environment_type.lower()
+        base_multiplier = self.default_environment_multipliers.get(env_type, 1.0)
+        
+        # Base storage requirement
+        base_storage = int(migration_data_gb * base_multiplier)
+        
+        # Add growth buffer
+        growth_storage = int(base_storage * self.growth_buffer)
+        
+        # Add replication overhead for writer/reader setups
+        replication_storage = int(base_storage * self.replication_overhead)
+        
+        # Total recommended storage
+        total_recommended = base_storage + growth_storage + replication_storage
+        
+        return {
+            'base_storage_gb': base_storage,
+            'growth_buffer_gb': growth_storage,
+            'replication_overhead_gb': replication_storage,
+            'total_recommended_gb': total_recommended,
+            'environment_type': environment_type,
+            'multiplier_used': base_multiplier
+        }
+    
+    def validate_storage_configuration(self, migration_data_gb: int, 
+                                     environment_specs: Dict) -> Dict:
+        """Validate storage configuration across migration and environments"""
+        
+        validation_result = {
+            'is_valid': True,
+            'warnings': [],
+            'errors': [],
+            'recommendations': [],
+            'total_env_storage': 0,
+            'migration_to_env_ratio': 0,
+            'environment_analysis': {}
+        }
+        
+        if not environment_specs:
+            validation_result['errors'].append("No environment specifications found")
+            validation_result['is_valid'] = False
+            return validation_result
+        
+        total_env_storage = 0
+        
+        for env_name, specs in environment_specs.items():
+            env_storage = specs.get('storage_gb', 0)
+            env_type = specs.get('environment_type', env_name).lower()
+            
+            total_env_storage += env_storage
+            
+            # Calculate recommended storage for this environment
+            recommended = self.calculate_recommended_storage(
+                migration_data_gb, env_type
+            )
+            
+            # Analysis for this environment
+            env_analysis = {
+                'current_storage_gb': env_storage,
+                'recommended_storage_gb': recommended['total_recommended_gb'],
+                'difference_gb': env_storage - recommended['total_recommended_gb'],
+                'difference_percent': ((env_storage / recommended['total_recommended_gb']) - 1) * 100 if recommended['total_recommended_gb'] > 0 else 0,
+                'status': 'good'
+            }
+            
+            # Determine status and generate warnings
+            if env_storage < recommended['base_storage_gb']:
+                env_analysis['status'] = 'critical'
+                validation_result['errors'].append(
+                    f"{env_name}: Storage ({env_storage:,} GB) is below minimum recommended ({recommended['base_storage_gb']:,} GB)"
+                )
+                validation_result['is_valid'] = False
+            elif env_storage < recommended['total_recommended_gb'] * 0.9:
+                env_analysis['status'] = 'warning'
+                validation_result['warnings'].append(
+                    f"{env_name}: Storage ({env_storage:,} GB) is below recommended ({recommended['total_recommended_gb']:,} GB)"
+                )
+            elif env_storage > recommended['total_recommended_gb'] * 2:
+                env_analysis['status'] = 'over_provisioned'
+                validation_result['warnings'].append(
+                    f"{env_name}: Storage ({env_storage:,} GB) is significantly over-provisioned (recommended: {recommended['total_recommended_gb']:,} GB)"
+                )
+            
+            validation_result['environment_analysis'][env_name] = env_analysis
+        
+        validation_result['total_env_storage'] = total_env_storage
+        
+        if migration_data_gb > 0:
+            validation_result['migration_to_env_ratio'] = total_env_storage / migration_data_gb
+            
+            # Overall validation
+            if validation_result['migration_to_env_ratio'] < 0.8:
+                validation_result['errors'].append(
+                    f"Total environment storage ({total_env_storage:,} GB) is significantly less than migration data ({migration_data_gb:,} GB)"
+                )
+                validation_result['is_valid'] = False
+            elif validation_result['migration_to_env_ratio'] > 5:
+                validation_result['warnings'].append(
+                    f"Total environment storage ({total_env_storage:,} GB) is much larger than migration data ({migration_data_gb:,} GB). Consider optimizing."
+                )
+        
+        # Generate recommendations
+        if validation_result['warnings'] or validation_result['errors']:
+            validation_result['recommendations'].append("Use the Storage Auto-Calculator to optimize storage allocation")
+            validation_result['recommendations'].append("Consider environment-specific data requirements")
+            validation_result['recommendations'].append("Plan for 30% growth buffer in production environments")
+        
+        return validation_result
+
+    
+    def show_storage_validation_widget():
+    """Show storage validation widget in environment setup"""
+    
+    if not st.session_state.migration_params or not st.session_state.environment_specs:
+        return
+    
+    migration_data_gb = st.session_state.migration_params.get('data_size_gb', 0)
+    storage_manager = StorageConfigurationManager()
+    
+    st.markdown("#### 🔍 Storage Configuration Validation")
+    
+    validation = storage_manager.validate_storage_configuration(
+        migration_data_gb, st.session_state.environment_specs
+    )
+    
+    # Status indicator
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        status_icon = "✅" if validation['is_valid'] else "❌"
+        st.metric("Configuration Status", f"{status_icon} {'Valid' if validation['is_valid'] else 'Invalid'}")
+    
+    with col2:
+        st.metric("Total Environment Storage", f"{validation['total_env_storage']:,} GB")
+    
+    with col3:
+        if validation['migration_to_env_ratio'] > 0:
+            st.metric("Storage Ratio", f"{validation['migration_to_env_ratio']:.1f}x")
+    
+    # Show issues if any
+    if validation['errors']:
+        st.error("🚨 **Critical Issues:**")
+        for error in validation['errors']:
+            st.error(f"• {error}")
+    
+    if validation['warnings']:
+        st.warning("⚠️ **Warnings:**")
+        for warning in validation['warnings']:
+            st.warning(f"• {warning}")
+    
+    if validation['recommendations']:
+        st.info("💡 **Recommendations:**")
+        for rec in validation['recommendations']:
+            st.info(f"• {rec}")
+    
+    # Environment-specific analysis
+    if validation['environment_analysis']:
+        with st.expander("📊 Environment Analysis Details"):
+            analysis_data = []
+            
+            for env_name, analysis in validation['environment_analysis'].items():
+                status_icon = {
+                    'good': '✅',
+                    'warning': '⚠️', 
+                    'critical': '🚨',
+                    'over_provisioned': '💰'
+                }.get(analysis['status'], '❓')
+                
+                analysis_data.append({
+                    'Environment': env_name,
+                    'Current (GB)': f"{analysis['current_storage_gb']:,}",
+                    'Recommended (GB)': f"{analysis['recommended_storage_gb']:,}",
+                    'Difference': f"{analysis['difference_gb']:+,} GB ({analysis['difference_percent']:+.1f}%)",
+                    'Status': f"{status_icon} {analysis['status'].title()}"
+                })
+            
+            analysis_df = pd.DataFrame(analysis_data)
+            st.dataframe(analysis_df, use_container_width=True)
+    
 class VRopsMetricsAnalyzer:
     def __init__(self):
         # Initialize your analyzer
@@ -8751,6 +8948,41 @@ def main():
     if "vrops_results" in st.session_state:
         show_vrops_results()
         
+    # In your main() function, add this to the page options:
+if page == "🧪 Test Storage":  # Add this as a temporary option
+    st.markdown("## 🧪 Storage Management Test")
+    
+    # Test the storage manager
+    if st.button("Test Storage Manager"):
+        test_storage_manager()
+    
+    # Show current state
+    st.markdown("### Current Configuration State")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Migration Params:**")
+        if st.session_state.migration_params:
+            data_size = st.session_state.migration_params.get('data_size_gb', 0)
+            st.write(f"Migration Data Size: {data_size:,} GB")
+        else:
+            st.write("No migration params configured")
+    
+    with col2:
+        st.markdown("**Environment Specs:**")
+        if st.session_state.environment_specs:
+            total_env_storage = sum([specs.get('storage_gb', 0) for specs in st.session_state.environment_specs.values()])
+            st.write(f"Total Environment Storage: {total_env_storage:,} GB")
+            st.write(f"Number of Environments: {len(st.session_state.environment_specs)}")
+        else:
+            st.write("No environments configured")
+    
+    # Test validation if both are available
+    if st.session_state.migration_params and st.session_state.environment_specs:
+        if st.button("Test Storage Validation"):
+            show_storage_validation_widget()
+        
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
     
@@ -8796,26 +9028,63 @@ def show_migration_configuration():
     # Migration parameters
     st.markdown("### ⚙️ Migration Parameters")
     
-    col1, col2, col3 = st.columns(3)
+    # ENHANCED DATA SIZE SECTION with clear explanation
+st.markdown("### 💾 Migration Data Configuration")
+
+# Add explanation box
+st.info("""
+**📚 Understanding Storage Configuration:**
+
+- **Migration Data Size** (below): Total data to be migrated from source to target
+- **Environment Storage** (configured later): Operational storage allocation for each environment
+
+The system will help you calculate appropriate environment storage based on migration data size.
+""")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### 📊 Source Data Analysis")
+    data_size_gb = st.number_input(
+        "Total Migration Data Size (GB)", 
+        min_value=1, 
+        max_value=100000, 
+        value=1000,
+        help="Total size of data to be migrated from source database"
+    )
     
-    with col1:
-        st.markdown("#### 💾 Data Size & Storage Strategy")
-        data_size_gb = st.number_input("Total Data Size (GB)", min_value=1, max_value=100000, value=1000)
-        num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
-        num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
+    # Show data size implications
+    if data_size_gb:
+        st.markdown("**Migration Implications:**")
+        if data_size_gb < 100:
+            st.success("🟢 Small dataset - Quick migration possible")
+        elif data_size_gb < 1000:
+            st.info("🔵 Medium dataset - Standard migration approach")
+        elif data_size_gb < 10000:
+            st.warning("🟡 Large dataset - Plan for extended migration time")
+        else:
+            st.error("🔴 Very large dataset - Consider hybrid/incremental approach")
+
+with col2:
+    st.markdown("#### 🎯 Environment Planning Preview")
     
-    with col2:
-        st.markdown("#### ⏱️ Timeline & Resources")
-        migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
-        team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
-        team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
-    
-    with col3:
-        st.markdown("#### 🌐 Infrastructure")
-        region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
-        use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
-        bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
-        migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
+    # Show estimated storage requirements
+    if data_size_gb:
+        storage_manager = StorageConfigurationManager()
+        
+        # Calculate estimates for common environments
+        estimates = {
+            'Production': storage_manager.calculate_recommended_storage(data_size_gb, 'production'),
+            'Staging': storage_manager.calculate_recommended_storage(data_size_gb, 'staging'), 
+            'Development': storage_manager.calculate_recommended_storage(data_size_gb, 'development')
+        }
+        
+        st.markdown("**Estimated Environment Storage:**")
+        for env_name, estimate in estimates.items():
+            st.write(f"• {env_name}: ~{estimate['total_recommended_gb']:,} GB")
+        
+        total_estimate = sum([est['total_recommended_gb'] for est in estimates.values()])
+        st.write(f"**Total Estimated: ~{total_estimate:,} GB**")
 
     # ADD NEW GROWTH PLANNING SECTION:
     st.markdown("### 📈 Growth Planning & Forecasting")
@@ -10596,6 +10865,10 @@ if st.session_state.migration_params:
         show_bulk_cluster_upload()
     else:
         show_simple_configuration()
+    # Add this near the end of your environment setup function
+    if st.session_state.migration_params and st.session_state.environment_specs:
+        st.markdown("---")  # Add a separator
+        show_storage_validation_widget()
 
 def show_manual_cluster_configuration():
     """Show manual cluster configuration with Writer/Reader options"""
@@ -11584,6 +11857,180 @@ def show_enhanced_environment_analysis():
                 st.info("⚡ High-performance io2 storage for demanding IOPS requirements")
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
+    
+def show_enhanced_storage_auto_calculator():
+    """Enhanced storage auto-calculator with validation"""
+    
+    if not st.session_state.migration_params:
+        st.warning("Please configure migration parameters first")
+        return
+    
+    migration_data_size = st.session_state.migration_params.get('data_size_gb', 1000)
+    storage_manager = StorageConfigurationManager()
+    
+    st.markdown("### 🤖 Intelligent Storage Calculator")
+    
+    # Show migration data context
+    st.info(f"📊 Base migration data size: **{migration_data_size:,} GB**")
+    
+    # Environment multiplier configuration
+    st.markdown("#### 🎛️ Environment Configuration")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Environment Multipliers:**")
+        prod_mult = st.slider("Production", 0.8, 3.0, 1.5, 0.1, 
+                             help="Production typically needs more storage for safety")
+        stage_mult = st.slider("Staging", 0.5, 2.0, 1.0, 0.1,
+                              help="Staging usually matches production data size")
+        test_mult = st.slider("Testing/QA", 0.2, 1.5, 0.7, 0.1,
+                             help="Testing with subset of production data")
+        dev_mult = st.slider("Development", 0.1, 1.0, 0.3, 0.1,
+                            help="Development with minimal data set")
+    
+    with col2:
+        st.markdown("**Additional Factors:**")
+        growth_buffer = st.slider("Growth Buffer (%)", 10, 100, 30, 5,
+                                 help="Additional storage for future growth") / 100
+        replication_overhead = st.slider("Replication Overhead (%)", 5, 30, 10, 5,
+                                       help="Extra storage for logs, backups, etc.") / 100
+        
+        include_compression = st.checkbox("Include Compression Factor", value=True,
+                                        help="Consider 20-30% compression savings")
+        compression_factor = 0.7 if include_compression else 1.0
+    
+    # Calculate recommendations
+    st.markdown("#### 📊 Storage Recommendations")
+    
+    environments = ['Production', 'Staging', 'Testing', 'QA', 'Development']
+    multipliers = {'Production': prod_mult, 'Staging': stage_mult, 'Testing': test_mult, 
+                   'QA': test_mult, 'Development': dev_mult}
+    
+    recommendations_data = []
+    
+    for env_type in environments:
+        base_storage = int(migration_data_size * multipliers[env_type] * compression_factor)
+        growth_storage = int(base_storage * growth_buffer)
+        replication_storage = int(base_storage * replication_overhead)
+        total_storage = base_storage + growth_storage + replication_storage
+        
+        recommendations_data.append({
+            'Environment': env_type,
+            'Base Storage (GB)': f"{base_storage:,}",
+            'Growth Buffer (GB)': f"{growth_storage:,}",
+            'Replication Overhead (GB)': f"{replication_storage:,}",
+            'Total Recommended (GB)': f"{total_storage:,}",
+            'Multiplier': f"{multipliers[env_type]}x"
+        })
+    
+    recommendations_df = pd.DataFrame(recommendations_data)
+    st.dataframe(recommendations_df, use_container_width=True)
+    
+    # Apply to current environments
+    if st.session_state.environment_specs:
+        st.markdown("#### ⚙️ Apply to Current Environments")
+        
+        # Show current vs recommended
+        current_analysis = []
+        
+        for env_name, specs in st.session_state.environment_specs.items():
+            env_type = specs.get('environment_type', env_name).lower()
+            current_storage = specs.get('storage_gb', 0)
+            
+            # Match to multiplier
+            if 'prod' in env_type:
+                multiplier = prod_mult
+            elif 'stag' in env_type:
+                multiplier = stage_mult
+            elif any(x in env_type for x in ['test', 'qa', 'uat']):
+                multiplier = test_mult
+            elif 'dev' in env_type:
+                multiplier = dev_mult
+            else:
+                multiplier = 1.0
+            
+            # Calculate recommended
+            base_storage = int(migration_data_size * multiplier * compression_factor)
+            total_recommended = int(base_storage * (1 + growth_buffer + replication_overhead))
+            
+            difference = total_recommended - current_storage
+            status = "✅ Good" if abs(difference) < current_storage * 0.2 else "⚠️ Review" if difference > 0 else "💰 Over-provisioned"
+            
+            current_analysis.append({
+                'Environment': env_name,
+                'Current (GB)': f"{current_storage:,}",
+                'Recommended (GB)': f"{total_recommended:,}",
+                'Difference (GB)': f"{difference:+,}",
+                'Status': status
+            })
+        
+        analysis_df = pd.DataFrame(current_analysis)
+        st.dataframe(analysis_df, use_container_width=True)
+        
+        # Apply changes button
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("🎯 Apply Recommended Storage", type="primary"):
+                updated_specs = {}
+                
+                for env_name, specs in st.session_state.environment_specs.items():
+                    env_type = specs.get('environment_type', env_name).lower()
+                    
+                    # Match to multiplier
+                    if 'prod' in env_type:
+                        multiplier = prod_mult
+                    elif 'stag' in env_type:
+                        multiplier = stage_mult
+                    elif any(x in env_type for x in ['test', 'qa', 'uat']):
+                        multiplier = test_mult
+                    elif 'dev' in env_type:
+                        multiplier = dev_mult
+                    else:
+                        multiplier = 1.0
+                    
+                    # Calculate new storage
+                    base_storage = int(migration_data_size * multiplier * compression_factor)
+                    total_recommended = int(base_storage * (1 + growth_buffer + replication_overhead))
+                    
+                    updated_specs[env_name] = {
+                        **specs,
+                        'storage_gb': total_recommended,
+                        'original_storage_gb': specs.get('storage_gb', 0),
+                        'auto_calculated': True,
+                        'calculation_details': {
+                            'base_storage': base_storage,
+                            'growth_buffer': int(base_storage * growth_buffer),
+                            'replication_overhead': int(base_storage * replication_overhead),
+                            'multiplier': multiplier,
+                            'compression_factor': compression_factor
+                        }
+                    }
+                
+                st.session_state.environment_specs = updated_specs
+                st.success("✅ Storage recommendations applied!")
+                st.balloons()
+        
+        with col2:
+            if st.button("🔍 Validate Current Storage"):
+                validation = storage_manager.validate_storage_configuration(
+                    migration_data_size, st.session_state.environment_specs
+                )
+                
+                if validation['is_valid']:
+                    st.success("✅ Storage configuration is valid!")
+                else:
+                    st.error("❌ Storage configuration issues found:")
+                    for error in validation['errors']:
+                        st.error(f"• {error}")
+                
+                if validation['warnings']:
+                    st.warning("⚠️ Storage warnings:")
+                    for warning in validation['warnings']:
+                        st.warning(f"• {warning}")
+
+
 def validate_growth_analysis_functions():
     """Validate that all growth analysis functions are properly defined"""
     
