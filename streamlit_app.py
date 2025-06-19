@@ -428,7 +428,6 @@ def show_enhanced_environment_analysis():
     
     st.markdown("### 🏢 Enhanced Environment Analysis")
     
-    # Check if enhanced recommendations exist
     if not hasattr(st.session_state, 'enhanced_recommendations') or not st.session_state.enhanced_recommendations:
         st.warning("Enhanced recommendations not available.")
         return
