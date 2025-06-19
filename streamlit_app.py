@@ -203,38 +203,38 @@ class SafeMigrationAnalyzer:
                     anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
                     analyzer = SafeMigrationAnalyzer(anthropic_api_key)
             
-            # Step 3: Normalize environment specs BEFORE analysis
-                    st.write("🔄 Normalizing environment specifications...")
-                    normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
-            
-                if not normalized_specs:
-                    st.error("❌ Failed to normalize environment specifications")
-                    return False
-            
-                    # Update session state with normalized specs
-                    st.session_state.environment_specs = normalized_specs
-                    
-                    # Step 4: Calculate recommendations
-                    st.write("📊 Calculating instance recommendations...")
-                    recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
-                    st.session_state.recommendations = recommendations
-                    
-                    # Step 5: Calculate costs
-                    st.write("💰 Analyzing costs...")
-                    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
-                    st.session_state.analysis_results = cost_analysis
-                    
-                    # Step 6: Risk assessment
-                    st.write("⚠️ Assessing risks...")
-                    risk_assessment = create_default_risk_assessment()
-                    st.session_state.risk_assessment = risk_assessment
-                    
-                    st.success("✅ Analysis completed successfully!")
-                    
-                    # Show summary
-                    show_fixed_analysis_summary()
-            
-            return True
+# Step 3: Normalize environment specs BEFORE analysis
+st.write("🔄 Normalizing environment specifications...")
+normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
+
+if not normalized_specs:
+    st.error("❌ Failed to normalize environment specifications")
+    return False
+
+# Update session state with normalized specs
+st.session_state.environment_specs = normalized_specs
+
+# Step 4: Calculate recommendations
+st.write("📊 Calculating instance recommendations...")
+recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
+st.session_state.recommendations = recommendations
+
+# Step 5: Calculate costs
+st.write("💰 Analyzing costs...")
+cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+st.session_state.analysis_results = cost_analysis
+
+# Step 6: Risk assessment
+st.write("⚠️ Assessing risks...")
+risk_assessment = create_default_risk_assessment()
+st.session_state.risk_assessment = risk_assessment
+
+st.success("✅ Analysis completed successfully!")
+
+# Show summary
+show_fixed_analysis_summary()
+
+return True
             
         except Exception as e:
             st.error(f"❌ Analysis failed: {str(e)}")
