@@ -17,6 +17,7 @@ import asyncio
 import hashlib
 import tempfile
 import os
+import anthropic 
 
 # PDF Generation imports
 from reportlab.lib import colors
@@ -2679,6 +2680,120 @@ class GrowthAwareCostAnalyzer:
                 projections[f'year_{year}']['total_annual'] for year in range(4)
             ]) / 4
         }
+    
+    def _identify_growth_optimizations(self, projections: Dict) -> List[Dict]:
+        """Identify cost optimization opportunities based on growth projections"""
+        
+        optimizations = []
+        
+        year_0 = projections['year_0']
+        year_3 = projections['year_3']
+        
+        # Calculate growth rates for different cost components
+        total_growth = (year_3['total_annual'] / year_0['total_annual'] - 1) * 100
+        
+        # Storage optimization opportunities
+        storage_growth = 0
+        compute_growth = 0
+        env_count = len(year_0['environment_costs'])
+        
+        for env_name in year_0['environment_costs'].keys():
+            year_0_env = year_0['environment_costs'][env_name]
+            year_3_env = year_3['environment_costs'][env_name]
+            
+            storage_growth += year_3_env['resource_scaling']['storage_scaling']
+            compute_growth += year_3_env['resource_scaling']['compute_scaling']
+        
+        avg_storage_growth = storage_growth / env_count
+        avg_compute_growth = compute_growth / env_count
+        
+        # Generate optimization recommendations
+        if avg_storage_growth > 2.5:
+            optimizations.append({
+                'opportunity': 'Data Lifecycle Management',
+                'description': f"Storage projected to grow {avg_storage_growth:.1f}x over 3 years. Implement automated data archiving and tiering.",
+                'estimated_savings': year_3['total_annual'] * 0.15,
+                'implementation_effort': 'Medium',
+                'timeline': '3-6 months'
+            })
+        
+        if avg_compute_growth > 2.0:
+            optimizations.append({
+                'opportunity': 'Reserved Instance Strategy',
+                'description': f"Compute resources growing {avg_compute_growth:.1f}x. Reserved Instances can provide 30-60% savings.",
+                'estimated_savings': year_3['total_annual'] * 0.35,
+                'implementation_effort': 'Low',
+                'timeline': '1-2 months'
+            })
+        
+        if total_growth > 100:  # More than doubling
+            optimizations.append({
+                'opportunity': 'Architecture Optimization',
+                'description': f"Total costs growing {total_growth:.1f}% over 3 years. Consider microservices architecture and serverless components.",
+                'estimated_savings': year_3['total_annual'] * 0.25,
+                'implementation_effort': 'High',
+                'timeline': '6-12 months'
+            })
+        
+        # Seasonal optimization
+        peak_ratio = year_3['peak_annual'] / year_3['total_annual']
+        if peak_ratio > 1.3:  # 30% peak difference
+            optimizations.append({
+                'opportunity': 'Auto-scaling Implementation',
+                'description': f"Peak costs are {peak_ratio:.1f}x average. Auto-scaling can reduce costs during low-demand periods.",
+                'estimated_savings': (year_3['peak_annual'] - year_3['total_annual']) * 0.6,
+                'implementation_effort': 'Medium',
+                'timeline': '2-4 months'
+            })
+        
+        # Reader replica optimization
+        total_reader_scaling = sum([
+            env['resource_scaling']['recommended_reader_scaling'] 
+            for env in year_3['environment_costs'].values()
+        ])
+        
+        if total_reader_scaling > env_count * 2:  # More than 2 readers per environment on average
+            optimizations.append({
+                'opportunity': 'Read Replica Optimization',
+                'description': f"Projected to need {total_reader_scaling} total read replicas. Consider Aurora Serverless v2 for variable read workloads.",
+                'estimated_savings': year_3['total_annual'] * 0.12,
+                'implementation_effort': 'Low',
+                'timeline': '1-3 months'
+            })
+        
+        # If no specific optimizations found, provide general recommendations
+        if not optimizations:
+            optimizations.append({
+                'opportunity': 'Continuous Optimization',
+                'description': 'Implement regular cost reviews and right-sizing exercises every 6 months.',
+                'estimated_savings': year_3['total_annual'] * 0.10,
+                'implementation_effort': 'Low',
+                'timeline': 'Ongoing'
+            })
+        
+        return optimizations
+    
+    def _generate_growth_summary(self, projections: Dict) -> Dict:
+        """Generate growth summary statistics"""
+        
+        year_0 = projections['year_0']['total_annual']
+        year_3 = projections['year_3']['total_annual']
+        
+        total_growth = ((year_3 / year_0) - 1) * 100
+        cagr = ((year_3 / year_0) ** (1/3) - 1) * 100
+        
+        return {
+            'total_3_year_growth_percent': total_growth,
+            'compound_annual_growth_rate': cagr,
+            'year_0_cost': year_0,
+            'year_3_cost': year_3,
+            'total_3_year_investment': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]),
+            'average_annual_cost': sum([
+                projections[f'year_{year}']['total_annual'] for year in range(4)
+            ]) / 4
+        }
 
 class VRopsMetricsAnalyzer:
     """Comprehensive vROps metrics analysis for accurate AWS sizing"""
@@ -3248,6 +3363,18 @@ class VRopsMetricsAnalyzer:
         
         return scores
     
+    def _generate_overall_recommendations(self, analysis_results: Dict) -> Dict:
+        """Generate overall migration recommendations based on all environments"""
+        
+        return {
+            'migration_strategy': 'Phased migration recommended based on vROps analysis',
+            'infrastructure_recommendations': [
+                'Implement monitoring and alerting for new AWS environment',
+                'Plan for right-sizing after initial migration based on actual usage'
+            ]
+        }
+    
+    
     def _identify_optimization_opportunities(self, metrics: Dict, cpu_analysis: Dict, 
                                            memory_analysis: Dict, storage_analysis: Dict) -> List[Dict]:
         """Identify optimization opportunities"""
@@ -3407,10 +3534,10 @@ class VRopsMetricsAnalyzer:
 # ENHANCED STREAMLIT INTERFACE
 # ===========================
 
-def show_enhanced_environment_setup_with_cluster_config():
-    """Enhanced environment setup with comprehensive vROps metrics"""
+def show_enhanced_environment_setup_with_vrops():
+    """Enhanced environment setup with vROps integration"""
     
-    st.markdown("## 📊 Enhanced Environment Configuration with vROps Metrics")
+    st.markdown("## 📊 Enhanced Environment Configuration")
     
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
@@ -3672,6 +3799,85 @@ def show_vrops_processing_summary(environments: Dict, analyzer: VRopsMetricsAnal
             
             # Show quick insights
             show_vrops_analysis_summary(analysis_results)
+def show_vrops_results_tab():
+    """Show vROps analysis results in the dashboard"""
+    
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.markdown("### 📊 vROps Performance Analysis")
+        
+        analysis_results = st.session_state.vrops_analysis
+        
+        # Performance health overview
+        col1, col2, col3 = st.columns(3)
+        
+        # Calculate overall health scores
+        health_scores = []
+        env_count = 0
+        
+        for env_name, analysis in analysis_results.items():
+            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+                env_count += 1
+                scores = analysis.get('performance_scores', {})
+                health_scores.append(scores.get('overall_health', 0))
+        
+        avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
+        
+        with col1:
+            st.metric("Overall Health Score", f"{avg_health:.1f}/100")
+        
+        with col2:
+            at_risk_envs = len([score for score in health_scores if score < 70])
+            st.metric("At Risk Environments", at_risk_envs)
+        
+        with col3:
+            st.metric("Total Environments", env_count)
+        
+        # Environment details
+        st.markdown("#### 🏢 Environment Performance Analysis")
+        
+        for env_name, analysis in analysis_results.items():
+            if env_name != 'overall_recommendations' and isinstance(analysis, dict):
+                with st.expander(f"📊 {env_name} Performance Details"):
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.markdown("**CPU Analysis**")
+                        cpu_analysis = analysis.get('cpu_analysis', {})
+                        st.write(f"Max Usage: {cpu_analysis.get('max_usage_percent', 0):.1f}%")
+                        st.write(f"Avg Usage: {cpu_analysis.get('avg_usage_percent', 0):.1f}%")
+                        st.write(f"Required Capacity: {cpu_analysis.get('required_capacity_percent', 0):.1f}%")
+                    
+                    with col2:
+                        st.markdown("**Memory Analysis**")
+                        memory_analysis = analysis.get('memory_analysis', {})
+                        st.write(f"Max Usage: {memory_analysis.get('max_usage_percent', 0):.1f}%")
+                        st.write(f"Avg Usage: {memory_analysis.get('avg_usage_percent', 0):.1f}%")
+                        st.write(f"Allocated: {memory_analysis.get('allocated_gb', 0)} GB")
+                    
+                    with col3:
+                        st.markdown("**Storage Analysis**")
+                        storage_analysis = analysis.get('storage_analysis', {})
+                        st.write(f"Max IOPS: {storage_analysis.get('max_iops', 0):,}")
+                        st.write(f"Avg IOPS: {storage_analysis.get('avg_iops', 0):,}")
+                        st.write(f"Storage Utilization: {storage_analysis.get('storage_utilization_percent', 0):.1f}%")
+                    
+                    # Instance recommendations
+                    st.markdown("**🎯 AWS Instance Recommendations**")
+                    recommendations = analysis.get('instance_recommendations', [])
+                    
+                    if recommendations:
+                        for i, rec in enumerate(recommendations[:3], 1):
+                            st.markdown(f"{i}. **{rec['instance_type']}** - "
+                                      f"CPU Efficiency: {rec['cpu_efficiency']:.1%}, "
+                                      f"Memory Efficiency: {rec['memory_efficiency']:.1%}, "
+                                      f"Fit Score: {rec['fit_score']:.1f}")
+                    else:
+                        st.write("No recommendations available")
+    
+    else:
+        st.info("📊 vROps analysis not available. Use the enhanced environment setup with vROps metrics import to access detailed performance analysis.")
+
 
 def show_vrops_analysis_summary(analysis_results: Dict):
     """Show summary of vROps analysis results"""
@@ -3912,39 +4118,55 @@ def show_enhanced_bulk_upload(analyzer: VRopsMetricsAnalyzer):
     
     st.markdown("### 📁 Enhanced Bulk Upload")
     
-    # Comprehensive template
+    # Use the same template and processing as before
     with st.expander("📋 Download Comprehensive Template", expanded=False):
-        
-        st.markdown("""
-        **Enhanced Template includes:**
-        - All vROps performance metrics
-        - Database-specific metrics
-        - Workload pattern information
-        - Application characteristics
-        """)
-        
-        template_data = create_comprehensive_template()
+        template_data = create_vrops_sample_template()
         csv_data = template_data.to_csv(index=False)
         
         st.dataframe(template_data, use_container_width=True)
         
         st.download_button(
-            label="📥 Download Comprehensive Template",
+            label="📥 Download Performance Metrics Template",
             data=csv_data,
-            file_name="comprehensive_environment_template.csv",
+            file_name="performance_metrics_template.csv",
             mime="text/csv",
             use_container_width=True
         )
     
     # File upload with enhanced processing
     uploaded_file = st.file_uploader(
-        "Upload Environment Data",
+        "Upload Performance Data",
         type=['csv', 'xlsx'],
-        help="Upload CSV or Excel file with comprehensive environment metrics"
+        help="Upload CSV or Excel file with performance metrics"
     )
     
     if uploaded_file is not None:
-        process_enhanced_bulk_upload(uploaded_file, analyzer)
+        try:
+            # Load file
+            if uploaded_file.name.endswith('.csv'):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            
+            st.success(f"✅ File loaded: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Process the uploaded data
+            environments = process_vrops_data(df, analyzer)
+            
+            if environments:
+                st.session_state.environment_specs = environments
+                st.success(f"✅ Processed {len(environments)} environments!")
+                
+                # Run analysis
+                with st.spinner("🔄 Running performance analysis..."):
+                    analysis_results = analyzer.analyze_vrops_metrics(environments)
+                    st.session_state.vrops_analysis = analysis_results
+                
+                st.success("✅ Analysis complete!")
+                show_vrops_analysis_summary(analysis_results)
+        
+        except Exception as e:
+            st.error(f"❌ Error processing file: {str(e)}")
 
 def create_comprehensive_template() -> pd.DataFrame:
     """Create comprehensive template with all metrics"""
@@ -4553,6 +4775,7 @@ class DatabaseClusterConfiguration:
         except ValueError:
             # If writer instance not in hierarchy, default to r5.large
             return 'db.r5.large'
+        
 # Updated Migration Analyzer with Real APIs
 class RealMigrationAnalyzer:
     """Migration analyzer with real AWS pricing and Claude AI"""
@@ -5901,11 +6124,11 @@ def show_pattern_comparison(transfer_analysis: Dict):
     
     # Comparison chart
     comparison_fig = create_network_comparison_chart(transfer_analysis)
-    st.plotly_chart(comparison_fig, use_container_width=True)
+    st.plotly_chart(comparison_fig, use_container_width=True, key="network_comparison_chart")
     
     # Cost vs Duration optimization
     optimization_fig = create_cost_duration_optimization_chart(transfer_analysis)
-    st.plotly_chart(optimization_fig, use_container_width=True)
+    st.plotly_chart(optimization_fig, use_container_width=True, key="cost_duration_optimization_chart")
     
     # Detailed comparison table
     st.markdown("#### 📋 Detailed Metrics Comparison")
@@ -5933,6 +6156,171 @@ def show_pattern_comparison(transfer_analysis: Dict):
     comparison_df = pd.DataFrame(comparison_data)
     st.dataframe(comparison_df, use_container_width=True)
 
+def show_network_timeline_analysis(transfer_analysis: Dict):
+    """Show network timeline analysis"""
+    
+    st.markdown("### ⏱️ Timeline Analysis")
+    
+    recommendations = transfer_analysis.get('recommendations', {})
+    timeline_impact = recommendations.get('timeline_impact', {})
+    
+    if timeline_impact:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            fastest = timeline_impact.get('fastest_option', {})
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #38a169;">
+                <div class="metric-value" style="color: #38a169;">
+                    ⚡ Fastest Option
+                </div>
+                <div class="metric-label">{fastest.get('pattern', 'N/A')}</div>
+                <div style="margin-top: 10px;">
+                    Duration: {fastest.get('duration_days', 0):.1f} days<br>
+                    Timeline Usage: {fastest.get('timeline_utilization', 'N/A')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            slowest = timeline_impact.get('slowest_option', {})
+            st.markdown(f"""
+            <div class="metric-card" style="border-left-color: #e53e3e;">
+                <div class="metric-value" style="color: #e53e3e;">
+                    🐌 Slowest Option
+                </div>
+                <div class="metric-label">{slowest.get('pattern', 'N/A')}</div>
+                <div style="margin-top: 10px;">
+                    Duration: {slowest.get('duration_days', 0):.1f} days<br>
+                    Timeline Usage: {slowest.get('timeline_utilization', 'N/A')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.info(f"💡 {timeline_impact.get('recommendation', '')}")
+    
+    # Timeline comparison chart
+    patterns = []
+    durations = []
+    colors = []
+    
+    migration_timeline_days = st.session_state.migration_params.get('migration_timeline_weeks', 12) * 7
+    
+    for pattern_id, metrics in transfer_analysis.items():
+        if pattern_id == 'recommendations':
+            continue
+            
+        analyzer = NetworkTransferAnalyzer()
+        pattern_info = analyzer.transfer_patterns[pattern_id]
+        
+        patterns.append(pattern_info['name'])
+        durations.append(metrics['transfer_time_days'])
+        
+        # Color based on timeline fit
+        if metrics['transfer_time_days'] <= migration_timeline_days * 0.3:
+            colors.append('green')
+        elif metrics['transfer_time_days'] <= migration_timeline_days * 0.5:
+            colors.append('orange')
+        else:
+            colors.append('red')
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=patterns,
+        y=durations,
+        marker_color=colors,
+        text=[f"{d:.1f} days" for d in durations],
+        textposition='auto'
+    ))
+    
+    # Add timeline constraint line
+    fig.add_hline(
+        y=migration_timeline_days * 0.3,
+        line_dash="dash",
+        line_color="green",
+        annotation_text="Recommended (30% of timeline)"
+    )
+    
+    fig.update_layout(
+        title='Transfer Duration vs Timeline Constraints',
+        xaxis_title='Network Pattern',
+        yaxis_title='Duration (days)',
+        height=500,
+        xaxis_tickangle=-45
+    )
+    
+    st.plotly_chart(fig, use_container_width=True, key="network_timeline_duration_chart")
+
+def show_network_architecture(transfer_analysis: Dict):
+    """Show network architecture diagrams"""
+    
+    st.markdown("### 🏗️ Network Architecture")
+    
+    # Pattern selector
+    analyzer = NetworkTransferAnalyzer()
+    pattern_options = list(analyzer.transfer_patterns.keys())
+    pattern_names = [analyzer.transfer_patterns[p]['name'] for p in pattern_options]
+    
+    selected_pattern_name = st.selectbox(
+        "Select Pattern to Visualize",
+        pattern_names
+    )
+    
+    selected_pattern_id = pattern_options[pattern_names.index(selected_pattern_name)]
+    
+    # Architecture diagram
+    arch_fig = create_network_architecture_diagram(selected_pattern_id)
+    st.plotly_chart(arch_fig, use_container_width=True, key="network_architecture_chart")
+    
+    # Pattern details
+    pattern_info = analyzer.transfer_patterns[selected_pattern_id]
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 🔧 Components")
+        for component in pattern_info['components']:
+            st.markdown(f"• {component}")
+    
+    with col2:
+        st.markdown("#### 📋 Use Cases")
+        for use_case in pattern_info['use_cases']:
+            st.markdown(f"• {use_case}")
+    
+    # Pros and Cons
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### ✅ Advantages")
+        for pro in pattern_info['pros']:
+            st.markdown(f"• {pro}")
+    
+    with col2:
+        st.markdown("#### ⚠️ Considerations")
+        for con in pattern_info['cons']:
+            st.markdown(f"• {con}")
+    
+    # Technical specifications
+    if selected_pattern_id in transfer_analysis:
+        metrics = transfer_analysis[selected_pattern_id]
+        
+        st.markdown("#### 📊 Performance Metrics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Bandwidth Utilization", f"{metrics['bandwidth_utilization']}%")
+        
+        with col2:
+            st.metric("Reliability Score", f"{metrics['reliability_score']}/100")
+        
+        with col3:
+            st.metric("Security Score", f"{metrics['security_score']}/100")
+        
+        with col4:
+            st.metric("Complexity Level", pattern_info['complexity'])
+
 def show_network_cost_analysis(transfer_analysis: Dict):
     """Show detailed network cost analysis"""
     
@@ -5940,6 +6328,7 @@ def show_network_cost_analysis(transfer_analysis: Dict):
     
     # Cost breakdown for each pattern
     analyzer = NetworkTransferAnalyzer()
+    chart_counter = 0
     
     for pattern_id, metrics in transfer_analysis.items():
         if pattern_id == 'recommendations':
@@ -5948,7 +6337,7 @@ def show_network_cost_analysis(transfer_analysis: Dict):
         pattern_info = analyzer.transfer_patterns[pattern_id]
         
         with st.expander(f"💵 {pattern_info['name']} - Total Cost: ${metrics['total_cost']:,.0f}"):
-            
+             
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -6766,6 +7155,613 @@ def create_risk_heatmap(risk_assessment: Dict) -> go.Figure:
     )
     
     return fig
+def show_results_dashboard():
+    """Show comprehensive results dashboard with vROps analysis"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
+        return
+    
+    st.markdown("## 📊 Migration Analysis Results")
+    
+    # Check for enhanced results
+    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
+                           st.session_state.enhanced_analysis_results is not None)
+    
+    # Create tabs for different views
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        "💰 Cost Summary",
+        "📈 Growth Projections",
+        "📊 vROps Analysis",
+        "💎 Enhanced Analysis",
+        "⚠️ Risk Assessment", 
+        "🏢 Environment Analysis",
+        "📊 Visualizations",
+        "🤖 AI Insights",
+        "📅 Timeline"
+    ])
+    
+    with tab1:
+        show_basic_cost_summary()
+    
+    with tab2:
+        show_growth_analysis_dashboard()  # FIXED ABOVE
+    
+    with tab3:
+        show_vrops_results_tab()
+    
+    with tab4:
+        if has_enhanced_results:
+            show_enhanced_cost_analysis()
+        else:
+            st.info("💡 Enhanced cost analysis not available.")
+            show_basic_cost_summary()
+
+    with tab5:
+        show_risk_assessment_tab()
+
+    with tab6:
+        show_environment_analysis_tab()
+
+    with tab7:
+        show_visualizations_tab()
+
+    with tab8:
+        show_ai_insights_tab()
+
+    with tab9:
+        show_timeline_analysis_tab()
+        
+# Alternative simplified version if the above still has issues
+def show_results_dashboard_simple():
+    """Simplified results dashboard to avoid indentation issues"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
+        return
+    
+    st.markdown("## 📊 Migration Analysis Results")
+    
+    # Check for enhanced results
+    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
+                           st.session_state.enhanced_analysis_results is not None)
+    
+    # Create tabs for different views
+    tabs = st.tabs([
+        "💰 Cost Summary",
+        "📈 Growth Projections", 
+        "💎 Enhanced Analysis",
+        "⚠️ Risk Assessment", 
+        "🏢 Environment Analysis",
+        "📊 Visualizations",
+        "🤖 AI Insights",
+        "📅 Timeline"
+    ])
+    
+    # Tab content
+    with tabs[0]:  # Cost Summary
+        show_basic_cost_summary()
+    
+    with tabs[1]:  # Growth Projections
+        show_growth_analysis_dashboard()
+    
+    with tabs[2]:  # Enhanced Analysis
+        if has_enhanced_results:
+            show_enhanced_cost_analysis()
+        else:
+            st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
+            show_basic_cost_summary()
+    
+    with tabs[3]:  # Risk Assessment
+        show_risk_assessment_tab()
+    
+    with tabs[4]:  # Environment Analysis
+        show_environment_analysis_tab()
+    
+    with tabs[5]:  # Visualizations
+        show_visualizations_tab()
+    
+    with tabs[6]:  # AI Insights
+        show_ai_insights_tab()
+    
+    with tabs[7]:  # Timeline
+        show_timeline_analysis_tab()
+
+
+def show_basic_cost_summary():
+    """Show basic cost summary from analysis results"""
+    
+    if not st.session_state.analysis_results:
+        st.error("No analysis results available.")
+        return
+    
+    results = st.session_state.analysis_results
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        monthly_cost = results.get('monthly_aws_cost', 0)
+        st.metric("Monthly AWS Cost", f"${monthly_cost:,.0f}")
+    
+    with col2:
+        annual_cost = monthly_cost * 12
+        st.metric("Annual AWS Cost", f"${annual_cost:,.0f}")
+    
+    with col3:
+        migration_cost = results.get('migration_costs', {}).get('total', 0)
+        st.metric("Migration Cost", f"${migration_cost:,.0f}")
+    
+    with col4:
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            growth_percent = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+            st.metric("3-Year Growth", f"{growth_percent:.1f}%")
+        else:
+            total_cost = annual_cost + migration_cost
+            st.metric("Total First Year", f"${total_cost:,.0f}")
+    
+    # Environment costs breakdown
+    st.markdown("### 💰 Cost Breakdown by Environment")
+    
+    env_costs = results.get('environment_costs', {})
+    if env_costs:
+        for env_name, costs in env_costs.items():
+            with st.expander(f"🏢 {env_name.title()} Environment"):
+                if isinstance(costs, dict) and 'instance_cost' in costs:
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Instance Cost", f"${costs.get('instance_cost', 0):,.2f}/month")
+                        st.metric("Storage Cost", f"${costs.get('storage_cost', 0):,.2f}/month")
+                    
+                    with col2:
+                        st.metric("Reader Instances", f"${costs.get('reader_costs', 0):,.2f}/month")
+                        st.metric("Backup Cost", f"${costs.get('backup_cost', 0):,.2f}/month")
+                    
+                    with col3:
+                        total_env_cost = costs.get('total_monthly', 
+                                                 sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
+                        st.metric("Total Monthly", f"${total_env_cost:,.2f}")
+                else:
+                    if isinstance(costs, (int, float)):
+                        st.metric("Monthly Cost", f"${costs:,.2f}")
+                    else:
+                        st.write("Cost information not available in expected format")
+
+
+def show_growth_analysis_dashboard():
+    """Show comprehensive growth analysis dashboard"""
+    
+    st.markdown("### 📈 3-Year Growth Analysis & Projections")
+    
+    # Check if growth analysis exists
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
+        
+        # Show basic growth planning instead
+        st.markdown("#### 🎯 Growth Planning Preview")
+        st.info("""
+        **Growth analysis will show:**
+        - 3-year cost projections with growth factors
+        - Resource scaling requirements
+        - Seasonal peak planning
+        - Cost optimization opportunities
+        - Scaling recommendations by year
+        
+        Run the migration analysis to see detailed growth projections.
+        """)
+        return
+    
+    growth_analysis = st.session_state.growth_analysis
+    growth_summary = growth_analysis['growth_summary']
+    
+    # Key Growth Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "3-Year Growth",
+            f"{growth_summary['total_3_year_growth_percent']:.1f}%",
+            delta=f"CAGR: {growth_summary['compound_annual_growth_rate']:.1f}%"
+        )
+    
+    with col2:
+        st.metric(
+            "Current Annual Cost",
+            f"${growth_summary['year_0_cost']:,.0f}",
+            delta="Baseline"
+        )
+    
+    with col3:
+        st.metric(
+            "Year 3 Projected Cost",
+            f"${growth_summary['year_3_cost']:,.0f}",
+            delta=f"+${growth_summary['year_3_cost'] - growth_summary['year_0_cost']:,.0f}"
+        )
+    
+    with col4:
+        st.metric(
+            "Total 3-Year Investment",
+            f"${growth_summary['total_3_year_investment']:,.0f}",
+            delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
+        )
+
+     # Growth Projection Charts
+    st.markdown("#### 📊 Growth Projections")
+    
+    try:
+        charts = create_growth_projection_charts(growth_analysis)
+        
+        # Display charts with unique keys
+        for i, chart in enumerate(charts):
+            st.plotly_chart(chart, use_container_width=True, key=f"growth_chart_{i}")
+            
+    except Exception as e:
+        st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Show basic growth table instead
+        st.markdown("#### 📈 Year-by-Year Projections")
+        projections = growth_analysis['yearly_projections']
+        
+        years_data = []
+        for year in range(4):
+            year_data = projections[f'year_{year}']
+            years_data.append({
+                'Year': f'Year {year}' if year > 0 else 'Current',
+                'Monthly Cost': f"${year_data['total_monthly']:,.0f}",
+                'Annual Cost': f"${year_data['total_annual']:,.0f}",
+                'Peak Cost': f"${year_data['peak_annual']:,.0f}"
+            })
+        
+        st.table(years_data)
+    
+    # Scaling Recommendations
+    st.markdown("#### 🎯 Scaling Recommendations")
+    
+    recommendations = growth_analysis.get('scaling_recommendations', [])
+    
+    if recommendations:
+        for rec in recommendations:
+            priority_color = {
+                'High': '#e53e3e',
+                'Medium': '#d69e2e',
+                'Low': '#38a169'
+            }.get(rec['priority'], '#666666')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {priority_color}; padding: 15px; margin: 10px 0; background: {priority_color}22;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: {priority_color};">{rec['type']} (Year {rec['year']})</strong><br>
+                        {rec['description']}<br>
+                        <em>Action: {rec['action']}</em>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Priority: {rec['priority']}</strong><br>
+                        <span style="color: #38a169;">Potential Savings: ${rec['estimated_savings']:,.0f}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical scaling issues identified in the 3-year projection.")
+        
+        # Show default recommendations
+        st.markdown("#### 💡 General Growth Recommendations")
+        default_recommendations = [
+            "📊 **Monitor growth trends** - Track actual vs projected growth quarterly",
+            "💰 **Reserved Instances** - Consider 1-3 year commitments for 30-40% savings",
+            "🔄 **Auto-scaling** - Implement auto-scaling for variable workloads",
+            "📈 **Capacity planning** - Review and adjust capacity every 6 months",
+            "🗄️ **Data lifecycle** - Implement archiving for older data to reduce storage costs"
+        ]
+        
+        for rec in default_recommendations:
+            st.markdown(rec)
+    
+
+def show_risk_assessment_tab():
+    """Show risk assessment results"""
+    
+    if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+        show_risk_assessment_robust()
+    else:
+        st.warning("⚠️ Risk assessment not available. Please run the migration analysis first.")
+
+
+def show_environment_analysis_tab():
+    """Show environment analysis"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Environment analysis not available. Please run the migration analysis first.")
+        return
+        
+    st.markdown("### 🏢 Environment Analysis")
+    
+    # Show environment specifications
+    if hasattr(st.session_state, 'environment_specs') and st.session_state.environment_specs:
+        st.markdown("#### 📋 Environment Specifications")
+        
+        for env_name, specs in st.session_state.environment_specs.items():
+            with st.expander(f"🏢 {env_name.title()} Environment"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("**Current Specs:**")
+                    st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                    st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                    st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                    st.write(f"Daily Usage: {specs.get('daily_usage_hours', 'N/A')} hours")
+                
+                with col2:
+                    st.markdown("**Workload:**")
+                    st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
+                    st.write(f"Workload Pattern: {specs.get('workload_pattern', 'N/A')}")
+                    st.write(f"Environment Type: {specs.get('environment_type', 'N/A')}")
+
+
+def show_visualizations_tab():
+    """Show visualization charts"""
+    
+    st.markdown("### 📊 Cost & Performance Visualizations")
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Visualizations not available. Please run the migration analysis first.")
+        return
+    
+    try:
+        # Cost comparison chart
+        results = st.session_state.analysis_results
+        
+        # Create simple cost visualization
+        env_costs = results.get('environment_costs', {})
+        
+        if env_costs:
+            # Environment cost comparison
+            env_names = []
+            monthly_costs = []
+            
+            for env_name, costs in env_costs.items():
+                env_names.append(env_name.title())
+                
+                if isinstance(costs, dict):
+                    cost = costs.get('total_monthly', 
+                                   sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
+                else:
+                    cost = float(costs) if costs else 0
+                
+                monthly_costs.append(cost)
+            
+            if env_names and monthly_costs:
+                fig = go.Figure(data=[
+                    go.Bar(x=env_names, y=monthly_costs, marker_color='#3182ce')
+                ])
+                
+                fig.update_layout(
+                    title='Monthly Cost by Environment',
+                    xaxis_title='Environment',
+                    yaxis_title='Monthly Cost ($)',
+                    height=400
+                )
+                
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_chart")
+        
+        # Growth visualization if available
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            st.markdown("#### 📈 Growth Projections")
+            try:
+                charts = create_growth_projection_charts(st.session_state.growth_analysis)
+                for i, chart in enumerate(charts):
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
+            except Exception as e:
+                st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.markdown("#### 💎 Enhanced Cost Analysis")
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_chart")
+        
+    except Exception as e:
+        st.error(f"Error creating visualizations: {str(e)}")
+
+
+def show_ai_insights_tab():
+    """Show AI insights if available"""
+    
+    if hasattr(st.session_state, 'ai_insights') and st.session_state.ai_insights:
+        st.markdown("### 🤖 AI-Powered Insights")
+        
+        insights = st.session_state.ai_insights
+        
+        if 'error' in insights:
+            st.warning(f"AI insights partially available: {insights.get('summary', 'Analysis complete')}")
+            st.error(f"Error: {insights['error']}")
+        else:
+            if 'summary' in insights:
+                st.markdown("#### 📝 Executive Summary")
+                st.write(insights['summary'])
+            
+            if 'recommendations' in insights:
+                st.markdown("#### 💡 AI Recommendations")
+                for rec in insights['recommendations']:
+                    st.markdown(f"• {rec}")
+            
+            if 'cost_optimization' in insights:
+                st.markdown("#### 💰 Cost Optimization")
+                st.write(insights['cost_optimization'])
+    else:
+        st.info("🤖 AI insights not available. Provide an Anthropic API key in the configuration to enable AI-powered analysis.")
+
+
+def show_timeline_analysis_tab():
+    """Show migration timeline analysis"""
+    
+    st.markdown("### 📅 Migration Timeline & Milestones")
+    
+    if not st.session_state.migration_params:
+        st.warning("⚠️ Timeline analysis not available. Please configure migration parameters first.")
+        return
+    
+    params = st.session_state.migration_params
+    timeline_weeks = params.get('migration_timeline_weeks', 12)
+    
+    # Create timeline phases
+    phases = [
+        {"phase": "Planning & Assessment", "weeks": max(2, timeline_weeks * 0.15), "description": "Requirements gathering, current state analysis"},
+        {"phase": "Schema Migration", "weeks": max(2, timeline_weeks * 0.25), "description": "Convert schema, stored procedures, functions"},
+        {"phase": "Data Migration", "weeks": max(3, timeline_weeks * 0.35), "description": "Initial load, incremental sync, validation"},
+        {"phase": "Testing & Validation", "weeks": max(2, timeline_weeks * 0.15), "description": "Performance testing, data validation, UAT"},
+        {"phase": "Go-Live & Support", "weeks": max(1, timeline_weeks * 0.10), "description": "Cutover, monitoring, post-migration support"}
+    ]
+    
+    # Timeline visualization
+    current_week = 0
+    for i, phase in enumerate(phases):
+        start_week = current_week
+        end_week = current_week + phase["weeks"]
+        
+        col1, col2, col3 = st.columns([2, 1, 3])
+        
+        with col1:
+            st.markdown(f"**{phase['phase']}**")
+        
+        with col2:
+            st.markdown(f"Weeks {int(start_week)+1}-{int(end_week)}")
+        
+        with col3:
+            st.markdown(phase['description'])
+        
+        current_week = end_week
+
+
+def show_growth_analysis_dashboard():
+    """Show comprehensive growth analysis dashboard"""
+    
+    st.markdown("### 📈 3-Year Growth Analysis & Projections")
+    
+    # Check if growth analysis exists
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
+        
+        # Show basic growth planning instead
+        st.markdown("#### 🎯 Growth Planning Preview")
+        st.info("""
+        **Growth analysis will show:**
+        - 3-year cost projections with growth factors
+        - Resource scaling requirements
+        - Seasonal peak planning
+        - Cost optimization opportunities
+        - Scaling recommendations by year
+        
+        Run the migration analysis to see detailed growth projections.
+        """)
+        return
+    
+    growth_analysis = st.session_state.growth_analysis
+    growth_summary = growth_analysis['growth_summary']
+    
+    # Key Growth Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "3-Year Growth",
+            f"{growth_summary['total_3_year_growth_percent']:.1f}%",
+            delta=f"CAGR: {growth_summary['compound_annual_growth_rate']:.1f}%"
+        )
+    
+    with col2:
+        st.metric(
+            "Current Annual Cost",
+            f"${growth_summary['year_0_cost']:,.0f}",
+            delta="Baseline"
+        )
+    
+    with col3:
+        st.metric(
+            "Year 3 Projected Cost",
+            f"${growth_summary['year_3_cost']:,.0f}",
+            delta=f"+${growth_summary['year_3_cost'] - growth_summary['year_0_cost']:,.0f}"
+        )
+    
+    with col4:
+        st.metric(
+            "Total 3-Year Investment",
+            f"${growth_summary['total_3_year_investment']:,.0f}",
+            delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
+        )
+    
+    # Growth Projection Charts
+    st.markdown("#### 📊 Growth Projections")
+    
+    try:
+        charts = create_growth_projection_charts(growth_analysis)
+        for chart in charts:
+            st.plotly_chart(chart, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Show basic growth table instead
+        st.markdown("#### 📈 Year-by-Year Projections")
+        projections = growth_analysis['yearly_projections']
+        
+        years_data = []
+        for year in range(4):
+            year_data = projections[f'year_{year}']
+            years_data.append({
+                'Year': f'Year {year}' if year > 0 else 'Current',
+                'Monthly Cost': f"${year_data['total_monthly']:,.0f}",
+                'Annual Cost': f"${year_data['total_annual']:,.0f}",
+                'Peak Cost': f"${year_data['peak_annual']:,.0f}"
+            })
+        
+        st.table(years_data)
+    
+    # Scaling Recommendations
+    st.markdown("#### 🎯 Scaling Recommendations")
+    
+    recommendations = growth_analysis.get('scaling_recommendations', [])
+    
+    if recommendations:
+        for rec in recommendations:
+            priority_color = {
+                'High': '#e53e3e',
+                'Medium': '#d69e2e',
+                'Low': '#38a169'
+            }.get(rec['priority'], '#666666')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {priority_color}; padding: 15px; margin: 10px 0; background: {priority_color}22;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: {priority_color};">{rec['type']} (Year {rec['year']})</strong><br>
+                        {rec['description']}<br>
+                        <em>Action: {rec['action']}</em>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Priority: {rec['priority']}</strong><br>
+                        <span style="color: #38a169;">Potential Savings: ${rec['estimated_savings']:,.0f}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical scaling issues identified in the 3-year projection.")
+        
+        # Show default recommendations
+        st.markdown("#### 💡 General Growth Recommendations")
+        default_recommendations = [
+            "📊 **Monitor growth trends** - Track actual vs projected growth quarterly",
+            "💰 **Reserved Instances** - Consider 1-3 year commitments for 30-40% savings",
+            "🔄 **Auto-scaling** - Implement auto-scaling for variable workloads",
+            "📈 **Capacity planning** - Review and adjust capacity every 6 months",
+            "🗄️ **Data lifecycle** - Implement archiving for older data to reduce storage costs"
+        ]
+        
+        for rec in default_recommendations:
+            st.markdown(rec)
+
+
 def create_growth_projection_charts(growth_analysis: Dict) -> List[go.Figure]:
     """Create comprehensive growth projection visualizations"""
     
@@ -6884,6 +7880,19 @@ def show_growth_analysis_dashboard():
     # Check if growth analysis exists
     if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
         st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
+        
+        # Show basic growth planning instead
+        st.markdown("#### 🎯 Growth Planning Preview")
+        st.info("""
+        **Growth analysis will show:**
+        - 3-year cost projections with growth factors
+        - Resource scaling requirements
+        - Seasonal peak planning
+        - Cost optimization opportunities
+        - Scaling recommendations by year
+        
+        Run the migration analysis to see detailed growth projections.
+        """)
         return
     
     growth_analysis = st.session_state.growth_analysis
@@ -6923,15 +7932,35 @@ def show_growth_analysis_dashboard():
     # Growth Projection Charts
     st.markdown("#### 📊 Growth Projections")
     
-    charts = create_growth_projection_charts(growth_analysis)
-    
-    for chart in charts:
-        st.plotly_chart(chart, use_container_width=True)
+    try:
+        charts = create_growth_projection_charts(growth_analysis)
+        
+         # Display charts with unique keys - THIS IS THE KEY FIX
+        for i, chart in enumerate(charts):
+            st.plotly_chart(chart, use_container_width=True, key=f"growth_dashboard_chart_{i}")
+    except Exception as e:
+        st.error(f"Error creating growth charts: {str(e)}")
+        
+        # Show basic growth table instead
+        st.markdown("#### 📈 Year-by-Year Projections")
+        projections = growth_analysis['yearly_projections']
+        
+        years_data = []
+        for year in range(4):
+            year_data = projections[f'year_{year}']
+            years_data.append({
+                'Year': f'Year {year}' if year > 0 else 'Current',
+                'Monthly Cost': f"${year_data['total_monthly']:,.0f}",
+                'Annual Cost': f"${year_data['total_annual']:,.0f}",
+                'Peak Cost': f"${year_data['peak_annual']:,.0f}"
+            })
+        
+        st.table(years_data)
     
     # Scaling Recommendations
     st.markdown("#### 🎯 Scaling Recommendations")
     
-    recommendations = growth_analysis['scaling_recommendations']
+    recommendations = growth_analysis.get('scaling_recommendations', [])
     
     if recommendations:
         for rec in recommendations:
@@ -6958,25 +7987,19 @@ def show_growth_analysis_dashboard():
             """, unsafe_allow_html=True)
     else:
         st.success("✅ No critical scaling issues identified in the 3-year projection.")
-    
-    # Cost Optimization Opportunities
-    st.markdown("#### 💡 Growth-Based Cost Optimization")
-    
-    optimizations = growth_analysis.get('cost_optimization_opportunities', [])
-    
-    if optimizations:
-        for opt in optimizations:
-            st.markdown(f"• **{opt['opportunity']}**: {opt['description']} - *Potential savings: ${opt['estimated_savings']:,.0f}*")
-    else:
-        default_optimizations = [
-            "Consider Reserved Instances for predictable workloads (30-40% savings)",
-            "Implement data lifecycle policies for storage cost optimization",
-            "Use Aurora Serverless for variable workload environments",
-            "Plan reader replica scaling based on growth patterns"
+        
+        # Show default recommendations
+        st.markdown("#### 💡 General Growth Recommendations")
+        default_recommendations = [
+            "📊 **Monitor growth trends** - Track actual vs projected growth quarterly",
+            "💰 **Reserved Instances** - Consider 1-3 year commitments for 30-40% savings",
+            "🔄 **Auto-scaling** - Implement auto-scaling for variable workloads",
+            "📈 **Capacity planning** - Review and adjust capacity every 6 months",
+            "🗄️ **Data lifecycle** - Implement archiving for older data to reduce storage costs"
         ]
         
-        for opt in default_optimizations:
-            st.markdown(f"• {opt}")
+        for rec in default_recommendations:
+            st.markdown(rec)
             
 def create_environment_comparison_chart(environment_costs: Dict) -> go.Figure:
     """Create environment cost comparison chart"""
@@ -7264,7 +8287,13 @@ def initialize_session_state():
         'enhanced_analysis_results': None,
         'enhanced_cost_chart': None,
         'growth_analysis': None,  # ADD THIS LINE
-        'growth_projections': None  # ADD THIS LINE
+        'growth_projections': None,  # ADD THIS LINE
+        'vrops_analysis': None,
+        'vrops_analyzer': None,        
+        'enhanced_cost_chart': None,
+        'growth_analysis': None,
+        'growth_projections': None
+    
     }
     
     for key, default_value in defaults.items():
@@ -7337,25 +8366,40 @@ def main():
                 "📄 Reports & Export"
             ]
         )
-        
+    
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        st.success("✅ vROps analysis complete")
+    
+    health_scores = []
+    vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
+    if vrops_analysis is not None and isinstance(vrops_analysis, dict):
+        for env_name, analysis in vrops_analysis.items():
+    
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
+            else:
+                st.info("ℹ️ vROps analysis pending")
+    
         # Status indicators
-        st.markdown("### 📋 Status")
+                st.markdown("### 📋 Status")
         
-        if st.session_state.environment_specs:
+    env_specs = getattr(st.session_state, 'environment_specs', {})
+    if env_specs and len(env_specs) > 0:
             st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
-        else:
+    else:
             st.warning("⚠️ Configure environments")
         
-        if st.session_state.migration_params:
+    if st.session_state.migration_params:
             st.success("✅ Migration parameters set")
-        else:
+    else:
             st.warning("⚠️ Set migration parameters")
         
         # Check for both regular and enhanced analysis results
-        has_regular_results = st.session_state.analysis_results is not None
-        has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+    has_regular_results = st.session_state.analysis_results is not None
+    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
         
-        if has_regular_results or has_enhanced_results:
+    if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
             
             # Show metrics from whichever analysis was completed
@@ -7369,21 +8413,21 @@ def main():
                 st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
                 st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
                 st.info("📊 Standard Analysis")
-        else:
+    else:
             st.info("ℹ️ Analysis pending")
         
         # Network analysis status
-        if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
             recommendations = st.session_state.transfer_analysis.get('recommendations', {})
             primary = recommendations.get('primary_recommendation', {})
             if primary:
                 st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
-        else:
+    else:
             st.info("ℹ️ Network analysis pending")
         
         # vROps analysis status
-        if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
             st.success("✅ vROps analysis complete")
             
             health_scores = []
@@ -7394,18 +8438,18 @@ def main():
             if health_scores:
                 avg_health = sum(health_scores) / len(health_scores)
                 st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-        else:
+    else:
             st.info("ℹ️ vROps analysis pending")
         
         # Debug info (optional)
-        if st.checkbox("🐛 Show Debug Info"):
+    if st.checkbox("🐛 Show Debug Info"):
             st.markdown("### Debug Information")
             st.write("Environment specs:", bool(st.session_state.environment_specs))
             st.write("Migration params:", bool(st.session_state.migration_params))
             st.write("Analysis results:", bool(st.session_state.analysis_results))
             st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
             
-            if st.session_state.environment_specs:
+    if st.session_state.environment_specs:
                 st.write("Num environments:", len(st.session_state.environment_specs))
                 st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
     
@@ -7692,7 +8736,8 @@ def show_environment_analysis():
 
 
 def show_environment_setup():
-    """Show environment setup interface"""
+    """Show environment setup interface with vROps support"""
+            #show_enhanced_environment_setup_with_vrops()
     
     st.markdown("## 📊 Environment Configuration")
     
@@ -8121,7 +9166,7 @@ def run_enhanced_migration_analysis():
         st.markdown("3. Try using the 'Simple Configuration' option instead")
 
 def show_results_dashboard():
-    """Show comprehensive results dashboard with growth analysis"""
+    """Show comprehensive results dashboard with vROps analysis"""
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
@@ -8129,14 +9174,18 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
-    # Check for enhanced results
-    has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
-                           st.session_state.enhanced_analysis_results is not None)
+     # FIXED: Define has_enhanced_results properly
+    has_enhanced_results = (
+        hasattr(st.session_state, 'enhanced_analysis_results') and 
+        st.session_state.enhanced_analysis_results is not None
+    )
     
-    # Create tabs for different views
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    
+    # Create tabs for different views - ADD VROPS TAB
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "💰 Cost Summary",
         "📈 Growth Projections",
+        "📊 vROps Analysis",  # <-- NEW TAB
         "💎 Enhanced Analysis",
         "⚠️ Risk Assessment", 
         "🏢 Environment Analysis",
@@ -8144,22 +9193,22 @@ def show_results_dashboard():
         "🤖 AI Insights",
         "📅 Timeline"
     ])
-
+    
     with tab1:
         show_basic_cost_summary()
-        
+    
     with tab2:
         show_growth_analysis_dashboard()
-        
-    with tab3:
+    
+    with tab3:  # <-- NEW TAB CONTENT
+        show_vrops_results_tab()
+    
+    with tab4:
         if has_enhanced_results:
             show_enhanced_cost_analysis()
         else:
-            st.info("💡 Enhanced cost analysis not available. Use the enhanced environment setup to access detailed cost breakdowns.")
+            st.info("💡 Enhanced cost analysis not available.")
             show_basic_cost_summary()
-
-    with tab4:
-        show_risk_assessment_tab()
 
     with tab5:
         show_environment_analysis_tab()
@@ -8231,12 +9280,8 @@ def show_basic_cost_summary():
                                                  sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
                         st.metric("Total Monthly", f"${total_env_cost:,.2f}")
                         
-                        # Show instance details if available
-                        if 'instance_details' in costs:
-                            details = costs['instance_details']
-                            st.markdown(f"**Instance:** {details.get('instance_type', 'N/A')}")
-                            st.markdown(f"**vCPUs:** {details.get('vcpus', 'N/A')}")
-                            st.markdown(f"**Memory:** {details.get('memory_gb', 'N/A')} GB")
+                        
+                       
                 else:
                     # Simple format - just show the cost
                     if isinstance(costs, (int, float)):
@@ -8414,18 +9459,17 @@ def show_environment_analysis_tab():
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("**Database Specs:**")
-                    st.write(f"Engine: {specs.get('db_engine', 'N/A')}")
-                    st.write(f"Size: {specs.get('db_size_gb', 'N/A')} GB")
-                    st.write(f"IOPS: {specs.get('iops', 'N/A')}")
-                    st.write(f"Multi-AZ: {specs.get('multi_az', False)}")
+                    st.markdown("**Current Specs:**")
+                    st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                    st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                    st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                    st.write(f"Daily Usage: {specs.get('daily_usage_hours', 'N/A')} hours")
                 
                 with col2:
-                    st.markdown("**Performance:**")
-                    st.write(f"CPU: {specs.get('cpu_utilization', 'N/A')}%")
-                    st.write(f"Memory: {specs.get('memory_utilization', 'N/A')}%")
-                    st.write(f"Connections: {specs.get('max_connections', 'N/A')}")
-                    st.write(f"Workload: {specs.get('workload_type', 'N/A')}")
+                    st.markdown("**Workload:**")
+                    st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
+                    st.write(f"Workload Pattern: {specs.get('workload_pattern', 'N/A')}")
+                    st.write(f"Environment Type: {specs.get('environment_type', 'N/A')}")
     
     # Show recommendations if available
     if hasattr(st.session_state, 'recommendations') and st.session_state.recommendations:
@@ -8435,9 +9479,9 @@ def show_environment_analysis_tab():
         for env_name, rec in recommendations.items():
             with st.expander(f"🎯 {env_name.title()} Recommendations"):
                 if isinstance(rec, dict):
-                    st.markdown(f"**Recommended Instance:** {rec.get('instance_type', 'N/A')}")
-                    st.markdown(f"**Storage Type:** {rec.get('storage_type', 'N/A')}")
-                    st.markdown(f"**Estimated Cost:** ${rec.get('monthly_cost', 0):,.2f}/month")
+                    st.markdown(f"**Recommended Instance:** {rec.get('instance_class', 'N/A')}")
+                    st.markdown(f"**Environment Type:** {rec.get('environment_type', 'N/A')}")
+                    st.markdown(f"**Multi-AZ:** {'Yes' if rec.get('multi_az', False) else 'No'}")
                     
                     if 'reasoning' in rec:
                         st.markdown("**Reasoning:**")
@@ -8487,17 +9531,25 @@ def show_visualizations_tab():
                     height=400
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                # FIXED: Added unique key
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_visualization_chart")
         
         # Growth visualization if available
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             st.markdown("#### 📈 Growth Projections")
             try:
                 charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                for chart in charts:
-                    st.plotly_chart(chart, use_container_width=True)
+                # FIXED: Added unique keys for each chart
+                for i, chart in enumerate(charts):
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
             except Exception as e:
                 st.error(f"Error creating growth charts: {str(e)}")
+        
+           # Enhanced cost chart if available
+        if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
+            st.markdown("#### 💎 Enhanced Cost Analysis")
+            # FIXED: Added unique key
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_visualization_chart")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
@@ -9479,8 +10531,11 @@ def show_enhanced_cost_analysis():
                 height=400
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+             # FIXED: Added unique key using counter
+            st.plotly_chart(fig, use_container_width=True, key=f"enhanced_cost_breakdown_{chart_counter}")
+            chart_counter += 1
             
+                       
             # Detailed breakdown table
             col1, col2 = st.columns(2)
             
@@ -9612,29 +10667,12 @@ def generate_enhanced_cost_visualizations():
     reader_costs = [results['environment_costs'][env]['reader_costs'] for env in env_names]
     storage_costs = [results['environment_costs'][env]['storage_cost'] for env in env_names]
     
-    # Create stacked bar chart
+# Create stacked bar chart
     fig = go.Figure()
     
-    fig.add_trace(go.Bar(
-        name='Writer Instance',
-        x=env_names,
-        y=writer_costs,
-        marker_color='#3182ce'
-    ))
-    
-    fig.add_trace(go.Bar(
-        name='Reader Instances',
-        x=env_names,
-        y=reader_costs,
-        marker_color='#38a169'
-    ))
-    
-    fig.add_trace(go.Bar(
-        name='Storage & I/O',
-        x=env_names,
-        y=storage_costs,
-        marker_color='#d69e2e'
-    ))
+    fig.add_trace(go.Bar(name='Writer Instance', x=env_names, y=writer_costs, marker_color='#3182ce'))
+    fig.add_trace(go.Bar(name='Reader Instances', x=env_names, y=reader_costs, marker_color='#38a169'))
+    fig.add_trace(go.Bar(name='Storage & I/O', x=env_names, y=storage_costs, marker_color='#d69e2e'))
     
     fig.update_layout(
         title='Monthly Cost Breakdown by Environment',
