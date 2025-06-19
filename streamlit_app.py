@@ -187,17 +187,17 @@ class SafeMigrationAnalyzer:
                 # Fallback to a safe default
                 return 'db.r5.large'
         def run_fixed_migration_analysis():
-        """Run migration analysis with comprehensive error handling"""
+            """Run migration analysis with comprehensive error handling"""
         
-        try:
-            # Step 1: Validate inputs
-            if not st.session_state.migration_params:
-                st.error("❌ Migration parameters required")
-                return False
-            
-            if not st.session_state.environment_specs:
-                st.error("❌ Environment specifications required")
-                return False
+            try:
+                # Step 1: Validate inputs
+                if not st.session_state.migration_params:
+                    st.error("❌ Migration parameters required")
+                    return False
+                
+                if not st.session_state.environment_specs:
+                    st.error("❌ Environment specifications required")
+                    return False
             
             # Step 2: Initialize analyzer
             anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
