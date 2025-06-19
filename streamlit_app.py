@@ -39,6 +39,351 @@ from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+
+import streamlit as st
+import pandas as pd
+
+def show_simplified_data_configuration():
+    """Simplified data size configuration with clear cost implications"""
+    
+    st.markdown("## 💾 Data Size Configuration - Cost Estimation")
+    
+    # Main data size input with clear explanation
+    st.markdown("### 📊 Primary Data Size (What You're Migrating)")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Single primary input for actual data
+        actual_data_size_gb = st.number_input(
+            "Current Database Size (GB)",
+            min_value=1, 
+            max_value=100000, 
+            value=1000,
+            help="💡 This is your actual database size that needs to be migrated. This directly impacts migration time and transfer costs."
+        )
+        
+        st.info(f"""
+        **This number is used for:**
+        - Migration time calculation
+        - Data transfer costs
+        - DMS sizing requirements
+        """)
+    
+    with col2:
+        # Visual indicator
+        st.metric(
+            "Migration Data", 
+            f"{actual_data_size_gb:,} GB",
+            help="Actual data to migrate"
+        )
+    
+    st.markdown("---")
+    
+    # Auto-calculated storage requirements with user override
+    st.markdown("### 🗄️ Target Storage Planning (AWS Environment)")
+    
+    # Auto-calculate recommended storage with different sizing strategies
+    storage_strategies = {
+        "Conservative (2x data)": actual_data_size_gb * 2,
+        "Standard (2.5x data)": actual_data_size_gb * 2.5,
+        "Growth-Ready (3x data)": actual_data_size_gb * 3,
+        "Custom": 0
+    }
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        sizing_strategy = st.selectbox(
+            "Storage Sizing Strategy",
+            list(storage_strategies.keys()),
+            index=1,  # Default to "Standard"
+            help="💡 Choose how much extra space to allocate beyond your current data size"
+        )
+        
+        if sizing_strategy == "Custom":
+            target_storage_gb = st.number_input(
+                "Custom Storage Size (GB)",
+                min_value=actual_data_size_gb,
+                max_value=actual_data_size_gb * 10,
+                value=actual_data_size_gb * 2
+            )
+        else:
+            target_storage_gb = storage_strategies[sizing_strategy]
+            st.info(f"**Recommended:** {target_storage_gb:,} GB")
+    
+    with col2:
+        # Show the breakdown
+        st.markdown("**Storage Breakdown:**")
+        overhead_gb = target_storage_gb - actual_data_size_gb
+        overhead_percent = (overhead_gb / actual_data_size_gb) * 100
+        
+        st.write(f"• Data: {actual_data_size_gb:,} GB")
+        st.write(f"• Growth/Overhead: {overhead_gb:,} GB ({overhead_percent:.0f}%)")
+        st.write(f"• **Total Storage: {target_storage_gb:,} GB**")
+    
+    st.markdown("---")
+    
+    # Cost Impact Calculator
+    st.markdown("### 💰 Cost Impact Calculator")
+    
+    # Calculate and display cost implications
+    migration_cost_per_gb = 0.05  # Example: $0.05 per GB for migration
+    storage_cost_per_gb_month = 0.08  # Example: $0.08 per GB per month for gp3
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        migration_cost = actual_data_size_gb * migration_cost_per_gb
+        st.metric(
+            "Migration Cost", 
+            f"${migration_cost:,.0f}",
+            help="One-time cost to transfer your data"
+        )
+        st.caption("Based on data size")
+    
+    with col2:
+        monthly_storage_cost = target_storage_gb * storage_cost_per_gb_month
+        st.metric(
+            "Monthly Storage Cost", 
+            f"${monthly_storage_cost:,.0f}",
+            help="Recurring monthly cost for AWS storage"
+        )
+        st.caption("Based on target storage")
+    
+    with col3:
+        annual_storage_cost = monthly_storage_cost * 12
+        st.metric(
+            "Annual Storage Cost", 
+            f"${annual_storage_cost:,.0f}",
+            help="Total annual storage cost"
+        )
+        st.caption("12 months of storage")
+    
+    # Strategy explanations
+    st.markdown("### 📋 Sizing Strategy Guide")
+    
+    with st.expander("💡 Help Me Choose the Right Strategy"):
+        strategy_guide = {
+            "Conservative (2x)": {
+                "best_for": "Mature databases with low growth",
+                "pros": ["Lower storage costs", "Minimal over-provisioning"],
+                "cons": ["May need expansion sooner", "Less buffer for peaks"],
+                "use_case": "Financial systems, legacy applications"
+            },
+            "Standard (2.5x)": {
+                "best_for": "Most production workloads",
+                "pros": ["Good balance of cost and growth", "Handles typical growth patterns"],
+                "cons": ["Moderate over-provisioning"],
+                "use_case": "E-commerce, CRM, most business applications"
+            },
+            "Growth-Ready (3x)": {
+                "best_for": "High-growth applications",
+                "pros": ["Plenty of room for growth", "Handles data spikes well"],
+                "cons": ["Higher initial storage costs"],
+                "use_case": "Analytics platforms, rapidly growing startups"
+            }
+        }
+        
+        for strategy, details in strategy_guide.items():
+            st.markdown(f"**{strategy}:**")
+            st.write(f"*Best for:* {details['best_for']}")
+            st.write(f"*Use case:* {details['use_case']}")
+            st.write("")
+    
+    # Return the simplified configuration
+    return {
+        'actual_data_size_gb': actual_data_size_gb,
+        'target_storage_gb': target_storage_gb,
+        'sizing_strategy': sizing_strategy,
+        'migration_cost_estimate': migration_cost,
+        'monthly_storage_cost_estimate': monthly_storage_cost
+    }
+
+def show_environment_storage_simplified():
+    """Simplified per-environment storage configuration"""
+    
+    st.markdown("### 🏢 Per-Environment Storage Allocation")
+    
+    # Get the total storage from main configuration
+    total_target_storage = st.session_state.get('target_storage_gb', 2000)
+    
+    st.info(f"**Total Target Storage:** {total_target_storage:,} GB (from main configuration)")
+    
+    # Simplified environment setup
+    environments = ['Production', 'Staging', 'QA', 'Development']
+    
+    # Default allocation percentages
+    default_allocations = {
+        'Production': 70,
+        'Staging': 15,
+        'QA': 10,
+        'Development': 5
+    }
+    
+    st.markdown("#### 📊 Storage Allocation by Environment")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Allocation Percentages:**")
+        allocations = {}
+        
+        for env in environments:
+            allocations[env] = st.slider(
+                f"{env} (%)",
+                min_value=0,
+                max_value=100,
+                value=default_allocations[env],
+                key=f"alloc_{env}"
+            )
+        
+        # Validation
+        total_allocation = sum(allocations.values())
+        if total_allocation != 100:
+            st.warning(f"⚠️ Total allocation: {total_allocation}% (should be 100%)")
+        else:
+            st.success("✅ Perfect allocation (100%)")
+    
+    with col2:
+        st.markdown("**Calculated Storage:**")
+        
+        env_storage = {}
+        total_cost = 0
+        
+        for env in environments:
+            storage_gb = int((allocations[env] / 100) * total_target_storage)
+            env_storage[env] = storage_gb
+            
+            # Cost calculation
+            monthly_cost = storage_gb * 0.08  # $0.08 per GB
+            total_cost += monthly_cost
+            
+            st.metric(
+                f"{env}",
+                f"{storage_gb:,} GB",
+                delta=f"${monthly_cost:,.0f}/month"
+            )
+        
+        st.metric("**Total Monthly**", f"${total_cost:,.0f}")
+    
+    return env_storage
+
+def show_cost_comparison_table():
+    """Show a clear cost comparison table"""
+    
+    st.markdown("### 💰 Cost Impact Summary")
+    
+    # Sample data based on configuration
+    data_size = st.session_state.get('actual_data_size_gb', 1000)
+    storage_size = st.session_state.get('target_storage_gb', 2500)
+    
+    cost_breakdown = [
+        {
+            'Component': 'Data Migration (One-time)',
+            'Based On': f'{data_size:,} GB (actual data)',
+            'Rate': '$0.05/GB',
+            'Cost': f'${data_size * 0.05:,.0f}',
+            'Type': 'Migration'
+        },
+        {
+            'Component': 'Storage (Monthly)',
+            'Based On': f'{storage_size:,} GB (target storage)', 
+            'Rate': '$0.08/GB/month',
+            'Cost': f'${storage_size * 0.08:,.0f}',
+            'Type': 'Operational'
+        },
+        {
+            'Component': 'Backup (Monthly)',
+            'Based On': f'{storage_size:,} GB (target storage)',
+            'Rate': '$0.095/GB/month', 
+            'Cost': f'${storage_size * 0.095:,.0f}',
+            'Type': 'Operational'
+        },
+        {
+            'Component': 'IOPS (Monthly, if needed)',
+            'Based On': 'Provisioned IOPS',
+            'Rate': '$0.065/IOPS/month',
+            'Cost': 'Variable',
+            'Type': 'Operational'
+        }
+    ]
+    
+    df = pd.DataFrame(cost_breakdown)
+    
+    # Style the dataframe
+    st.dataframe(
+        df,
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    # Key takeaways
+    st.markdown("#### 🎯 Key Takeaways")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.success("""
+        **For Migration Planning:**
+        - Use "Actual Data Size" for timeline and transfer costs
+        - This is what needs to be moved from source to target
+        """)
+    
+    with col2:
+        st.info("""
+        **For AWS Cost Planning:**
+        - Use "Target Storage Size" for ongoing AWS costs
+        - This includes growth room and operational overhead
+        """)
+
+# Integration function to replace existing data configuration
+def integrate_simplified_data_logic():
+    """Integration instructions for the main application"""
+    
+    st.markdown("### 🔧 Integration Instructions")
+    
+    st.code("""
+# Replace the existing data configuration section with:
+
+# In show_migration_configuration():
+data_config = show_simplified_data_configuration()
+
+# Store in session state:
+st.session_state.migration_params.update({
+    'data_size_gb': data_config['actual_data_size_gb'],  # For migration
+    'target_storage_gb': data_config['target_storage_gb'],  # For AWS costs
+    'sizing_strategy': data_config['sizing_strategy']
+})
+
+# In show_environment_setup():
+env_storage = show_environment_storage_simplified()
+
+# Update environment specs with storage:
+for env_name, storage_gb in env_storage.items():
+    if env_name in st.session_state.environment_specs:
+        st.session_state.environment_specs[env_name]['storage_gb'] = storage_gb
+    """, language='python')
+
+# Example usage
+if __name__ == "__main__":
+    st.set_page_config(page_title="Simplified Data Configuration", layout="wide")
+    
+    st.title("🚀 Simplified Data Size Configuration")
+    
+    # Show the simplified configuration
+    config = show_simplified_data_configuration()
+    
+    st.markdown("---")
+    
+    # Show environment allocation
+    env_storage = show_environment_storage_simplified()
+    
+    st.markdown("---")
+    
+    # Show cost breakdown
+    show_cost_comparison_table()
+
 @dataclass
 class InstanceSpecs:
     """Instance specifications with performance metrics"""
@@ -8588,29 +8933,33 @@ def show_migration_configuration():
                 **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
                 """)
     
-    # Migration parameters
-    st.markdown("### ⚙️ Migration Parameters")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("#### 💾 Data Configuration")
-        data_size_gb = st.number_input("Total Data Size (GB)", min_value=1, max_value=100000, value=1000)
-        num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
-        num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
-    
-    with col2:
-        st.markdown("#### ⏱️ Timeline & Resources")
-        migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
-        team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
-        team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
-    
-    with col3:
-        st.markdown("#### 🌐 Infrastructure")
-        region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
-        use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
-        bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
-        migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
+    # REPLACE THE ENTIRE MIGRATION PARAMETERS SECTION WITH THIS:
+
+# First, call the simplified data configuration
+data_config = show_simplified_data_configuration()
+
+# Then continue with the rest of the migration parameters
+st.markdown("### ⚙️ Migration Parameters")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("#### 📱 Application Configuration")
+    num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
+    num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
+
+with col2:
+    st.markdown("#### ⏱️ Timeline & Resources")
+    migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
+    team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
+    team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
+
+with col3:
+    st.markdown("#### 🌐 Infrastructure")
+    region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
+    use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
+    bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
+    migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
 
     # ADD NEW GROWTH PLANNING SECTION:
     st.markdown("### 📈 Growth Planning & Forecasting")
@@ -8685,29 +9034,35 @@ def show_migration_configuration():
     )
     
     if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-        st.session_state.migration_params = {
-            'source_engine': source_engine,
-            'target_engine': target_engine,
-            'data_size_gb': data_size_gb,
-            'num_applications': num_applications,
-            'num_stored_procedures': num_stored_procedures,
-            'migration_timeline_weeks': migration_timeline_weeks,
-            'team_size': team_size,
-            'team_expertise': team_expertise,
-            'region': region,
-            'use_direct_connect': use_direct_connect,
-            'bandwidth_mbps': bandwidth_mbps,
-            'migration_budget': migration_budget,
-            'anthropic_api_key': anthropic_api_key,
-            'estimated_migration_cost': 0,
-            # ADD THESE NEW GROWTH PARAMETERS:
-            'annual_data_growth': annual_data_growth,
-            'annual_user_growth': annual_user_growth,
-            'annual_transaction_growth': annual_transaction_growth,
-            'growth_scenario': growth_scenario,
-            'seasonality_factor': seasonality_factor,
-            'scaling_strategy': scaling_strategy
-        }
+    st.session_state.migration_params = {
+        'source_engine': source_engine,
+        'target_engine': target_engine,
+        # NEW WAY - Use values from simplified data config:
+        'data_size_gb': data_config['actual_data_size_gb'],  # For migration calculations
+        'target_storage_gb': data_config['target_storage_gb'],  # For AWS storage costs
+        'sizing_strategy': data_config['sizing_strategy'],  # Strategy used
+        'migration_cost_estimate': data_config['migration_cost_estimate'],
+        'monthly_storage_cost_estimate': data_config['monthly_storage_cost_estimate'],
+        # Rest of your existing parameters:
+        'num_applications': num_applications,
+        'num_stored_procedures': num_stored_procedures,
+        'migration_timeline_weeks': migration_timeline_weeks,
+        'team_size': team_size,
+        'team_expertise': team_expertise,
+        'region': region,
+        'use_direct_connect': use_direct_connect,
+        'bandwidth_mbps': bandwidth_mbps,
+        'migration_budget': migration_budget,
+        'anthropic_api_key': anthropic_api_key,
+        'estimated_migration_cost': 0,
+        # ADD THESE NEW GROWTH PARAMETERS:
+        'annual_data_growth': annual_data_growth,
+        'annual_user_growth': annual_user_growth,
+        'annual_transaction_growth': annual_transaction_growth,
+        'growth_scenario': growth_scenario,
+        'seasonality_factor': seasonality_factor,
+        'scaling_strategy': scaling_strategy
+    }
         
         st.success("✅ Configuration saved! Proceed to Environment Setup.")
         st.balloons()
