@@ -550,11 +550,12 @@ class SimpleKeyManager:
             st.session_state.simple_key_counter[full_identifier] = len(st.session_state.simple_key_counter)
         
         return f"{full_identifier}_{st.session_state.simple_key_counter[full_identifier]}"
+    
     def initialize_simple_key_manager():
-    """Initialize the simple key manager"""
-    if 'simple_key_manager' not in st.session_state:
-        st.session_state.simple_key_manager = SimpleKeyManager()
-    return st.session_state.simple_key_manager
+        """Initialize the simple key manager"""
+        if 'simple_key_manager' not in st.session_state:
+            st.session_state.simple_key_manager = SimpleKeyManager()
+        return st.session_state.simple_key_manager
 
 class EnhancedAWSPricingAPI:
     """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
