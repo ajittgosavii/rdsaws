@@ -1229,7 +1229,7 @@ def show_analysis_summary():
 
 
 # FIXED: Update the analysis section to use synchronous function
-def show_analysis_section_fixed():
+def show_analysis_section():
     """Show analysis and recommendations section - FIXED for Streamlit"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
@@ -7112,7 +7112,7 @@ def main():
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
+        show_analysis_section()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
     elif page == "📄 Reports & Export":
@@ -8325,7 +8325,7 @@ def show_manual_environment_setup():
         summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
         st.dataframe(summary_df, use_container_width=True)
 
-def show_analysis_section_fixed():
+def show_analysis_section():
     """Show analysis and recommendations section - UPDATED"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
