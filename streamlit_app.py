@@ -157,15 +157,15 @@ class EnhancedAWSPricingAPI:
         """Calculate total cost for writer and readers"""
         total_cost = 0
     
-    # Writer cost
+        # Writer cost
         writer_pricing = self.get_rds_pricing(region, engine, writer_instance, writer_multi_az)
         total_cost += writer_pricing['hourly']
     
-    for reader_instance, multi_az in reader_instances:
+        for reader_instance, multi_az in reader_instances:
             reader_pricing = self.get_rds_pricing(region, engine, reader_instance, multi_az)
             total_cost += reader_pricing['hourly']
     
-            return total_cost
+        return total_cost  # Fixed indentation - moved outside the loop
     
         
     def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
