@@ -165,7 +165,7 @@ class EnhancedAWSPricingAPI:
             reader_pricing = self.get_rds_pricing(region, engine, reader_instance, multi_az)
             total_cost += reader_pricing['hourly']
     
-        return total_cost
+            return total_cost
     
         
 def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
