@@ -9479,7 +9479,7 @@ def test_claude_ai_connection():
         except Exception as e:
             st.error(f"❌ Test failed: {str(e)}")
 
-def main_fixed():
+def main():
     """Main Streamlit application with fixed key management"""
     
     initialize_session_state()
