@@ -608,7 +608,7 @@ class OptimizedReaderWriterAnalyzer:
         
         return best_match or 'db.r5.large'  # Fallback
     
-    def _calculate_instance_monthly_cost(self, specs: InstanceSpecs, environment_type: str, is_reader: bool = False) -> float:
+def _calculate_instance_monthly_cost(self, specs: InstanceSpecs, environment_type: str, is_reader: bool = False) -> float:
         """Calculate monthly cost for an instance"""
         
         base_hourly_cost = specs.hourly_cost
@@ -622,125 +622,69 @@ class OptimizedReaderWriterAnalyzer:
         
         return monthly_cost
     
-        def _calculate_comprehensive_costs(self, writer_optimization: Dict, reader_optimization: Dict,
-                                     storage_gb: int, iops_requirement: int, environment_type: str,
-                                     daily_usage_hours: int) -> Dict:
-        """Calculate comprehensive cost analysis using UNIFIED methodology"""
-        
-        # Create unified config from optimization results
-        unified_config = {
-            'writer': {
-                'instance_class': writer_optimization['instance_class'],
-                'multi_az': writer_optimization['multi_az']
-            },
-            'readers': {
-                'count': reader_optimization['count'],
-                'instance_class': reader_optimization['instance_class'],
-                'multi_az': reader_optimization.get('multi_az', False)
-            },
-            'storage': {
-                'size_gb': storage_gb,
-                'type': 'gp3',  # Default storage type
-                'iops': iops_requirement
-            },
-            'environment_type': environment_type,
-            'daily_usage_hours': daily_usage_hours
-        }
-        
-        # Use unified cost calculator
-        unified_costs = self.unified_calculator.calculate_unified_environment_cost(unified_config)
-        
-        # Reserved Instance calculations (unchanged)
-        total_instance_monthly_cost = unified_costs['writer_instance_cost'] + unified_costs['reader_instance_cost']
-        reserved_1_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 1)
-        reserved_3_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 3)
-        
-        # Format for compatibility with existing code
-        return {
-            'monthly_breakdown': {
-                'writer_instance': unified_costs['writer_instance_cost'],
-                'reader_instances': unified_costs['reader_instance_cost'],
-                'storage': unified_costs['storage_cost'],
-                'backup': unified_costs['backup_cost'],
-                'monitoring': unified_costs['monitoring_cost'],
-                'cross_az_transfer': unified_costs['cross_az_cost'],
-                'total': unified_costs['total_monthly_cost']
-            },
-            'annual_breakdown': {
-                'writer_instance': unified_costs['writer_instance_cost'] * 12,
-                'reader_instances': unified_costs['reader_instance_cost'] * 12,
-                'storage': unified_costs['storage_cost'] * 12,
-                'backup': unified_costs['backup_cost'] * 12,
-                'monitoring': unified_costs['monitoring_cost'] * 12,
-                'cross_az_transfer': unified_costs['cross_az_cost'] * 12,
-                'total': unified_costs['total_annual_cost']
-            },
-            'storage_details': unified_costs['storage_breakdown'],
-            'reserved_instance_options': {
-                '1_year': reserved_1_year,
-                '3_year': reserved_3_year
-            },
-            'cost_optimization_opportunities': self._identify_cost_optimization_opportunities(
-                writer_optimization, reader_optimization, unified_costs['storage_breakdown'], environment_type
-            ),
-            'cost_calculation_method': 'unified_v1'  # ADD THIS FOR TRACKING
-        }
+    def _calculate_comprehensive_costs(self, writer_optimization: Dict, reader_optimization: Dict,
+                                 storage_gb: int, iops_requirement: int, environment_type: str,
+                                 daily_usage_hours: int) -> Dict:
+        #"""Calculate comprehensive cost analysis using UNIFIED methodology"""
     
-        
-        # Instance costs
-        writer_monthly_cost = writer_optimization['monthly_cost']
-        reader_monthly_cost = reader_optimization['total_monthly_cost']
-        total_instance_monthly_cost = writer_monthly_cost + reader_monthly_cost
-        
-        # Storage costs
-        storage_costs = self._calculate_storage_costs(storage_gb, iops_requirement, environment_type)
-        
-        # Additional costs
-        backup_monthly_cost = storage_gb * 0.095  # $0.095 per GB per month
-        monitoring_monthly_cost = 50 if environment_type == 'production' else 20  # CloudWatch Enhanced Monitoring
-        
-        # Cross-AZ transfer costs (estimated)
-        cross_az_monthly_cost = 0
-        if reader_optimization['count'] > 0:
-            estimated_cross_az_gb = storage_gb * 0.1  # Estimate 10% of storage as cross-AZ traffic
-            cross_az_monthly_cost = estimated_cross_az_gb * 0.01
-        
-        total_monthly_cost = (total_instance_monthly_cost + storage_costs['total_monthly'] + 
-                            backup_monthly_cost + monitoring_monthly_cost + cross_az_monthly_cost)
-        
-        # Reserved Instance calculations
-        reserved_1_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 1)
-        reserved_3_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 3)
-        
-        return {
-            'monthly_breakdown': {
-                'writer_instance': writer_monthly_cost,
-                'reader_instances': reader_monthly_cost,
-                'storage': storage_costs['total_monthly'],
-                'backup': backup_monthly_cost,
-                'monitoring': monitoring_monthly_cost,
-                'cross_az_transfer': cross_az_monthly_cost,
-                'total': total_monthly_cost
-            },
-            'annual_breakdown': {
-                'writer_instance': writer_monthly_cost * 12,
-                'reader_instances': reader_monthly_cost * 12,
-                'storage': storage_costs['total_monthly'] * 12,
-                'backup': backup_monthly_cost * 12,
-                'monitoring': monitoring_monthly_cost * 12,
-                'cross_az_transfer': cross_az_monthly_cost * 12,
-                'total': total_monthly_cost * 12
-            },
-            'storage_details': storage_costs,
-            'reserved_instance_options': {
-                '1_year': reserved_1_year,
-                '3_year': reserved_3_year
-            },
-            'cost_optimization_opportunities': self._identify_cost_optimization_opportunities(
-                writer_optimization, reader_optimization, storage_costs, environment_type
-            )
-        }
+    # Create unified config from optimization results
+    unified_config = {
+        'writer': {
+            'instance_class': writer_optimization['instance_class'],
+            'multi_az': writer_optimization['multi_az']
+        },
+        'readers': {
+            'count': reader_optimization['count'],
+            'instance_class': reader_optimization['instance_class'],
+            'multi_az': reader_optimization.get('multi_az', False)
+        },
+        'storage': {
+            'size_gb': storage_gb,
+            'type': 'gp3',  # Default storage type
+            'iops': iops_requirement
+        },
+        'environment_type': environment_type,
+        'daily_usage_hours': daily_usage_hours
+    }
     
+    # Use unified cost calculator
+    unified_costs = self.unified_calculator.calculate_unified_environment_cost(unified_config)
+    
+    # Reserved Instance calculations
+    total_instance_monthly_cost = unified_costs['writer_instance_cost'] + unified_costs['reader_instance_cost']
+    reserved_1_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 1)
+    reserved_3_year = self._calculate_reserved_instance_savings(total_instance_monthly_cost, 3)
+    
+    # Format for compatibility with existing code
+    return {
+        'monthly_breakdown': {
+            'writer_instance': unified_costs['writer_instance_cost'],
+            'reader_instances': unified_costs['reader_instance_cost'],
+            'storage': unified_costs['storage_cost'],
+            'backup': unified_costs['backup_cost'],
+            'monitoring': unified_costs['monitoring_cost'],
+            'cross_az_transfer': unified_costs['cross_az_cost'],
+            'total': unified_costs['total_monthly_cost']
+        },
+        'annual_breakdown': {
+            'writer_instance': unified_costs['writer_instance_cost'] * 12,
+            'reader_instances': unified_costs['reader_instance_cost'] * 12,
+            'storage': unified_costs['storage_cost'] * 12,
+            'backup': unified_costs['backup_cost'] * 12,
+            'monitoring': unified_costs['monitoring_cost'] * 12,
+            'cross_az_transfer': unified_costs['cross_az_cost'] * 12,
+            'total': unified_costs['total_annual_cost']
+        },
+        'storage_details': unified_costs['storage_breakdown'],
+        'reserved_instance_options': {
+            '1_year': reserved_1_year,
+            '3_year': reserved_3_year
+        },
+        'cost_optimization_opportunities': self._identify_cost_optimization_opportunities(
+            writer_optimization, reader_optimization, unified_costs['storage_breakdown'], environment_type
+        ),
+        'cost_calculation_method': 'unified_v1'  # ADD THIS FOR TRACKING
+    }
     def _calculate_storage_costs(self, storage_gb: int, iops_requirement: int, environment_type: str) -> Dict:
         """Calculate detailed storage costs"""
         
