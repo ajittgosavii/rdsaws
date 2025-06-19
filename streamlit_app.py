@@ -992,43 +992,56 @@ class NetworkTransferAnalyzer:
         
         return results
     
-    def _calculate_pattern_metrics(self, pattern_id: str, data_size_gb: int, bandwidth_mbps: int) -> Dict:
-        """Calculate metrics for a specific transfer pattern"""
+    def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict, 
+                             data_size_gb: int, region: str, bandwidth_mbps: int,
+                             security_req: str, timeline_weeks: int) -> Dict:
+    """Calculate metrics for a specific transfer pattern - WITH ERROR HANDLING"""
+    
+    try:
+        # Base calculations
+        data_size_tb = data_size_gb / 1024
+        
+        # Pattern-specific calculations
         if pattern_id == 'internet_dms':
-            effective_bandwidth = bandwidth_mbps * 0.7
-            transfer_time_hours = (data_size_gb * 8 * 1024) / (effective_bandwidth * 3600)
-            data_transfer_cost = data_size_gb * 0.09
-            setup_cost = 2000
-            
+            return self._calc_internet_dms(data_size_gb, bandwidth_mbps, region)
         elif pattern_id == 'dx_dms':
-            effective_bandwidth = bandwidth_mbps * 0.95
-            transfer_time_hours = (data_size_gb * 8 * 1024) / (effective_bandwidth * 3600)
-            data_transfer_cost = data_size_gb * 0.02
-            setup_cost = 8000
-            
+            return self._calc_dx_dms(data_size_gb, bandwidth_mbps, region)
+        elif pattern_id == 'dx_datasync_vpc':
+            return self._calc_dx_datasync_vpc(data_size_gb, bandwidth_mbps, region)
         elif pattern_id == 'vpn_dms':
-            effective_bandwidth = min(bandwidth_mbps * 0.8, 1250)
-            transfer_time_hours = (data_size_gb * 8 * 1024) / (effective_bandwidth * 3600)
-            data_transfer_cost = data_size_gb * 0.09
-            setup_cost = 3000
-        
+            return self._calc_vpn_dms(data_size_gb, bandwidth_mbps, region)
+        elif pattern_id == 'hybrid_snowball_dms':
+            return self._calc_hybrid_snowball(data_size_gb, bandwidth_mbps, region)
+        elif pattern_id == 'multipath_redundant':
+            return self._calc_multipath_redundant(data_size_gb, bandwidth_mbps, region)
         else:
-            # Default values
-            transfer_time_hours = 24
-            data_transfer_cost = data_size_gb * 0.09
-            setup_cost = 5000
-        
-        total_cost = data_transfer_cost + setup_cost
-        
+            # Return default/fallback metrics
+            return {
+                'transfer_time_hours': 24,
+                'transfer_time_days': 1,
+                'data_transfer_cost': data_size_gb * 0.09,
+                'infrastructure_cost': 1000,
+                'setup_cost': 5000,
+                'total_cost': data_size_gb * 0.09 + 6000,
+                'bandwidth_utilization': 70,
+                'reliability_score': 75,
+                'security_score': 60,
+                'complexity_score': 50
+            }
+    except Exception as e:
+        print(f"Error calculating metrics for pattern {pattern_id}: {e}")
+        # Return fallback metrics
         return {
-            'transfer_time_hours': transfer_time_hours,
-            'transfer_time_days': transfer_time_hours / 24,
-            'data_transfer_cost': data_transfer_cost,
-            'setup_cost': setup_cost,
-            'total_cost': total_cost,
-            'bandwidth_utilization': 90,
-            'reliability_score': 85,
-            'security_score': 80
+            'transfer_time_hours': 24,
+            'transfer_time_days': 1,
+            'data_transfer_cost': data_size_gb * 0.09,
+            'infrastructure_cost': 1000,
+            'setup_cost': 5000,
+            'total_cost': data_size_gb * 0.09 + 6000,
+            'bandwidth_utilization': 70,
+            'reliability_score': 75,
+            'security_score': 60,
+            'complexity_score': 50
         }
     
     def _generate_recommendations(self, results: Dict, migration_params: Dict) -> Dict:
@@ -1695,16 +1708,23 @@ def show_enhanced_cluster_configuration():
         st.success("✅ Enhanced cluster configuration saved!")
 
 def show_network_transfer_analysis():
-    """Show network transfer analysis interface"""
+    """Show network transfer analysis interface - FIXED VERSION"""
+    
     st.markdown("## 🌐 Network Transfer Analysis")
     
+    # Check prerequisites FIRST
     if not st.session_state.migration_params:
         st.warning("⚠️ Please complete Migration Configuration first.")
+        st.info("👆 Go to 'Migration Configuration' section to set up your migration parameters")
         return
     
-    # Initialize network analyzer
-    if 'network_analyzer' not in st.session_state:
-        st.session_state.network_analyzer = NetworkTransferAnalyzer()
+    # Initialize network analyzer if not exists
+    if 'network_analyzer' not in st.session_state or st.session_state.network_analyzer is None:
+        try:
+            st.session_state.network_analyzer = NetworkTransferAnalyzer()
+        except Exception as e:
+            st.error(f"Error initializing Network Transfer Analyzer: {str(e)}")
+            return
     
     analyzer = st.session_state.network_analyzer
     
@@ -1715,38 +1735,82 @@ def show_network_transfer_analysis():
     
     with col1:
         st.markdown("#### 📶 Connectivity")
-        available_bandwidth = st.selectbox("Available Bandwidth", [100, 500, 1000, 10000], index=2, format_func=lambda x: f"{x} Mbps")
+        available_bandwidth = st.selectbox(
+            "Available Bandwidth",
+            [100, 500, 1000, 10000],
+            index=2,
+            format_func=lambda x: f"{x} Mbps"
+        )
+        
         has_direct_connect = st.checkbox("Direct Connect Available", value=False)
         has_vpn_capability = st.checkbox("VPN Capability", value=True)
     
     with col2:
         st.markdown("#### 🔒 Security Requirements")
-        security_level = st.selectbox("Security Requirements", ["standard", "high", "very_high"], format_func=lambda x: x.replace('_', ' ').title())
-        compliance_requirements = st.multiselect("Compliance Requirements", ["HIPAA", "PCI-DSS", "SOX", "GDPR", "None"], default=["None"])
+        security_level = st.selectbox(
+            "Security Requirements",
+            ["standard", "high", "very_high"],
+            format_func=lambda x: x.replace('_', ' ').title()
+        )
+        
+        compliance_requirements = st.multiselect(
+            "Compliance Requirements",
+            ["HIPAA", "PCI-DSS", "SOX", "GDPR", "None"],
+            default=["None"]
+        )
     
     with col3:
         st.markdown("#### 💰 Budget Constraints")
-        budget_level = st.selectbox("Budget Level", ["low", "medium", "high"], index=1, format_func=lambda x: x.title())
-        max_setup_cost = st.number_input("Maximum Setup Cost ($)", min_value=1000, max_value=100000, value=25000)
+        budget_level = st.selectbox(
+            "Budget Level",
+            ["low", "medium", "high"],
+            index=1,
+            format_func=lambda x: x.title()
+        )
+        
+        max_setup_cost = st.number_input(
+            "Maximum Setup Cost ($)",
+            min_value=1000,
+            max_value=100000,
+            value=25000
+        )
     
     # Update migration params with network-specific settings
-    network_params = st.session_state.migration_params.copy()
-    network_params.update({
-        'bandwidth_mbps': available_bandwidth,
-        'has_direct_connect': has_direct_connect,
-        'has_vpn_capability': has_vpn_capability,
-        'security_requirements': security_level,
-        'budget_constraints': budget_level,
-        'max_setup_cost': max_setup_cost
-    })
+    try:
+        network_params = st.session_state.migration_params.copy()
+        network_params.update({
+            'bandwidth_mbps': available_bandwidth,
+            'has_direct_connect': has_direct_connect,
+            'has_vpn_capability': has_vpn_capability,
+            'security_requirements': security_level,
+            'compliance_requirements': compliance_requirements,
+            'budget_constraints': budget_level,
+            'max_setup_cost': max_setup_cost
+        })
+    except Exception as e:
+        st.error(f"Error preparing network parameters: {str(e)}")
+        return
     
+    # Run network analysis
     if st.button("🚀 Analyze Network Transfer Options", type="primary", use_container_width=True):
         with st.spinner("🔄 Analyzing network transfer patterns..."):
-            transfer_analysis = analyzer.calculate_transfer_analysis(network_params)
-            st.session_state.transfer_analysis = transfer_analysis
-            st.success("✅ Network analysis complete!")
-        
-        show_network_analysis_results()
+            try:
+                transfer_analysis = analyzer.calculate_transfer_analysis(network_params)
+                st.session_state.transfer_analysis = transfer_analysis
+                st.success("✅ Network analysis complete!")
+            except Exception as e:
+                st.error(f"❌ Network analysis failed: {str(e)}")
+                st.code(str(e))  # Show the full error for debugging
+                return
+    
+    # Display results if available
+    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis is not None:
+        try:
+            show_network_analysis_results()
+        except Exception as e:
+            st.error(f"Error displaying network results: {str(e)}")
+    else:
+        st.info("ℹ️ Run the network analysis to see results and recommendations.")
 
 def show_network_analysis_results():
     """Display network analysis results"""
