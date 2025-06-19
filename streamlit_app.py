@@ -8933,35 +8933,36 @@ def show_migration_configuration():
                 **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
                 """)
     
-    # REPLACE THE ENTIRE MIGRATION PARAMETERS SECTION WITH THIS:
+    # Data Configuration Section
+    st.markdown("### 💾 Data Size Configuration")
+    
+    # Call the simplified data configuration function here
+    data_config = show_simplified_data_configuration()
+    
+    # Migration Parameters Section
+    st.markdown("### ⚙️ Migration Parameters")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("#### 📱 Application Configuration")
+        num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
+        num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
 
-# First, call the simplified data configuration
-data_config = show_simplified_data_configuration()
+    with col2:
+        st.markdown("#### ⏱️ Timeline & Resources")
+        migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
+        team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
+        team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
 
-# Then continue with the rest of the migration parameters
-st.markdown("### ⚙️ Migration Parameters")
+    with col3:
+        st.markdown("#### 🌐 Infrastructure")
+        region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
+        use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
+        bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
+        migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
 
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("#### 📱 Application Configuration")
-    num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
-    num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
-
-with col2:
-    st.markdown("#### ⏱️ Timeline & Resources")
-    migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
-    team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
-    team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
-
-with col3:
-    st.markdown("#### 🌐 Infrastructure")
-    region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
-    use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
-    bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
-    migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
-
-    # ADD NEW GROWTH PLANNING SECTION:
+    # Growth Planning Section
     st.markdown("### 📈 Growth Planning & Forecasting")
     
     col1, col2 = st.columns(2)
@@ -9033,39 +9034,40 @@ with col3:
         help="Provide your Anthropic API key for AI-powered insights"
     )
     
-if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-    st.session_state.migration_params = {
-        'source_engine': source_engine,
-        'target_engine': target_engine,
-        # NEW WAY - Use values from simplified data config:
-        'data_size_gb': data_config['actual_data_size_gb'],  # For migration calculations
-        'target_storage_gb': data_config['target_storage_gb'],  # For AWS storage costs
-        'sizing_strategy': data_config['sizing_strategy'],  # Strategy used
-        'migration_cost_estimate': data_config['migration_cost_estimate'],
-        'monthly_storage_cost_estimate': data_config['monthly_storage_cost_estimate'],
-        # Rest of your existing parameters:
-        'num_applications': num_applications,
-        'num_stored_procedures': num_stored_procedures,
-        'migration_timeline_weeks': migration_timeline_weeks,
-        'team_size': team_size,
-        'team_expertise': team_expertise,
-        'region': region,
-        'use_direct_connect': use_direct_connect,
-        'bandwidth_mbps': bandwidth_mbps,
-        'migration_budget': migration_budget,
-        'anthropic_api_key': anthropic_api_key,
-        'estimated_migration_cost': 0,
-        # ADD THESE NEW GROWTH PARAMETERS:
-        'annual_data_growth': annual_data_growth,
-        'annual_user_growth': annual_user_growth,
-        'annual_transaction_growth': annual_transaction_growth,
-        'growth_scenario': growth_scenario,
-        'seasonality_factor': seasonality_factor,
-        'scaling_strategy': scaling_strategy
-    }
-        
-    st.success("✅ Configuration saved! Proceed to Environment Setup.")
-    st.balloons()
+    # Save Configuration Button
+    if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+        st.session_state.migration_params = {
+            'source_engine': source_engine,
+            'target_engine': target_engine,
+            # Use values from simplified data config
+            'data_size_gb': data_config['actual_data_size_gb'],
+            'target_storage_gb': data_config['target_storage_gb'],
+            'sizing_strategy': data_config['sizing_strategy'],
+            'migration_cost_estimate': data_config['migration_cost_estimate'],
+            'monthly_storage_cost_estimate': data_config['monthly_storage_cost_estimate'],
+            # Rest of parameters
+            'num_applications': num_applications,
+            'num_stored_procedures': num_stored_procedures,
+            'migration_timeline_weeks': migration_timeline_weeks,
+            'team_size': team_size,
+            'team_expertise': team_expertise,
+            'region': region,
+            'use_direct_connect': use_direct_connect,
+            'bandwidth_mbps': bandwidth_mbps,
+            'migration_budget': migration_budget,
+            'anthropic_api_key': anthropic_api_key,
+            'estimated_migration_cost': 0,
+            # Growth parameters
+            'annual_data_growth': annual_data_growth,
+            'annual_user_growth': annual_user_growth,
+            'annual_transaction_growth': annual_transaction_growth,
+            'growth_scenario': growth_scenario,
+            'seasonality_factor': seasonality_factor,
+            'scaling_strategy': scaling_strategy
+        }
+            
+        st.success("✅ Configuration saved! Proceed to Environment Setup.")
+        st.balloons()
 
 def show_environment_analysis():
     """Show environment analysis dashboard"""
