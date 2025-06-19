@@ -12397,4 +12397,4 @@ def test_growth_setup():
             st.warning("⚠️ No growth analysis data in session state yet")
 
 if __name__ == "__main__":
-    main()
+    main_fixed()
