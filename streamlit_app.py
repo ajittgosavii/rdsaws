@@ -113,7 +113,7 @@ class StorageConfigurationManager:
             
             # Calculate recommended storage for this environment
             recommended = self.calculate_recommended_storage(
-                migration_data_gb, env_type
+                env_storage_gb = specs.get('storage_gb', 0)  # Environment storage
             )
             
             # Analysis for this environment
