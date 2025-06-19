@@ -9493,20 +9493,18 @@ def main():
     """, unsafe_allow_html=True)
     
     # Sidebar navigation
-    with st.sidebar:
-        st.markdown("## 🧭 Navigation")
-        
-        # FIXED: Unique key for navigation radio
-        nav_key = key_manager.get_unique_key("main_navigation", "sidebar")
-        page = st.radio("Select Section:", [
-            "🔧 Migration Configuration",
-            "📊 Environment Setup", 
-            "🌐 Network Analysis",
-            "🚀 Analysis & Recommendations",
-            "📈 Results Dashboard",
-            "📄 Reports & Export"
-            ], key=nav_key
-        )
+    selected = st.radio(
+    "🧭 Navigation\nSelect Section:",
+    [
+        "🔧 Migration Configuration",
+        "📊 Environment Setup",
+        "🌐 Network Analysis",
+        "🚀 Analysis & Recommendations",
+        "📈 Results Dashboard",
+        "📄 Reports & Export"
+    ],
+    key="main_navigation"
+)
     
     # Main content area
     if page == "🔧 Migration Configuration":
