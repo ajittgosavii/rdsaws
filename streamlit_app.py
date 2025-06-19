@@ -8194,9 +8194,9 @@ if st.checkbox("🐛 Show Debug Info"):
     st.write("Analysis results:", bool(st.session_state.analysis_results))
     st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
 
-if st.session_state.environment_specs:
-    st.write("Num environments:", len(st.session_state.environment_specs))
-    st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
+    if st.session_state.environment_specs:
+        st.write("Num environments:", len(st.session_state.environment_specs))
+        st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
 
     # Main content area - THIS IS THE KEY FIX
     if page == "🔧 Migration Configuration":
