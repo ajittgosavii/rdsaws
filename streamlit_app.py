@@ -9033,7 +9033,7 @@ with col3:
         help="Provide your Anthropic API key for AI-powered insights"
     )
     
-    if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+if st.button("💾 Save Configuration", type="primary", use_container_width=True):
     st.session_state.migration_params = {
         'source_engine': source_engine,
         'target_engine': target_engine,
