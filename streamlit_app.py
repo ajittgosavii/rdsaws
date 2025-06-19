@@ -9533,6 +9533,17 @@ def main():
                 st.caption(f"Avg Health: {avg_health:.1f}/100")
         else:
             st.info("ℹ️ vROps analysis pending")
+            # Calculate average health score
+            health_scores = []
+            for env_name, analysis in vrops_analysis.items():
+                if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+            
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.caption(f"Avg Health: {avg_health:.1f}/100")
+        else:
+            st.info("ℹ️ vROps analysis pending")
             
     if st.session_state.environment_specs:
                 st.write("Num environments:", len(st.session_state.environment_specs))
