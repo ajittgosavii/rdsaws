@@ -212,7 +212,8 @@ def auto_refresh_costs():
     st.markdown("### 🔄 Auto-Refresh Cost Analysis")
     
     # Auto-refresh toggle
-    auto_refresh = st.checkbox("Enable Auto-Refresh (every 30 seconds)", value=False)
+    auto_refresh = st.checkbox("Enable Auto-Refresh (every 30 seconds)", 
+        value=False, key="auto_refresh_toggle")  # Add unique key
     
     if auto_refresh:
         # Use Streamlit's auto-refresh capability
@@ -266,9 +267,10 @@ def integrate_cost_refresh_ui():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🔄 Refresh All Costs", type="primary", use_container_width=True):
-            refresh_cost_calculations()
-    
+     if st.button("🔄 Refresh All Costs", type="primary", 
+                 use_container_width=True, key="refresh_all_costs"):  # Add unique key
+         refresh_cost_calculations()
+         
     with col2:
         if st.button("📊 Refresh Growth Analysis", use_container_width=True):
             if st.session_state.analysis_results:
@@ -7685,7 +7687,8 @@ def show_basic_cost_summary():
                         st.metric("Monthly Cost", f"${costs:,.2f}")
                     else:
                         st.write("Cost information not available in expected format")
-
+    if st.button("🔄 Refresh Costs", key="refresh_costs_summary_basic"):  # Changed key
+        refresh_cost_calculations()
 
 def show_growth_analysis_dashboard():
     """Show comprehensive growth analysis dashboard"""
