@@ -9426,7 +9426,8 @@ def test_claude_ai_connection():
 def main():
     """Main Streamlit application"""
     
-    initialize_session_state
+    # FIXED: Actually call the function with parentheses
+    initialize_session_state()
     
     # Header
     st.markdown("""
@@ -9436,7 +9437,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar navigation
+    # Sidebar navigation with status
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
         page = st.radio("Select Section:", [
@@ -9449,91 +9450,89 @@ def main():
             "📄 Reports & Export"
             ]
         )
-    
-    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
-        st.success("✅ vROps analysis complete")
         
-    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
-        main_cost_refresh_section()
-    
-    health_scores = []
-    vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
-    if vrops_analysis is not None and isinstance(vrops_analysis, dict):
-        for env_name, analysis in vrops_analysis.items():
-    
-            if health_scores:
-                avg_health = sum(health_scores) / len(health_scores)
-                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-            else:
-                st.info("ℹ️ vROps analysis pending")
-    
-        # Status indicators
-                st.markdown("### 📋 Status")
+        # Status indicators in sidebar
+        st.markdown("### 📋 Status")
         
-    env_specs = getattr(st.session_state, 'environment_specs', {})
-    if env_specs and len(env_specs) > 0:
-            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
-    else:
-            st.warning("⚠️ Configure environments")
-        
-    if st.session_state.migration_params:
+        # Migration parameters status
+        migration_params = safe_get_session_state('migration_params')
+        if migration_params:
             st.success("✅ Migration parameters set")
-    else:
+            # Show key migration info
+            source_engine = migration_params.get('source_engine', 'Not set')
+            target_engine = migration_params.get('target_engine', 'Not set')
+            st.caption(f"{source_engine} → {target_engine}")
+        else:
             st.warning("⚠️ Set migration parameters")
         
-        # Check for both regular and enhanced analysis results
-    has_regular_results = st.session_state.analysis_results is not None
-    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        # Environment specs status
+        env_specs = safe_get_session_state('environment_specs', {})
+        if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(env_specs)} environments configured")
+            # Show environment names
+            env_names = list(env_specs.keys())[:3]  # Show first 3
+            st.caption(", ".join(env_names) + ("..." if len(env_specs) > 3 else ""))
+        else:
+            st.warning("⚠️ Configure environments")
         
-    if has_regular_results or has_enhanced_results:
+        # Analysis results status
+        has_regular_results = safe_get_session_state('analysis_results') is not None
+        has_enhanced_results = safe_get_session_state('enhanced_analysis_results') is not None
+        
+        if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
-            
-            # Show metrics from whichever analysis was completed
+            # Show cost info if available
             if has_enhanced_results:
-                results = st.session_state.enhanced_analysis_results
-                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                results = safe_get_session_state('enhanced_analysis_results')
                 st.info("🔬 Enhanced Analysis")
             elif has_regular_results:
-                results = st.session_state.analysis_results
-                st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                results = safe_get_session_state('analysis_results')
                 st.info("📊 Standard Analysis")
-    else:
+            
+            if results:
+                monthly_cost = results.get('monthly_aws_cost', 0)
+                if monthly_cost > 0:
+                    st.caption(f"Monthly: ${monthly_cost:,.0f}")
+        else:
             st.info("ℹ️ Analysis pending")
         
         # Network analysis status
-    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+        transfer_analysis = safe_get_session_state('transfer_analysis')
+        if transfer_analysis:
             st.success("✅ Network analysis complete")
-            recommendations = st.session_state.transfer_analysis.get('recommendations', {})
+            recommendations = transfer_analysis.get('recommendations', {})
             primary = recommendations.get('primary_recommendation', {})
             if primary:
-                st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
-    else:
+                st.caption(f"Recommended: {primary.get('pattern_name', 'N/A')}")
+        else:
             st.info("ℹ️ Network analysis pending")
         
         # vROps analysis status
-    if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
+        vrops_analysis = safe_get_session_state('vrops_analysis')
+        if vrops_analysis:
             st.success("✅ vROps analysis complete")
-            
+            # Calculate average health score
             health_scores = []
-            for env_name, analysis in st.session_state.vrops_analysis.items():
+            for env_name, analysis in vrops_analysis.items():
                 if isinstance(analysis, dict) and 'performance_scores' in analysis:
                     health_scores.append(analysis['performance_scores'].get('overall_health', 0))
             
             if health_scores:
                 avg_health = sum(health_scores) / len(health_scores)
-                st.metric("Avg Health Score", f"{avg_health:.1f}/100")
-    else:
+                st.caption(f"Avg Health: {avg_health:.1f}/100")
+        else:
             st.info("ℹ️ vROps analysis pending")
-        
-        # Debug info (optional)
-    if st.checkbox("🐛 Show Debug Info"):
-            st.markdown("### Debug Information")
-            st.write("Environment specs:", bool(st.session_state.environment_specs))
-            st.write("Migration params:", bool(st.session_state.migration_params))
-            st.write("Analysis results:", bool(st.session_state.analysis_results))
-            st.write("Enhanced results:", bool(hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results))
+            # Calculate average health score
+            health_scores = []
+            for env_name, analysis in vrops_analysis.items():
+                if isinstance(analysis, dict) and 'performance_scores' in analysis:
+                    health_scores.append(analysis['performance_scores'].get('overall_health', 0))
+            
+            if health_scores:
+                avg_health = sum(health_scores) / len(health_scores)
+                st.caption(f"Avg Health: {avg_health:.1f}/100")
+        else:
+            st.info("ℹ️ vROps analysis pending")
             
     if st.session_state.environment_specs:
                 st.write("Num environments:", len(st.session_state.environment_specs))
