@@ -133,954 +133,6 @@ def show_enhanced_environment_analysis():
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
 
-import asyncio
-import streamlit as st
-import anthropic
-import boto3
-from typing import Dict, Optional
-import json
-
-# ADD THIS CLASS to your streamlit_app.py file (put it near the top with other classes):
-
-class EnhancedAWSPricingAPI:
-    """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
-    
-    def __init__(self):
-        self.base_url = "https://pricing.us-east-1.amazonaws.com"
-        self.cache = {}
-        
-    def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
-        """Get RDS pricing for specific instance with Multi-AZ support"""
-        cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
-        
-        if cache_key in self.cache:
-            return self.cache[cache_key]
-        
-        # Enhanced pricing data with Multi-AZ and Aurora support
-        pricing_data = {
-            'us-east-1': {
-                'postgres': {
-                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.xlarge': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.4xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.8xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                },
-                'aurora-postgresql': {
-                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.12xlarge': {'hourly': 6.96, 'hourly_multi_az': 6.96, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.16xlarge': {'hourly': 9.28, 'hourly_multi_az': 9.28, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.24xlarge': {'hourly': 13.92, 'hourly_multi_az': 13.92, 'storage_gb': 0.10, 'io_request': 0.20},
-                },
-                'oracle-ee': {
-                    'db.t3.medium': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.large': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.2xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.4xlarge': {'hourly': 7.68, 'hourly_multi_az': 15.36, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                },
-                'mysql': {
-                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
-                },
-                'aurora-mysql': {
-                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
-                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
-                }
-            }
-        }
-        
-        engine_pricing = pricing_data.get(region, {}).get(engine, {})
-        instance_pricing = engine_pricing.get(instance_class, {
-            'hourly': 0.5, 
-            'hourly_multi_az': 1.0, 
-            'storage_gb': 0.115, 
-            'iops_gb': 0.10,
-            'io_request': 0.20
-        })
-        
-        # Select appropriate pricing based on Multi-AZ
-        if multi_az and 'aurora' not in engine:
-            hourly_cost = instance_pricing['hourly_multi_az']
-        else:
-            hourly_cost = instance_pricing['hourly']
-        
-        result = {
-            'hourly': hourly_cost,
-            'storage_gb': instance_pricing['storage_gb'],
-            'iops_gb': instance_pricing.get('iops_gb', 0.10),
-            'io_request': instance_pricing.get('io_request', 0.20),
-            'is_aurora': 'aurora' in engine,
-            'multi_az': multi_az
-        }
-        
-        self.cache[cache_key] = result
-        return result
-
-
-# ALSO ADD this if MigrationAnalyzer class is missing:
-
-class MigrationAnalyzer:
-    """Basic migration analyzer for standard environment configurations"""
-    
-    def __init__(self, anthropic_api_key: Optional[str] = None):
-        self.pricing_api = EnhancedAWSPricingAPI()
-        self.anthropic_api_key = anthropic_api_key
-    
-    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate AWS instance recommendations for environments"""
-        
-        recommendations = {}
-        
-        for env_name, specs in environment_specs.items():
-            cpu_cores = specs['cpu_cores']
-            ram_gb = specs['ram_gb']
-            storage_gb = specs['storage_gb']
-            
-            # Determine environment type
-            environment_type = self._categorize_environment(env_name)
-            
-            # Calculate instance class
-            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
-            
-            # Multi-AZ recommendation
-            multi_az = environment_type in ['production', 'staging']
-                                  
-            recommendations[env_name] = {
-                'environment_type': environment_type,
-                'instance_class': instance_class,
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'multi_az': multi_az,
-                'daily_usage_hours': specs.get('daily_usage_hours', 24),
-                'peak_connections': specs.get('peak_connections', 100)
-            }
-        
-        return recommendations
-    
-    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
-        """Calculate migration costs based on recommendations"""
-        
-        region = migration_params.get('region', 'us-east-1')
-        target_engine = migration_params.get('target_engine', 'postgres')
-        
-        total_monthly_cost = 0
-        environment_costs = {}
-        
-        for env_name, rec in recommendations.items():
-            env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
-            environment_costs[env_name] = env_costs
-            total_monthly_cost += env_costs['total_monthly']
-        
-        # Migration service costs
-        data_size_gb = migration_params.get('data_size_gb', 1000)
-        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        
-        # DMS costs
-        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks  # t3.large instance
-        
-        # Data transfer costs
-        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
-        
-        # Professional services
-        ps_cost = migration_timeline_weeks * 8000  # $8k per week
-        
-        migration_costs = {
-            'dms_instance': dms_instance_cost,
-            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
-            'professional_services': ps_cost,
-            'contingency': 0,
-            'total': 0
-        }
-        # Calculate contingency and total
-        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
-        migration_costs['contingency'] = base_cost * 0.2
-        migration_costs['total'] = base_cost + migration_costs['contingency']
-        
-        return {
-            'monthly_aws_cost': total_monthly_cost,
-            'annual_aws_cost': total_monthly_cost * 12,
-            'environment_costs': environment_costs,
-            'migration_costs': migration_costs,
-            'transfer_costs': transfer_costs
-        }
-    
-def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-    """Generate REAL Claude AI insights synchronously"""
-    
-    if not self.anthropic_api_key:
-        return {'error': 'No Anthropic API key provided', 'source': 'Error'}
-    
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=self.anthropic_api_key)
-        
-        context = f"""
-        You are an AWS database migration expert. Analyze this project:
-        
-        MIGRATION: {migration_params.get('source_engine')} → {migration_params.get('target_engine')}
-        DATA SIZE: {migration_params.get('data_size_gb', 0):,} GB
-        TIMELINE: {migration_params.get('migration_timeline_weeks', 0)} weeks
-        MONTHLY COST: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
-        MIGRATION COST: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
-        
-        Provide specific insights for:
-        1. Top 3 migration risks and how to mitigate them
-        2. Cost optimization opportunities
-        3. Timeline feasibility and recommendations
-        4. Technical considerations for this specific database migration
-        
-        Be concise but actionable.
-        """
-        
-        message = client.messages.create(
-            model="claude-3-sonnet-20240229",
-            max_tokens=1500,
-            temperature=0.3,
-            messages=[{"role": "user", "content": context}]
-        )
-        
-        return {
-            'ai_analysis': message.content[0].text,
-            'source': 'Claude AI (Real)',
-            'model': 'claude-3-sonnet-20240229',
-            'success': True
-        }
-        
-    except ImportError:
-        return {'error': 'Run: pip install anthropic', 'source': 'Library Error', 'success': False}
-    except Exception as e:
-        return {'error': f'Claude AI failed: {str(e)}', 'source': 'API Error', 'success': False}
-    
-    def _categorize_environment(self, env_name: str) -> str:
-        """Categorize environment type from name"""
-        env_lower = env_name.lower()
-        if any(term in env_lower for term in ['prod', 'production', 'prd']):
-            return 'production'
-        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
-            return 'staging'
-        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
-            return 'testing'
-        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
-            return 'development'
-        return 'production'  # Default to production for safety
-    
-    def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
-        """Calculate appropriate instance class"""
-        
-        # Instance sizing logic
-        if cpu_cores <= 2 and ram_gb <= 8:
-            instance_class = 'db.t3.medium'
-        elif cpu_cores <= 4 and ram_gb <= 16:
-            instance_class = 'db.t3.large'
-        elif cpu_cores <= 8 and ram_gb <= 32:
-            instance_class = 'db.r5.large'
-        elif cpu_cores <= 16 and ram_gb <= 64:
-            instance_class = 'db.r5.xlarge'
-        elif cpu_cores <= 32 and ram_gb <= 128:
-            instance_class = 'db.r5.2xlarge'
-        elif cpu_cores <= 64 and ram_gb <= 256:
-            instance_class = 'db.r5.4xlarge'
-        else:
-            instance_class = 'db.r5.8xlarge'
-        
-        # Environment-specific adjustments
-        if env_type == 'development' and 'r5' in instance_class:
-            # Downsize for development
-            downsized = {
-                'db.r5.8xlarge': 'db.r5.4xlarge',
-                'db.r5.4xlarge': 'db.r5.2xlarge',
-                'db.r5.2xlarge': 'db.r5.xlarge',
-                'db.r5.xlarge': 'db.r5.large',
-                'db.r5.large': 'db.t3.large'
-            }
-            instance_class = downsized.get(instance_class, instance_class)
-        
-        return instance_class
-    
-    def _calculate_environment_cost(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
-        """Calculate cost for a single environment"""
-        
-        # Get pricing
-        pricing = self.pricing_api.get_rds_pricing(
-            region, target_engine, rec['instance_class'], rec['multi_az']
-        )
-        
-        # Calculate monthly hours
-        daily_hours = rec['daily_usage_hours']
-        monthly_hours = daily_hours * 30
-        
-        # Instance cost
-        instance_cost = pricing['hourly'] * monthly_hours
-        
-        # Storage cost
-        storage_cost = rec['storage_gb'] * pricing['storage_gb']
-        
-        # Backup cost (estimate 20% of storage)
-        backup_cost = storage_cost * 0.2
-        
-        # Total monthly cost
-        total_monthly = instance_cost + storage_cost + backup_cost
-        
-        return {
-            'instance_cost': instance_cost,
-            'storage_cost': storage_cost,
-            'backup_cost': backup_cost,
-            'total_monthly': total_monthly
-        }
-    
-    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
-        """Calculate data transfer costs"""
-        
-        use_direct_connect = migration_params.get('use_direct_connect', False)
-        
-        # Internet transfer
-        internet_cost = data_size_gb * 0.09  # $0.09 per GB
-        
-        # Direct Connect transfer
-        if use_direct_connect:
-            dx_cost = data_size_gb * 0.02  # $0.02 per GB
-        else:
-            dx_cost = internet_cost
-        
-        return {
-            'internet': internet_cost,
-            'direct_connect': dx_cost,
-            'total': min(internet_cost, dx_cost)
-        }
-
-# FIXED: Synchronous Claude AI Implementation for Streamlit
-class StreamlitClaudeAIAnalyzer:
-    """Synchronous Claude AI integration that works with Streamlit"""
-    
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key
-        self.client = None
-        
-        if api_key:
-            try:
-                self.client = anthropic.Anthropic(api_key=api_key)
-            except Exception as e:
-                print(f"Warning: Could not initialize Anthropic client: {e}")
-    
-    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate AI insights synchronously for Streamlit"""
-        
-        if not self.client:
-            return {
-                'error': 'Claude AI not available - using fallback insights',
-                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params)
-            }
-        
-        try:
-            # Prepare context for Claude
-            context = self._prepare_migration_context(cost_analysis, migration_params)
-            
-            # Create the prompt
-            prompt = f"""
-            You are an AWS migration expert analyzing a database migration project. 
-            Please provide detailed insights and recommendations based on the following migration analysis:
-
-            {context}
-
-            Please provide insights in the following categories:
-            1. Cost Analysis & Optimization
-            2. Risk Assessment
-            3. Migration Strategy Recommendations
-            4. Timeline Feasibility
-            5. Technical Considerations
-            6. Post-Migration Optimization
-
-            Format your response as a structured analysis with specific, actionable recommendations.
-            Be concise but comprehensive. Limit response to 1500 words.
-            """
-            
-            # Call Claude API synchronously
-            message = self.client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=2000,
-                temperature=0.3,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            
-            # Parse Claude's response
-            ai_response = message.content[0].text
-            
-            # Structure the response
-            structured_insights = self._structure_ai_response(ai_response)
-            structured_insights['source'] = 'Claude AI'
-            structured_insights['model'] = 'claude-3-sonnet-20240229'
-            structured_insights['api_success'] = True
-            
-            return structured_insights
-            
-        except Exception as e:
-            print(f"Error calling Claude AI: {e}")
-            return {
-                'error': f'Claude AI call failed: {str(e)}',
-                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params),
-                'api_success': False
-            }
-    
-    def _prepare_migration_context(self, cost_analysis: Dict, migration_params: Dict) -> str:
-        """Prepare context for Claude AI"""
-        
-        # Calculate some additional metrics
-        total_environments = len(cost_analysis.get('environment_costs', {}))
-        avg_monthly_cost = cost_analysis.get('monthly_aws_cost', 0) / max(total_environments, 1)
-        
-        context = f"""
-        MIGRATION PROJECT OVERVIEW:
-        - Source Database: {migration_params.get('source_engine', 'Unknown')}
-        - Target Database: {migration_params.get('target_engine', 'Unknown')}
-        - Data Size: {migration_params.get('data_size_gb', 0):,} GB
-        - Timeline: {migration_params.get('migration_timeline_weeks', 0)} weeks
-        - Team Size: {migration_params.get('team_size', 0)} members
-        - Team Expertise: {migration_params.get('team_expertise', 'Unknown')}
-        - Budget: ${migration_params.get('migration_budget', 0):,}
-
-        COST ANALYSIS:
-        - Monthly AWS Cost: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
-        - Annual AWS Cost: ${cost_analysis.get('annual_aws_cost', 0):,.0f}
-        - Migration Investment: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
-        - Average Cost per Environment: ${avg_monthly_cost:,.0f}/month
-
-        ENVIRONMENTS:
-        - Number of Environments: {total_environments}
-        - Environment Names: {', '.join(cost_analysis.get('environment_costs', {}).keys())}
-
-        MIGRATION COMPLEXITY FACTORS:
-        - Applications Connected: {migration_params.get('num_applications', 0)}
-        - Stored Procedures/Functions: {migration_params.get('num_stored_procedures', 0)}
-        - Region: {migration_params.get('region', 'us-east-1')}
-        - Direct Connect Available: {migration_params.get('use_direct_connect', False)}
-        
-        COST BREAKDOWN:
-        - DMS Instance Cost: ${cost_analysis.get('migration_costs', {}).get('dms_instance', 0):,.0f}
-        - Data Transfer Cost: ${cost_analysis.get('migration_costs', {}).get('data_transfer', 0):,.0f}
-        - Professional Services: ${cost_analysis.get('migration_costs', {}).get('professional_services', 0):,.0f}
-        """
-        
-        return context
-    
-    def _structure_ai_response(self, ai_response: str) -> Dict:
-        """Structure Claude's response into categories"""
-        
-        # Simple parsing to extract key sections
-        sections = ai_response.split('\n\n')
-        
-        structured = {
-            'cost_optimization': '',
-            'risk_mitigation': '',
-            'migration_strategy': '',
-            'timeline_recommendations': '',
-            'technical_considerations': '',
-            'post_migration_optimization': '',
-            'key_recommendations': [],
-            'executive_summary': '',
-            'full_response': ai_response
-        }
-        
-        # Extract key recommendations (look for numbered lists or bullet points)
-        recommendations = []
-        for section in sections:
-            lines = section.split('\n')
-            for line in lines:
-                line = line.strip()
-                if (line.startswith('•') or line.startswith('-') or 
-                    any(line.startswith(f"{i}.") for i in range(1, 10))):
-                    recommendations.append(line.lstrip('•-0123456789. '))
-        
-        structured['key_recommendations'] = recommendations[:8]  # Top 8 recommendations
-        
-        # Try to extract sections based on keywords
-        current_section = ''
-        for section in sections:
-            section_lower = section.lower()
-            
-            if any(keyword in section_lower for keyword in ['cost', 'pricing', 'financial', 'budget']):
-                structured['cost_optimization'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['risk', 'mitigation', 'challenges']):
-                structured['risk_mitigation'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['strategy', 'approach', 'methodology']):
-                structured['migration_strategy'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['timeline', 'schedule', 'phases']):
-                structured['timeline_recommendations'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['technical', 'architecture', 'configuration']):
-                structured['technical_considerations'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['optimization', 'performance', 'tuning']):
-                structured['post_migration_optimization'] += section + '\n\n'
-            elif any(keyword in section_lower for keyword in ['summary', 'conclusion', 'overview']):
-                structured['executive_summary'] += section + '\n\n'
-        
-        # If executive summary is empty, create one from the first section
-        if not structured['executive_summary'] and sections:
-            structured['executive_summary'] = sections[0]
-        
-        return structured
-    
-    def _get_fallback_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Enhanced fallback insights when AI is unavailable"""
-        
-        monthly_cost = cost_analysis.get('monthly_aws_cost', 0)
-        timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        data_size = migration_params.get('data_size_gb', 0)
-        team_size = migration_params.get('team_size', 5)
-        source_engine = migration_params.get('source_engine', 'unknown')
-        target_engine = migration_params.get('target_engine', 'unknown')
-        
-        # Generate more intelligent fallback based on data
-        risk_level = "Medium"
-        if timeline_weeks < 8 or data_size > 10000 or team_size < 3:
-            risk_level = "High"
-        elif timeline_weeks > 16 and data_size < 1000 and team_size >= 5:
-            risk_level = "Low"
-        
-        cost_efficiency = "Good"
-        if monthly_cost > 10000:
-            cost_efficiency = "Review required - high monthly cost"
-        elif monthly_cost < 1000:
-            cost_efficiency = "Very efficient"
-        
-        return {
-            'cost_optimization': f"Monthly AWS cost of ${monthly_cost:,.0f} appears {cost_efficiency.lower()} for this migration scale. Consider Reserved Instances for 30-40% savings on production workloads. Evaluate right-sizing opportunities post-migration.",
-            
-            'risk_mitigation': f"Migration risk level: {risk_level}. Key risks include {source_engine} to {target_engine} compatibility, application dependencies, and data validation. Implement comprehensive testing strategy and maintain rollback procedures.",
-            
-            'migration_strategy': f"Recommended approach: Phased migration starting with non-production environments. Use AWS DMS for continuous replication with minimal downtime cutover. Timeline of {timeline_weeks} weeks allows for proper validation.",
-            
-            'timeline_recommendations': f"Timeline allocation: 20% planning, 40% migration execution, 30% testing/validation, 10% go-live. With {data_size:,} GB of data, allocate sufficient time for initial load and ongoing synchronization.",
-            
-            'technical_considerations': f"Technical focus areas: Schema conversion ({source_engine} → {target_engine}), stored procedure migration, index optimization, and connection string updates across {migration_params.get('num_applications', 'unknown')} applications.",
-            
-            'post_migration_optimization': "Post-migration opportunities: Instance right-sizing based on actual usage, storage optimization, backup strategy refinement, and performance monitoring implementation. Plan optimization review 30-60 days post-migration.",
-            
-            'key_recommendations': [
-                "Start with development/QA environments for validation",
-                "Implement comprehensive backup and rollback procedures",
-                "Use AWS DMS for minimal downtime migration",
-                "Plan for application connection string updates",
-                "Establish performance baselines before migration",
-                "Consider Reserved Instances for cost optimization",
-                "Implement monitoring and alerting for new environment",
-                "Schedule post-migration optimization review"
-            ],
-            
-            'executive_summary': f"Migration from {source_engine} to {target_engine} is feasible within {timeline_weeks} weeks with {risk_level.lower()} risk level. Monthly operational cost of ${monthly_cost:,.0f} provides good value. Success depends on proper planning, testing, and team preparation.",
-            
-            'source': 'Enhanced Fallback Analysis'
-        }
-
-
-# FIXED: Synchronous Migration Analyzer for Streamlit
-class StreamlitMigrationAnalyzer:
-    """Migration analyzer that works synchronously with Streamlit"""
-    
-    def __init__(self, anthropic_api_key: Optional[str] = None):
-        self.pricing_api = RealAWSPricingAPI()
-        self.ai_analyzer = StreamlitClaudeAIAnalyzer(anthropic_api_key)
-        self.anthropic_api_key = anthropic_api_key
-    
-    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate AWS instance recommendations using real pricing"""
-        
-        recommendations = {}
-        
-        for env_name, specs in environment_specs.items():
-            cpu_cores = specs['cpu_cores']
-            ram_gb = specs['ram_gb']
-            storage_gb = specs['storage_gb']
-            
-            # Determine environment type
-            environment_type = self._categorize_environment(env_name)
-            
-            # Calculate instance class
-            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
-            
-            # Multi-AZ recommendation
-            multi_az = environment_type in ['production', 'staging']
-            
-            recommendations[env_name] = {
-                'environment_type': environment_type,
-                'instance_class': instance_class,
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'multi_az': multi_az,
-                'daily_usage_hours': specs.get('daily_usage_hours', 24),
-                'peak_connections': specs.get('peak_connections', 100)
-            }
-        
-        return recommendations
-    
-    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
-        """Calculate migration costs using real AWS pricing"""
-        
-        region = migration_params.get('region', 'us-east-1')
-        target_engine = migration_params.get('target_engine', 'postgres')
-        
-        total_monthly_cost = 0
-        environment_costs = {}
-        
-        for env_name, rec in recommendations.items():
-            # Use real pricing API
-            env_costs = self._calculate_environment_cost_real(env_name, rec, region, target_engine)
-            environment_costs[env_name] = env_costs
-            total_monthly_cost += env_costs['total_monthly']
-        
-        # Migration service costs
-        data_size_gb = migration_params.get('data_size_gb', 1000)
-        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        
-        # DMS costs
-        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
-        
-        # Data transfer costs
-        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
-        
-        # Professional services
-        ps_cost = migration_timeline_weeks * 8000
-        
-        migration_costs = {
-            'dms_instance': dms_instance_cost,
-            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
-            'professional_services': ps_cost,
-            'contingency': 0,
-            'total': 0
-        }
-        
-        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
-        migration_costs['contingency'] = base_cost * 0.2
-        migration_costs['total'] = base_cost + migration_costs['contingency']
-        
-        return {
-            'monthly_aws_cost': total_monthly_cost,
-            'annual_aws_cost': total_monthly_cost * 12,
-            'environment_costs': environment_costs,
-            'migration_costs': migration_costs,
-            'transfer_costs': transfer_costs
-        }
-    
-    def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate AI insights synchronously for Streamlit"""
-        return self.ai_analyzer.generate_ai_insights_sync(cost_analysis, migration_params)
-    
-    def _calculate_environment_cost_real(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
-        """Calculate environment cost using real AWS pricing"""
-        
-        # Get real pricing from AWS API
-        pricing = self.pricing_api.get_rds_pricing(
-            region, target_engine, rec['instance_class'], rec['multi_az']
-        )
-        
-        # Calculate monthly hours
-        daily_hours = rec['daily_usage_hours']
-        monthly_hours = daily_hours * 30
-        
-        # Instance cost using real pricing
-        instance_cost = pricing['hourly'] * monthly_hours
-        
-        # Storage cost using real pricing
-        storage_cost = rec['storage_gb'] * pricing['storage_gb']
-        
-        # Backup cost (estimate 20% of storage)
-        backup_cost = storage_cost * 0.2
-        
-        # Total monthly cost
-        total_monthly = instance_cost + storage_cost + backup_cost
-        
-        return {
-            'instance_cost': instance_cost,
-            'storage_cost': storage_cost,
-            'backup_cost': backup_cost,
-            'total_monthly': total_monthly,
-            'pricing_source': pricing.get('source', 'Unknown')
-        }
-    
-    def _categorize_environment(self, env_name: str) -> str:
-        """Categorize environment type from name"""
-        env_lower = env_name.lower()
-        if any(term in env_lower for term in ['prod', 'production', 'prd']):
-            return 'production'
-        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
-            return 'staging'
-        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
-            return 'testing'
-        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
-            return 'development'
-        return 'production'
-    
-    def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
-        """Calculate appropriate instance class"""
-        
-        if cpu_cores <= 2 and ram_gb <= 8:
-            instance_class = 'db.t3.medium'
-        elif cpu_cores <= 4 and ram_gb <= 16:
-            instance_class = 'db.t3.large'
-        elif cpu_cores <= 8 and ram_gb <= 32:
-            instance_class = 'db.r5.large'
-        elif cpu_cores <= 16 and ram_gb <= 64:
-            instance_class = 'db.r5.xlarge'
-        elif cpu_cores <= 32 and ram_gb <= 128:
-            instance_class = 'db.r5.2xlarge'
-        elif cpu_cores <= 64 and ram_gb <= 256:
-            instance_class = 'db.r5.4xlarge'
-        else:
-            instance_class = 'db.r5.8xlarge'
-        
-        # Environment-specific adjustments
-        if env_type == 'development' and 'r5' in instance_class:
-            downsized = {
-                'db.r5.8xlarge': 'db.r5.4xlarge',
-                'db.r5.4xlarge': 'db.r5.2xlarge',
-                'db.r5.2xlarge': 'db.r5.xlarge',
-                'db.r5.xlarge': 'db.r5.large',
-                'db.r5.large': 'db.t3.large'
-            }
-            instance_class = downsized.get(instance_class, instance_class)
-        
-        return instance_class
-    
-    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
-        """Calculate data transfer costs"""
-        
-        use_direct_connect = migration_params.get('use_direct_connect', False)
-        
-        internet_cost = data_size_gb * 0.09
-        
-        if use_direct_connect:
-            dx_cost = data_size_gb * 0.02
-        else:
-            dx_cost = internet_cost
-        
-        return {
-            'internet': internet_cost,
-            'direct_connect': dx_cost,
-            'total': min(internet_cost, dx_cost)
-        }
-
-
-# FIXED: Streamlit-compatible analysis function
-def run_streamlit_migration_analysis():
-    """Run migration analysis synchronously for Streamlit"""
-    
-    try:
-        # Check if this is enhanced environment data
-        is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
-        
-        if is_enhanced:
-            # Run enhanced analysis (if available)
-            st.info("🔬 Detected enhanced environment configuration - running cluster analysis")
-            run_enhanced_migration_analysis()
-        else:
-            # Run streamlit-compatible analysis
-            st.info("📊 Running real-time migration analysis")
-            
-            # Initialize STREAMLIT-compatible analyzer
-            anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-            analyzer = StreamlitMigrationAnalyzer(anthropic_api_key)
-            
-            # Step 1: Calculate recommendations with real AWS pricing
-            st.write("📊 Calculating instance recommendations with live AWS pricing...")
-            recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
-            st.session_state.recommendations = recommendations
-            
-            # Step 2: Calculate costs with real AWS pricing
-            st.write("💰 Analyzing costs with real-time AWS pricing...")
-            cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
-            
-            # Check pricing sources
-            pricing_sources = set()
-            for env_costs in cost_analysis['environment_costs'].values():
-                pricing_sources.add(env_costs.get('pricing_source', 'Unknown'))
-            
-            if 'AWS Pricing API' in pricing_sources:
-                st.success("✅ Using real-time AWS pricing data")
-            else:
-                st.warning("⚠️ Using fallback pricing data (AWS API unavailable)")
-            
-            st.session_state.analysis_results = cost_analysis
-            
-            # Step 3: Risk assessment
-            st.write("⚠️ Assessing risks...")
-            risk_assessment = create_default_risk_assessment()
-            st.session_state.risk_assessment = risk_assessment
-            
-            # Step 4: AI insights (SYNCHRONOUS)
-            if anthropic_api_key:
-                st.write("🤖 Generating AI insights with Claude...")
-                try:
-                    # Call synchronously - NO AWAIT!
-                    ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
-                    st.session_state.ai_insights = ai_insights
-                    
-                    if ai_insights.get('source') == 'Claude AI':
-                        st.success("✅ AI insights generated by Claude AI")
-                    else:
-                        st.warning("⚠️ Using enhanced fallback insights (Claude API unavailable)")
-                        
-                except Exception as e:
-                    st.warning(f"Claude AI call failed: {str(e)}")
-                    st.session_state.ai_insights = {'error': str(e)}
-            else:
-                st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
-            
-            st.success("✅ Analysis complete with real-time data!")
-        
-        # Show quick summary
-        show_analysis_summary()
-        
-    except Exception as e:
-        st.error(f"❌ Analysis failed: {str(e)}")
-        # Ensure we have fallback data
-        if not hasattr(st.session_state, 'risk_assessment') or st.session_state.risk_assessment is None:
-            st.session_state.risk_assessment = get_fallback_risk_assessment()
-
-def show_analysis_summary():
-    """Show analysis summary after completion"""
-    
-    st.markdown("#### 🎯 Analysis Summary")
-    col1, col2, col3 = st.columns(3)
-    
-    # Get results from whichever analysis was run
-    if hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results:
-        results = st.session_state.enhanced_analysis_results
-    else:
-        results = st.session_state.analysis_results
-    
-    if results:
-        with col1:
-            st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-        
-        with col2:
-            migration_cost = results.get('migration_costs', {}).get('total', 0)
-            st.metric("Migration Cost", f"${migration_cost:,.0f}")
-        
-        with col3:
-            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
-                risk_level = st.session_state.risk_assessment['risk_level']['level']
-                st.metric("Risk Level", risk_level)
-            else:
-                st.metric("Risk Level", "Medium")
-    
-    # Provide navigation hint
-    st.info("📈 View detailed results in the 'Results Dashboard' section")
-
-
-# FIXED: Update the analysis section to use synchronous function
-def show_analysis_section_fixed():
-    """Show analysis and recommendations section - FIXED for Streamlit"""
-    
-    st.markdown("## 🚀 Migration Analysis & Recommendations")
-    
-    # Check prerequisites
-    if not st.session_state.migration_params:
-        st.error("❌ Migration configuration required")
-        st.info("👆 Please complete the 'Migration Configuration' section first")
-        return
-    
-    if not st.session_state.environment_specs:
-        st.error("❌ Environment configuration required")
-        st.info("👆 Please complete the 'Environment Setup' section first")
-        return
-    
-    # Display current configuration
-    st.markdown("### 📋 Current Configuration")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        params = st.session_state.migration_params
-        st.markdown(f"""
-        **Migration Type:** {params['source_engine']} → {params['target_engine']}  
-        **Data Size:** {params['data_size_gb']:,} GB  
-        **Timeline:** {params['migration_timeline_weeks']} weeks  
-        **Team Size:** {params['team_size']} members  
-        **Budget:** ${params['migration_budget']:,}
-        """)
-    
-    with col2:
-        envs = st.session_state.environment_specs
-        st.markdown(f"**Environments:** {len(envs)}")
-        
-        # Show first few environments
-        count = 0
-        for env_name, specs in envs.items():
-            if count < 4:
-                cpu_cores = specs.get('cpu_cores', 'N/A')
-                ram_gb = specs.get('ram_gb', 'N/A')
-                st.markdown(f"• **{env_name}:** {cpu_cores} cores, {ram_gb} GB RAM")
-                count += 1
-        
-        if len(envs) > 4:
-            st.markdown(f"• ... and {len(envs) - 4} more environments")
-    
-    # API status check
-    show_api_status_inline()
-    
-    # Run analysis - FIXED VERSION
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
-        # Clear any previous results
-        st.session_state.analysis_results = None
-        if hasattr(st.session_state, 'enhanced_analysis_results'):
-            st.session_state.enhanced_analysis_results = None
-        
-        with st.spinner("🔄 Analyzing migration requirements with real-time data..."):
-            run_streamlit_migration_analysis()  # Use the FIXED synchronous function
-
-
-def show_api_status_inline():
-    """Show inline API status"""
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Check AWS status
-        try:
-            import boto3
-            boto3.client('pricing', region_name='us-east-1')
-            st.success("✅ AWS Pricing API: Ready")
-        except ImportError:
-            st.error("❌ AWS: Missing boto3 library")
-        except Exception:
-            st.warning("⚠️ AWS: Check credentials")
-    
-    with col2:
-        # Check Claude status
-        anthropic_key = st.session_state.migration_params.get('anthropic_api_key')
-        
-        if anthropic_key:
-            try:
-                import anthropic
-                st.success("✅ Claude AI: Ready")
-            except ImportError:
-                st.error("❌ Claude: Missing anthropic library")
-        else:
-            st.info("ℹ️ Claude AI: No API key provided")
-
 class MigrationAnalyzer:
     """Basic migration analyzer for standard environment configurations"""
     
@@ -3946,130 +2998,21 @@ def integrate_enhanced_environment_module():
 # CORE CLASSES AND FUNCTIONS
 # ===========================
 
-# REAL AWS Pricing API Implementation
-class RealAWSPricingAPI:
-    """Real AWS Pricing API that fetches live pricing data"""
+class EnhancedAWSPricingAPI:
+    """Enhanced AWS Pricing API with Writer/Reader and Aurora support"""
     
     def __init__(self):
         self.base_url = "https://pricing.us-east-1.amazonaws.com"
         self.cache = {}
-        # Initialize boto3 pricing client
-        try:
-            self.pricing_client = boto3.client('pricing', region_name='us-east-1')
-        except Exception as e:
-            print(f"Warning: Could not initialize AWS pricing client: {e}")
-            self.pricing_client = None
-    
+        
     def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
-        """Get real RDS pricing from AWS Pricing API"""
+        """Get RDS pricing for specific instance with Multi-AZ support"""
         cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
         
         if cache_key in self.cache:
             return self.cache[cache_key]
         
-        try:
-            # Try to get real pricing from AWS
-            real_pricing = self._fetch_real_aws_pricing(region, engine, instance_class, multi_az)
-            if real_pricing:
-                self.cache[cache_key] = real_pricing
-                return real_pricing
-        except Exception as e:
-            print(f"Error fetching real AWS pricing: {e}")
-        
-        # Fallback to static pricing if API fails
-        return self._get_fallback_pricing(region, engine, instance_class, multi_az)
-    
-    def _fetch_real_aws_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool) -> Optional[Dict]:
-        """Fetch real pricing from AWS Pricing API"""
-        
-        if not self.pricing_client:
-            raise Exception("AWS pricing client not available")
-        
-        # Map our engine names to AWS service codes
-        engine_mapping = {
-            'postgres': 'PostgreSQL',
-            'mysql': 'MySQL',
-            'aurora-postgresql': 'Aurora PostgreSQL',
-            'aurora-mysql': 'Aurora MySQL',
-            'oracle-ee': 'Oracle',
-            'oracle-se': 'Oracle',
-            'sql-server': 'SQL Server'
-        }
-        
-        try:
-            # Get RDS pricing
-            response = self.pricing_client.get_products(
-                ServiceCode='AmazonRDS',
-                Filters=[
-                    {
-                        'Type': 'TERM_MATCH',
-                        'Field': 'location',
-                        'Value': self._get_aws_region_name(region)
-                    },
-                    {
-                        'Type': 'TERM_MATCH',
-                        'Field': 'instanceType',
-                        'Value': instance_class
-                    },
-                    {
-                        'Type': 'TERM_MATCH',
-                        'Field': 'databaseEngine',
-                        'Value': engine_mapping.get(engine, 'PostgreSQL')
-                    },
-                    {
-                        'Type': 'TERM_MATCH',
-                        'Field': 'deploymentOption',
-                        'Value': 'Multi-AZ' if multi_az else 'Single-AZ'
-                    }
-                ],
-                MaxResults=10
-            )
-            
-            # Parse pricing data
-            if response.get('PriceList'):
-                price_data = json.loads(response['PriceList'][0])
-                
-                # Extract hourly rate
-                terms = price_data.get('terms', {})
-                on_demand = terms.get('OnDemand', {})
-                
-                for term_key, term_data in on_demand.items():
-                    price_dimensions = term_data.get('priceDimensions', {})
-                    for dim_key, dim_data in price_dimensions.items():
-                        price_per_unit = float(dim_data.get('pricePerUnit', {}).get('USD', '0'))
-                        
-                        if price_per_unit > 0:
-                            return {
-                                'hourly': price_per_unit,
-                                'storage_gb': 0.115,  # Default storage pricing
-                                'iops_gb': 0.10,
-                                'io_request': 0.20,
-                                'is_aurora': 'aurora' in engine,
-                                'multi_az': multi_az,
-                                'source': 'AWS Pricing API'
-                            }
-            
-            return None
-            
-        except Exception as e:
-            print(f"Error in AWS Pricing API call: {e}")
-            return None
-    
-    def _get_aws_region_name(self, region_code: str) -> str:
-        """Convert region code to AWS region name"""
-        region_mapping = {
-            'us-east-1': 'US East (N. Virginia)',
-            'us-west-2': 'US West (Oregon)',
-            'eu-west-1': 'Europe (Ireland)',
-            'ap-southeast-1': 'Asia Pacific (Singapore)',
-            'ap-northeast-1': 'Asia Pacific (Tokyo)'
-        }
-        return region_mapping.get(region_code, 'US East (N. Virginia)')
-    
-    def _get_fallback_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool) -> Dict:
-        """Fallback pricing when API is unavailable"""
-        
-        # Your existing hardcoded pricing as fallback
+        # Enhanced pricing data with Multi-AZ and Aurora support
         pricing_data = {
             'us-east-1': {
                 'postgres': {
@@ -4077,9 +3020,45 @@ class RealAWSPricingAPI:
                     'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
                     'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
                     'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.xlarge': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
                     'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
                     'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
                     'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.8xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'aurora-postgresql': {
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.12xlarge': {'hourly': 6.96, 'hourly_multi_az': 6.96, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.16xlarge': {'hourly': 9.28, 'hourly_multi_az': 9.28, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.24xlarge': {'hourly': 13.92, 'hourly_multi_az': 13.92, 'storage_gb': 0.10, 'io_request': 0.20},
+                },
+                'oracle-ee': {
+                    'db.t3.medium': {'hourly': 0.408, 'hourly_multi_az': 0.816, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 1.92, 'hourly_multi_az': 3.84, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 3.84, 'hourly_multi_az': 7.68, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.4xlarge': {'hourly': 7.68, 'hourly_multi_az': 15.36, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'mysql': {
+                    'db.t3.micro': {'hourly': 0.0255, 'hourly_multi_az': 0.051, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.small': {'hourly': 0.051, 'hourly_multi_az': 0.102, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.medium': {'hourly': 0.102, 'hourly_multi_az': 0.204, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.t3.large': {'hourly': 0.204, 'hourly_multi_az': 0.408, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.large': {'hourly': 0.24, 'hourly_multi_az': 0.48, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.xlarge': {'hourly': 0.48, 'hourly_multi_az': 0.96, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                    'db.r5.2xlarge': {'hourly': 0.96, 'hourly_multi_az': 1.92, 'storage_gb': 0.115, 'iops_gb': 0.10},
+                },
+                'aurora-mysql': {
+                    'db.r5.large': {'hourly': 0.29, 'hourly_multi_az': 0.29, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.xlarge': {'hourly': 0.58, 'hourly_multi_az': 0.58, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.2xlarge': {'hourly': 1.16, 'hourly_multi_az': 1.16, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.4xlarge': {'hourly': 2.32, 'hourly_multi_az': 2.32, 'storage_gb': 0.10, 'io_request': 0.20},
+                    'db.r5.8xlarge': {'hourly': 4.64, 'hourly_multi_az': 4.64, 'storage_gb': 0.10, 'io_request': 0.20},
                 }
             }
         }
@@ -4089,179 +3068,27 @@ class RealAWSPricingAPI:
             'hourly': 0.5, 
             'hourly_multi_az': 1.0, 
             'storage_gb': 0.115, 
-            'iops_gb': 0.10
+            'iops_gb': 0.10,
+            'io_request': 0.20
         })
         
-        hourly_cost = instance_pricing['hourly_multi_az'] if multi_az else instance_pricing['hourly']
+        # Select appropriate pricing based on Multi-AZ
+        if multi_az and 'aurora' not in engine:
+            hourly_cost = instance_pricing['hourly_multi_az']
+        else:
+            hourly_cost = instance_pricing['hourly']
         
-        return {
+        result = {
             'hourly': hourly_cost,
             'storage_gb': instance_pricing['storage_gb'],
             'iops_gb': instance_pricing.get('iops_gb', 0.10),
-            'io_request': 0.20,
+            'io_request': instance_pricing.get('io_request', 0.20),
             'is_aurora': 'aurora' in engine,
-            'multi_az': multi_az,
-            'source': 'Fallback Pricing'
-        }
-
-
-# REAL Claude AI Implementation
-class RealClaudeAIAnalyzer:
-    """Real Claude AI integration for migration insights"""
-    
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key
-        self.client = None
-        
-        if api_key:
-            try:
-                self.client = anthropic.Anthropic(api_key=api_key)
-            except Exception as e:
-                print(f"Warning: Could not initialize Anthropic client: {e}")
-    
-    async def generate_real_ai_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate real AI insights using Claude"""
-        
-        if not self.client:
-            return {
-                'error': 'Claude AI not available - using fallback insights',
-                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params)
-            }
-        
-        try:
-            # Prepare context for Claude
-            context = self._prepare_migration_context(cost_analysis, migration_params)
-            
-            # Create the prompt
-            prompt = f"""
-            You are an AWS migration expert analyzing a database migration project. 
-            Please provide detailed insights and recommendations based on the following migration analysis:
-
-            {context}
-
-            Please provide insights in the following categories:
-            1. Cost Analysis & Optimization
-            2. Risk Assessment
-            3. Migration Strategy Recommendations
-            4. Timeline Feasibility
-            5. Technical Considerations
-            6. Post-Migration Optimization
-
-            Format your response as a structured analysis with specific, actionable recommendations.
-            """
-            
-            # Call Claude API
-            message = self.client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=2000,
-                temperature=0.3,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-            
-            # Parse Claude's response
-            ai_response = message.content[0].text
-            
-            # Structure the response
-            structured_insights = self._structure_ai_response(ai_response)
-            structured_insights['source'] = 'Claude AI'
-            structured_insights['model'] = 'claude-3-sonnet-20240229'
-            
-            return structured_insights
-            
-        except Exception as e:
-            print(f"Error calling Claude AI: {e}")
-            return {
-                'error': f'Claude AI call failed: {str(e)}',
-                'fallback_insights': self._get_fallback_insights(cost_analysis, migration_params)
-            }
-    
-    def _prepare_migration_context(self, cost_analysis: Dict, migration_params: Dict) -> str:
-        """Prepare context for Claude AI"""
-        
-        context = f"""
-        MIGRATION PROJECT OVERVIEW:
-        - Source Database: {migration_params.get('source_engine', 'Unknown')}
-        - Target Database: {migration_params.get('target_engine', 'Unknown')}
-        - Data Size: {migration_params.get('data_size_gb', 0):,} GB
-        - Timeline: {migration_params.get('migration_timeline_weeks', 0)} weeks
-        - Team Size: {migration_params.get('team_size', 0)} members
-        - Budget: ${migration_params.get('migration_budget', 0):,}
-
-        COST ANALYSIS:
-        - Monthly AWS Cost: ${cost_analysis.get('monthly_aws_cost', 0):,.0f}
-        - Annual AWS Cost: ${cost_analysis.get('annual_aws_cost', 0):,.0f}
-        - Migration Investment: ${cost_analysis.get('migration_costs', {}).get('total', 0):,.0f}
-
-        ENVIRONMENTS:
-        - Number of Environments: {len(cost_analysis.get('environment_costs', {}))}
-        - Environment Details: {list(cost_analysis.get('environment_costs', {}).keys())}
-
-        MIGRATION COMPLEXITY:
-        - Applications Connected: {migration_params.get('num_applications', 0)}
-        - Stored Procedures: {migration_params.get('num_stored_procedures', 0)}
-        - Team Expertise: {migration_params.get('team_expertise', 'Unknown')}
-        """
-        
-        return context
-    
-    def _structure_ai_response(self, ai_response: str) -> Dict:
-        """Structure Claude's response into categories"""
-        
-        # Simple parsing - in production, you might want more sophisticated parsing
-        sections = ai_response.split('\n\n')
-        
-        structured = {
-            'cost_analysis': '',
-            'risk_assessment': '',
-            'migration_strategy': '',
-            'timeline_analysis': '',
-            'technical_recommendations': '',
-            'optimization_opportunities': '',
-            'full_response': ai_response
+            'multi_az': multi_az
         }
         
-        # Try to extract sections (basic implementation)
-        current_section = 'general_insights'
-        for section in sections:
-            section_lower = section.lower()
-            
-            if 'cost' in section_lower:
-                structured['cost_analysis'] += section + '\n\n'
-            elif 'risk' in section_lower:
-                structured['risk_assessment'] += section + '\n\n'
-            elif 'strategy' in section_lower or 'migration' in section_lower:
-                structured['migration_strategy'] += section + '\n\n'
-            elif 'timeline' in section_lower or 'schedule' in section_lower:
-                structured['timeline_analysis'] += section + '\n\n'
-            elif 'technical' in section_lower:
-                structured['technical_recommendations'] += section + '\n\n'
-            elif 'optimization' in section_lower:
-                structured['optimization_opportunities'] += section + '\n\n'
-        
-        return structured
-    
-    def _get_fallback_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Fallback insights when AI is unavailable"""
-        
-        monthly_cost = cost_analysis.get('monthly_aws_cost', 0)
-        timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        data_size = migration_params.get('data_size_gb', 0)
-        
-        return {
-            'cost_analysis': f"Monthly AWS cost of ${monthly_cost:,.0f} appears reasonable for a migration of this scale. Consider Reserved Instances for 30-40% savings.",
-            'risk_assessment': f"Migration timeline of {timeline_weeks} weeks is adequate for {data_size:,} GB of data. Key risks include application compatibility and data validation.",
-            'migration_strategy': "Recommend phased approach starting with non-production environments. Use AWS DMS for initial sync with minimal downtime cutover.",
-            'timeline_analysis': f"Timeline allows for proper testing and validation. Allocate 30% of time for testing and rollback planning.",
-            'technical_recommendations': "Implement comprehensive monitoring, backup strategies, and performance baseline establishment before migration.",
-            'optimization_opportunities': "Post-migration optimization opportunities include right-sizing instances, implementing read replicas, and storage optimization.",
-            'source': 'Fallback Insights'
-        }
-
+        self.cache[cache_key] = result
+        return result
 
 class DatabaseClusterConfiguration:
     """Enhanced database cluster configuration with Writer/Reader support"""
@@ -4327,17 +3154,15 @@ class DatabaseClusterConfiguration:
         except ValueError:
             # If writer instance not in hierarchy, default to r5.large
             return 'db.r5.large'
-# Updated Migration Analyzer with Real APIs
-class RealMigrationAnalyzer:
-    """Migration analyzer with real AWS pricing and Claude AI"""
+class EnhancedMigrationAnalyzer:
+    """Enhanced migration analyzer with Writer/Reader and improved storage calculations"""
     
     def __init__(self, anthropic_api_key: Optional[str] = None):
-        self.pricing_api = RealAWSPricingAPI()
-        self.ai_analyzer = RealClaudeAIAnalyzer(anthropic_api_key)
-        self.anthropic_api_key = anthropic_api_key
-    
-    def calculate_instance_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate AWS instance recommendations using real pricing"""
+        self.pricing_api = EnhancedAWSPricingAPI()
+        self.cluster_config = DatabaseClusterConfiguration()
+        
+    def calculate_enhanced_instance_recommendations(self, environment_specs: Dict) -> Dict:
+        """Calculate enhanced AWS instance recommendations with Writer/Reader configuration"""
         
         recommendations = {}
         
@@ -4345,116 +3170,56 @@ class RealMigrationAnalyzer:
             cpu_cores = specs['cpu_cores']
             ram_gb = specs['ram_gb']
             storage_gb = specs['storage_gb']
+            connections = specs.get('peak_connections', 100)
+            workload_pattern = specs.get('workload_pattern', 'balanced')
+            read_write_ratio = specs.get('read_write_ratio', 70)  # % reads
             
-            # Determine environment type
             environment_type = self._categorize_environment(env_name)
             
-            # Calculate instance class
-            instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
+            # Writer instance sizing
+            writer_instance = self._calculate_writer_instance(cpu_cores, ram_gb, environment_type)
+            
+            # Reader configuration
+            num_readers = self.cluster_config.calculate_optimal_readers(
+                environment_type, workload_pattern, connections
+            )
+            
+            reader_instance = self.cluster_config.recommend_reader_instance_size(
+                writer_instance, read_write_ratio / 100
+            )
             
             # Multi-AZ recommendation
-            multi_az = environment_type in ['production', 'staging']
+            multi_az_writer = environment_type in ['production', 'staging']
+            multi_az_readers = environment_type == 'production'
+            
+            # Storage configuration
+            storage_config = self._calculate_storage_configuration(
+                storage_gb, environment_type, specs.get('iops_requirement', 3000)
+            )
             
             recommendations[env_name] = {
                 'environment_type': environment_type,
-                'instance_class': instance_class,
-                'cpu_cores': cpu_cores,
-                'ram_gb': ram_gb,
-                'storage_gb': storage_gb,
-                'multi_az': multi_az,
-                'daily_usage_hours': specs.get('daily_usage_hours', 24),
-                'peak_connections': specs.get('peak_connections', 100)
+                'writer': {
+                    'instance_class': writer_instance,
+                    'multi_az': multi_az_writer,
+                    'cpu_cores': cpu_cores,
+                    'ram_gb': ram_gb
+                },
+                'readers': {
+                    'count': num_readers,
+                    'instance_class': reader_instance,
+                    'multi_az': multi_az_readers
+                },
+                'storage': storage_config,
+                'workload_pattern': workload_pattern,
+                'read_write_ratio': read_write_ratio,
+                'connections': connections
             }
         
         return recommendations
     
-    def calculate_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
-        """Calculate migration costs using REAL AWS pricing"""
-        
-        region = migration_params.get('region', 'us-east-1')
-        target_engine = migration_params.get('target_engine', 'postgres')
-        
-        total_monthly_cost = 0
-        environment_costs = {}
-        
-        for env_name, rec in recommendations.items():
-            # Use REAL pricing API
-            env_costs = self._calculate_environment_cost_real(env_name, rec, region, target_engine)
-            environment_costs[env_name] = env_costs
-            total_monthly_cost += env_costs['total_monthly']
-        
-        # Migration service costs (same as before)
-        data_size_gb = migration_params.get('data_size_gb', 1000)
-        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
-        
-        # DMS costs
-        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
-        
-        # Data transfer costs
-        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
-        
-        # Professional services
-        ps_cost = migration_timeline_weeks * 8000
-        
-        migration_costs = {
-            'dms_instance': dms_instance_cost,
-            'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
-            'professional_services': ps_cost,
-            'contingency': 0,
-            'total': 0
-        }
-        
-        base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
-        migration_costs['contingency'] = base_cost * 0.2
-        migration_costs['total'] = base_cost + migration_costs['contingency']
-        
-        return {
-            'monthly_aws_cost': total_monthly_cost,
-            'annual_aws_cost': total_monthly_cost * 12,
-            'environment_costs': environment_costs,
-            'migration_costs': migration_costs,
-            'transfer_costs': transfer_costs
-        }
-    
-    def _calculate_environment_cost_real(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
-        """Calculate environment cost using REAL AWS pricing"""
-        
-        # Get REAL pricing from AWS API
-        pricing = self.pricing_api.get_rds_pricing(
-            region, target_engine, rec['instance_class'], rec['multi_az']
-        )
-        
-        # Calculate monthly hours
-        daily_hours = rec['daily_usage_hours']
-        monthly_hours = daily_hours * 30
-        
-        # Instance cost using REAL pricing
-        instance_cost = pricing['hourly'] * monthly_hours
-        
-        # Storage cost using REAL pricing
-        storage_cost = rec['storage_gb'] * pricing['storage_gb']
-        
-        # Backup cost (estimate 20% of storage)
-        backup_cost = storage_cost * 0.2
-        
-        # Total monthly cost
-        total_monthly = instance_cost + storage_cost + backup_cost
-        
-        return {
-            'instance_cost': instance_cost,
-            'storage_cost': storage_cost,
-            'backup_cost': backup_cost,
-            'total_monthly': total_monthly,
-            'pricing_source': pricing.get('source', 'Unknown')
-        }
-    
-    async def generate_real_ai_insights(self, cost_analysis: Dict, migration_params: Dict) -> Dict:
-        """Generate REAL AI insights using Claude"""
-        return await self.ai_analyzer.generate_real_ai_insights(cost_analysis, migration_params)
-    
-    # Include other methods from original MigrationAnalyzer...
     def _categorize_environment(self, env_name: str) -> str:
-        """Categorize environment type from name"""
+        """Categorize environment type"""
         env_lower = env_name.lower()
         if any(term in env_lower for term in ['prod', 'production', 'prd']):
             return 'production'
@@ -4464,11 +3229,12 @@ class RealMigrationAnalyzer:
             return 'testing'
         elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
             return 'development'
-        return 'production'
+        return 'production'  # Default to production for safety
     
-    def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
-        """Calculate appropriate instance class"""
+    def _calculate_writer_instance(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
+        """Calculate writer instance class"""
         
+        # Instance sizing logic based on CPU and RAM
         if cpu_cores <= 2 and ram_gb <= 8:
             instance_class = 'db.t3.medium'
         elif cpu_cores <= 4 and ram_gb <= 16:
@@ -4486,6 +3252,7 @@ class RealMigrationAnalyzer:
         
         # Environment-specific adjustments
         if env_type == 'development' and 'r5' in instance_class:
+            # Downsize for development
             downsized = {
                 'db.r5.8xlarge': 'db.r5.4xlarge',
                 'db.r5.4xlarge': 'db.r5.2xlarge',
@@ -4495,135 +3262,215 @@ class RealMigrationAnalyzer:
             }
             instance_class = downsized.get(instance_class, instance_class)
         
+        elif env_type == 'production' and 't3' in instance_class:
+            # Ensure production uses dedicated instances
+            if instance_class == 'db.t3.medium':
+                instance_class = 'db.r5.large'
+            elif instance_class == 'db.t3.large':
+                instance_class = 'db.r5.xlarge'
+        
         return instance_class
     
-    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
-        """Calculate data transfer costs"""
+    def _calculate_storage_configuration(self, storage_gb: int, env_type: str, iops_requirement: int) -> Dict:
+        """Calculate enhanced storage configuration"""
         
-        use_direct_connect = migration_params.get('use_direct_connect', False)
-        
-        internet_cost = data_size_gb * 0.09
-        
-        if use_direct_connect:
-            dx_cost = data_size_gb * 0.02
+        # Determine storage type based on IOPS requirements
+        if iops_requirement > 20000:
+            storage_type = 'io2'
+            provisioned_iops = iops_requirement
+        elif iops_requirement > 3000:
+            storage_type = 'gp3'
+            provisioned_iops = min(iops_requirement, 16000)  # gp3 max
         else:
-            dx_cost = internet_cost
+            storage_type = 'gp2'
+            provisioned_iops = min(storage_gb * 3, 16000)  # gp2 baseline
+        
+        # Add buffer for growth
+        storage_buffer = {
+            'production': 1.5,
+            'staging': 1.3,
+            'testing': 1.2,
+            'development': 1.1
+        }
+        
+        recommended_storage = int(storage_gb * storage_buffer.get(env_type, 1.2))
         
         return {
-            'internet': internet_cost,
-            'direct_connect': dx_cost,
+            'size_gb': recommended_storage,
+            'type': storage_type,
+            'iops': provisioned_iops,
+            'encrypted': env_type in ['production', 'staging'],
+            'backup_retention_days': 30 if env_type == 'production' else 7
+        }
+    
+    def calculate_enhanced_migration_costs(self, recommendations: Dict, migration_params: Dict) -> Dict:
+        """Calculate comprehensive migration costs with Writer/Reader pricing"""
+        
+        region = migration_params.get('region', 'us-east-1')
+        target_engine = migration_params.get('target_engine', 'postgres')
+        
+        total_monthly_cost = 0
+        environment_costs = {}
+        
+        for env_name, rec in recommendations.items():
+            env_costs = self._calculate_environment_cost(env_name, rec, region, target_engine)
+            environment_costs[env_name] = env_costs
+            total_monthly_cost += env_costs['total_monthly']
+        
+        # Migration service costs (unchanged from original)
+        data_size_gb = migration_params.get('data_size_gb', 1000)
+        migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+        
+        # DMS costs
+        dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
+        
+        # Data transfer costs
+        transfer_costs = self._calculate_transfer_costs(data_size_gb, migration_params)
+        
+        # Professional services
+        ps_cost = migration_timeline_weeks * 8000
+        
+        migration_costs = {
+            'dms_instance': dms_instance_cost,
+            'data_transfer': transfer_costs['total'],
+            'professional_services': ps_cost,
+            'contingency': (dms_instance_cost + transfer_costs['total'] + ps_cost) * 0.2,
+            'total': 0
+        }
+        migration_costs['total'] = sum(migration_costs.values()) - migration_costs['contingency']
+        migration_costs['total'] += migration_costs['contingency']
+        
+        return {
+            'monthly_aws_cost': total_monthly_cost,
+            'annual_aws_cost': total_monthly_cost * 12,
+            'environment_costs': environment_costs,
+            'migration_costs': migration_costs,
+            'transfer_costs': transfer_costs
+        }
+    
+    def _calculate_environment_cost(self, env_name: str, rec: Dict, region: str, target_engine: str) -> Dict:
+        """Calculate comprehensive environment cost including Writer/Reader"""
+        
+        # Writer costs
+        writer_pricing = self.pricing_api.get_rds_pricing(
+            region, target_engine, rec['writer']['instance_class'], rec['writer']['multi_az']
+        )
+        
+        writer_hours = 24 * 30  # Monthly hours
+        writer_instance_cost = writer_pricing['hourly'] * writer_hours
+        
+        # Reader costs
+        reader_costs = 0
+        reader_count = rec['readers']['count']
+        
+        if reader_count > 0:
+            reader_pricing = self.pricing_api.get_rds_pricing(
+                region, target_engine, rec['readers']['instance_class'], rec['readers']['multi_az']
+            )
+            reader_costs = reader_pricing['hourly'] * writer_hours * reader_count
+        
+        # Storage costs
+        storage_costs = self._calculate_detailed_storage_costs(rec['storage'], writer_pricing)
+        
+        # Backup costs
+        backup_cost = storage_costs['total_storage_cost'] * 0.5  # Estimate 50% of storage cost
+        
+        # Monitoring and additional services
+        monitoring_cost = 30 if rec['environment_type'] == 'production' else 10
+        
+        # Cross-AZ data transfer costs (for Multi-AZ and readers)
+        cross_az_cost = 0
+        if rec['writer']['multi_az']:
+            cross_az_cost += 20  # Estimate for Multi-AZ data transfer
+        if reader_count > 0:
+            cross_az_cost += reader_count * 10  # Estimate for reader sync
+        
+        total_monthly = (writer_instance_cost + reader_costs + storage_costs['total_storage_cost'] + 
+                        backup_cost + monitoring_cost + cross_az_cost)
+        
+        return {
+            'writer_instance_cost': writer_instance_cost,
+            'reader_costs': reader_costs,
+            'reader_count': reader_count,
+            'storage_cost': storage_costs['total_storage_cost'],
+            'storage_breakdown': storage_costs,
+            'backup_cost': backup_cost,
+            'monitoring_cost': monitoring_cost,
+            'cross_az_cost': cross_az_cost,
+            'total_monthly': total_monthly,
+            'writer_config': rec['writer'],
+            'reader_config': rec['readers'],
+            'storage_config': rec['storage']
+        }
+    
+    def _calculate_detailed_storage_costs(self, storage_config: Dict, pricing: Dict) -> Dict:
+        """Calculate detailed storage costs"""
+        
+        storage_gb = storage_config['size_gb']
+        storage_type = storage_config['type']
+        iops = storage_config['iops']
+        
+        # Base storage cost
+        base_storage_cost = storage_gb * pricing['storage_gb']
+        
+        # IOPS costs (for provisioned IOPS)
+        iops_cost = 0
+        if storage_type in ['io1', 'io2']:
+            iops_cost = iops * pricing.get('iops_gb', 0.10)
+        elif storage_type == 'gp3' and iops > 3000:
+            # gp3 additional IOPS cost
+            additional_iops = max(0, iops - 3000)
+            iops_cost = additional_iops * 0.005  # $0.005 per additional IOPS
+        
+        # Throughput costs (for gp3)
+        throughput_cost = 0
+        if storage_type == 'gp3':
+            # Assume standard throughput, could be enhanced based on requirements
+            throughput_cost = 0
+        
+        # Aurora I/O costs (if applicable)
+        io_request_cost = 0
+        if pricing.get('is_aurora', False):
+            # Estimate I/O requests based on storage size and usage
+            estimated_monthly_ios = storage_gb * 1000000  # 1M IOs per GB estimate
+            io_request_cost = estimated_monthly_ios * pricing.get('io_request', 0.20) / 1000000
+        
+        total_storage_cost = base_storage_cost + iops_cost + throughput_cost + io_request_cost
+        
+        return {
+            'base_storage_cost': base_storage_cost,
+            'iops_cost': iops_cost,
+            'throughput_cost': throughput_cost,
+            'io_request_cost': io_request_cost,
+            'total_storage_cost': total_storage_cost,
+            'storage_type': storage_type,
+            'storage_size_gb': storage_gb,
+            'provisioned_iops': iops
+        }
+    
+    def _calculate_transfer_costs(self, data_size_gb: int, migration_params: Dict) -> Dict:
+        """Calculate data transfer costs (unchanged from original)"""
+        
+        use_direct_connect = migration_params.get('use_direct_connect', False)
+        bandwidth_mbps = migration_params.get('bandwidth_mbps', 1000)
+        
+        # Internet transfer
+        internet_cost = data_size_gb * 0.09
+        internet_time_hours = (data_size_gb * 8192) / (bandwidth_mbps * 3600)
+        
+        # Direct Connect transfer
+        if use_direct_connect:
+            dx_cost = data_size_gb * 0.02
+            dx_time_hours = internet_time_hours * 0.3
+        else:
+            dx_cost = internet_cost
+            dx_time_hours = internet_time_hours
+        
+        return {
+            'internet': {'cost': internet_cost, 'time_hours': internet_time_hours},
+            'direct_connect': {'cost': dx_cost, 'time_hours': dx_time_hours},
             'total': min(internet_cost, dx_cost)
         }
-
-
-# Updated analysis function to use real APIs
-def run_real_migration_analysis():
-    """Run migration analysis with REAL AWS pricing and Claude AI"""
-    
-    try:
-        # Initialize REAL analyzer
-        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-        analyzer = RealMigrationAnalyzer(anthropic_api_key)
-        
-        # Step 1: Calculate recommendations with REAL AWS pricing
-        st.write("📊 Calculating instance recommendations with live AWS pricing...")
-        recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
-        st.session_state.recommendations = recommendations
-        
-        # Step 2: Calculate costs with REAL AWS pricing
-        st.write("💰 Analyzing costs with real-time AWS pricing...")
-        cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
-        
-        # Check pricing sources
-        pricing_sources = set()
-        for env_costs in cost_analysis['environment_costs'].values():
-            pricing_sources.add(env_costs.get('pricing_source', 'Unknown'))
-        
-        if 'AWS Pricing API' in pricing_sources:
-            st.success("✅ Using real-time AWS pricing data")
-        else:
-            st.warning("⚠️ Using fallback pricing data (AWS API unavailable)")
-        
-        st.session_state.analysis_results = cost_analysis
-        
-        # Step 3: Risk assessment
-        st.write("⚠️ Assessing risks...")
-        risk_assessment = create_default_risk_assessment()
-        st.session_state.risk_assessment = risk_assessment
-        
-        # Step 4: REAL AI insights
-        if anthropic_api_key:
-            st.write("🤖 Generating AI insights with Claude...")
-            try:
-                ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
-                st.session_state.ai_insights = ai_insights
-                
-                if ai_insights.get('source') == 'Claude AI':
-                    st.success("✅ AI insights generated by Claude AI")
-                else:
-                    st.warning("⚠️ Using fallback AI insights (Claude API unavailable)")
-                    
-            except Exception as e:
-                st.warning(f"Claude AI call failed: {str(e)}")
-                st.session_state.ai_insights = {'error': str(e)}
-        else:
-            st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
-        
-        st.success("✅ Analysis complete with real-time data!")
-        
-    except Exception as e:
-        st.error(f"❌ Analysis failed: {str(e)}")
-
-
-# Installation requirements for real APIs
-def show_real_api_setup():
-    """Show setup instructions for real API connections"""
-    
-    st.markdown("### 🔧 Real API Setup Instructions")
-    
-    st.markdown("""
-    To enable real AWS pricing and Claude AI integration, you need:
-
-    #### 1. AWS Pricing API
-    ```bash
-    pip install boto3
-    ```
-    
-    **AWS Credentials Setup:**
-    - Configure AWS credentials: `aws configure`
-    - Or set environment variables:
-      ```bash
-      export AWS_ACCESS_KEY_ID=your_access_key
-      export AWS_SECRET_ACCESS_KEY=your_secret_key
-      ```
-    
-    #### 2. Claude AI Integration
-    ```bash
-    pip install anthropic
-    ```
-    
-    **API Key Setup:**
-    - Get API key from: https://console.anthropic.com/
-    - Enter key in Migration Configuration section
-    
-    #### 3. Required Permissions
-    **AWS IAM Policy:**
-    ```json
-    {
-        "Version": "2012-10-17",
-        "Statement": [
-            {
-                "Effect": "Allow",
-                "Action": [
-                    "pricing:GetProducts",
-                    "pricing:DescribeServices"
-                ],
-                "Resource": "*"
-            }
-        ]
-    }
-    ```
-    """)
 # ===========================
 # NETWORK TRANSFER ANALYSIS MODULE
 # ===========================
@@ -4637,8 +3484,6 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Any, Optional
 import json
-
-
 
 class NetworkTransferAnalyzer:
     """Comprehensive network transfer analysis for AWS database migration"""
@@ -6410,25 +5255,15 @@ def run_migration_analysis_robust():
         st.session_state.risk_assessment = risk_assessment
         st.write("✅ Risk assessment completed successfully")
         
-      # Step 4: AI insights
+        # Step 4: AI insights (if available)
         if anthropic_api_key:
             st.write("🤖 Generating AI insights...")
             try:
-                ai_insights = analyzer.generate_ai_insights_sync(cost_analysis, st.session_state.migration_params)
-                
-                if ai_insights.get('success'):
-                    st.success("✅ Real Claude AI analysis complete!")
-                    st.info(f"Model: {ai_insights.get('model', 'Unknown')}")
-                else:
-                    st.warning(f"⚠️ Claude AI failed: {ai_insights.get('error')}")
-                
+                ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
                 st.session_state.ai_insights = ai_insights
-                
             except Exception as e:
                 st.warning(f"AI insights generation failed: {str(e)}")
                 st.session_state.ai_insights = {'error': str(e)}
-        else:
-            st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
         
         st.success("✅ Analysis complete!")
         
@@ -6831,45 +5666,6 @@ def initialize_session_state():
     for key, default_value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default_value
-def test_claude_ai_connection():
-    """Test Claude AI integration"""
-    
-    st.markdown("### 🧪 Test Claude AI Connection")
-    
-    api_key = st.text_input("Enter Anthropic API Key:", type="password")
-    
-    if st.button("🤖 Test Claude AI"):
-        if not api_key:
-            st.error("Please enter an API key")
-            return
-        
-        try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
-            
-            with st.spinner("Testing Claude AI..."):
-                message = client.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=100,
-                    messages=[{
-                        "role": "user",
-                        "content": "This is a test. Please respond: 'Claude AI is working correctly!'"
-                    }]
-                )
-                
-                response = message.content[0].text
-                
-                if "working correctly" in response.lower():
-                    st.success("✅ Claude AI is working!")
-                    st.info(f"Response: {response}")
-                else:
-                    st.warning("⚠️ Unexpected response")
-                    st.write(response)
-                    
-        except ImportError:
-            st.error("❌ Run: pip install anthropic")
-        except Exception as e:
-            st.error(f"❌ Test failed: {str(e)}")
 
 def main():
     """Main Streamlit application"""
@@ -6978,7 +5774,7 @@ def main():
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
+        show_analysis_section()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
     elif page == "📄 Reports & Export":
@@ -7349,8 +6145,8 @@ def show_manual_environment_setup():
         summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
         st.dataframe(summary_df, use_container_width=True)
 
-def show_analysis_section_fixed():
-    """Show analysis and recommendations section - UPDATED"""
+def show_analysis_section():
+    """Show analysis and recommendations section"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
     
@@ -7404,26 +6200,24 @@ def show_analysis_section_fixed():
     else:
         st.info("📊 Standard configuration detected - Basic RDS analysis will be performed")
     
-    # Run analysis - USE THE FIXED FUNCTION
+    # Run analysis
     if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
         # Clear any previous results
         st.session_state.analysis_results = None
-        if hasattr(st.session_state, 'enhanced_analysis_results'):
-            st.session_state.enhanced_analysis_results = None
+        st.session_state.enhanced_analysis_results = None
         
         with st.spinner("🔄 Analyzing migration requirements..."):
-            run_streamlit_migration_analysis()  # Use the fixed function
+            if is_enhanced:
+                run_enhanced_migration_analysis()
+            else:
+                run_migration_analysis_fixed()
 
-# ADD THIS FUNCTION to your streamlit_app.py file:
-
-def run_streamlit_migration_analysis():
-    """Run migration analysis synchronously for Streamlit - SIMPLE VERSION"""
+def run_migration_analysis():
+    """Run comprehensive migration analysis"""
     
     try:
         # Initialize analyzer
         anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-        
-        # Use original analyzer (no async issues)
         analyzer = MigrationAnalyzer(anthropic_api_key)
         
         # Step 1: Calculate recommendations
@@ -7434,101 +6228,42 @@ def run_streamlit_migration_analysis():
         # Step 2: Calculate costs
         st.write("💰 Analyzing costs...")
         cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+        
+        # Update migration params with estimated cost
+        st.session_state.migration_params['estimated_migration_cost'] = cost_analysis['migration_costs']['total']
+        
         st.session_state.analysis_results = cost_analysis
         
         # Step 3: Risk assessment
         st.write("⚠️ Assessing risks...")
-        risk_assessment = create_default_risk_assessment()
+        risk_assessment = calculate_migration_risks(st.session_state.migration_params, recommendations)
         st.session_state.risk_assessment = risk_assessment
         
-        # Step 4: AI insights (FIXED - no async)
+        # Step 4: AI insights (if available)
         if anthropic_api_key:
             st.write("🤖 Generating AI insights...")
             try:
-                # Use asyncio.run to handle the async function
                 ai_insights = asyncio.run(analyzer.generate_ai_insights(cost_analysis, st.session_state.migration_params))
                 st.session_state.ai_insights = ai_insights
-                st.success("✅ AI insights generated")
             except Exception as e:
-                st.warning(f"AI insights failed: {str(e)}")
-                # Create simple fallback
-                st.session_state.ai_insights = {
-                    'summary': f"Migration analysis complete. Monthly cost: ${cost_analysis['monthly_aws_cost']:,.0f}",
-                    'error': str(e)
-                }
-        else:
-            st.info("ℹ️ Provide Anthropic API key for AI insights")
+                st.warning(f"AI insights generation failed: {str(e)}")
+                st.session_state.ai_insights = {'error': str(e)}
         
-        st.success("✅ Analysis complete!")
+        st.success("✅ Standard analysis complete!")
         
-        # Show summary
-        show_simple_summary()
+        # Provide navigation hint
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
-        # Create basic fallback so app doesn't crash
-        create_basic_fallback()
-
-
-def show_simple_summary():
-    """Show simple analysis summary"""
-    
-    st.markdown("#### 🎯 Analysis Summary")
-    col1, col2, col3 = st.columns(3)
-    
-    results = st.session_state.analysis_results
-    
-    if results:
-        with col1:
-            st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+        st.code(str(e))
         
-        with col2:
-            migration_cost = results.get('migration_costs', {}).get('total', 0)
-            st.metric("Migration Cost", f"${migration_cost:,.0f}")
-        
-        with col3:
-            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
-                risk_level = st.session_state.risk_assessment['risk_level']['level']
-                st.metric("Risk Level", risk_level)
-    
-    st.info("📈 View detailed results in the 'Results Dashboard' section")
-
-
-def create_basic_fallback():
-    """Create basic fallback when analysis completely fails"""
-    
-    st.warning("⚠️ Creating fallback analysis...")
-    
-    # Basic recommendations
-    recommendations = {}
-    total_cost = 0
-    
-    for env_name, specs in st.session_state.environment_specs.items():
-        recommendations[env_name] = {
-            'environment_type': 'production' if 'prod' in env_name.lower() else 'development',
-            'instance_class': 'db.r5.large',
-            'cpu_cores': specs.get('cpu_cores', 4),
-            'ram_gb': specs.get('ram_gb', 16),
-            'storage_gb': specs.get('storage_gb', 500),
-            'multi_az': 'prod' in env_name.lower()
-        }
-        total_cost += 500  # $500 per environment estimate
-    
-    st.session_state.recommendations = recommendations
-    
-    # Basic cost analysis
-    st.session_state.analysis_results = {
-        'monthly_aws_cost': total_cost,
-        'annual_aws_cost': total_cost * 12,
-        'environment_costs': {env: {'total_monthly': 500, 'instance_cost': 400, 'storage_cost': 100} 
-                            for env in recommendations.keys()},
-        'migration_costs': {'total': 50000, 'dms_instance': 20000, 'data_transfer': 10000, 'professional_services': 20000}
-    }
-    
-    # Basic risk assessment
-    st.session_state.risk_assessment = get_fallback_risk_assessment()
-    
-    st.success("✅ Fallback analysis created")
+        # Provide troubleshooting info
+        st.markdown("### 🔧 Troubleshooting")
+        st.markdown("If the error persists:")
+        st.markdown("1. Check that all environment fields are properly filled")
+        st.markdown("2. Verify that numerical values are within valid ranges")  
+        st.markdown("3. Check the Migration Configuration parameters")
                 
 def run_enhanced_migration_analysis():
     """Run enhanced migration analysis with Writer/Reader support"""
@@ -7937,7 +6672,7 @@ def show_cost_summary():
         st.warning("No migration cost data available.")
 
 def show_visualizations():
-    """Show visualization dashboard - FIXED VERSION"""
+    """Show visualization dashboard"""
     
     st.markdown("### 📊 Migration Analysis Visualizations")
     
@@ -7952,15 +6687,11 @@ def show_visualizations():
     # Use enhanced results if available, otherwise use regular results
     if has_enhanced_results:
         results = st.session_state.enhanced_analysis_results
-        is_enhanced = True
-        st.info("🔬 Showing Enhanced Analysis Visualizations")
         # Show enhanced cost chart if available
         if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
             st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True)
     else:
         results = st.session_state.analysis_results
-        is_enhanced = False
-        st.info("📊 Showing Standard Analysis Visualizations")
     
     try:
         # Cost waterfall chart
@@ -7977,11 +6708,11 @@ def show_visualizations():
         else:
             st.info("Cost data not available for waterfall chart.")
         
-        # Environment cost comparison - FIXED VERSION
+        # Environment cost comparison
         env_costs = results.get('environment_costs', {})
         if env_costs:
             st.markdown("#### 🏢 Environment Cost Comparison")
-            env_comparison_fig = create_environment_comparison_chart_fixed(env_costs, is_enhanced)
+            env_comparison_fig = create_environment_comparison_chart(env_costs)
             st.plotly_chart(env_comparison_fig, use_container_width=True)
         else:
             st.info("Environment cost data not available.")
@@ -7997,98 +6728,6 @@ def show_visualizations():
     except Exception as e:
         st.error(f"Error generating visualizations: {str(e)}")
         st.info("Some visualization features may not be available yet.")
-        
-        # Debug information
-        if st.checkbox("🐛 Show Debug Info"):
-            st.write("Results keys:", list(results.keys()) if results else "No results")
-            if env_costs:
-                sample_env = next(iter(env_costs.values()))
-                st.write("Sample environment cost keys:", list(sample_env.keys()) if isinstance(sample_env, dict) else "Invalid format")
-
-
-def create_environment_comparison_chart_fixed(environment_costs: Dict, is_enhanced: bool = False) -> go.Figure:
-    """Create environment cost comparison chart - FIXED to handle both cost structures"""
-    
-    environments = list(environment_costs.keys())
-    
-    if is_enhanced:
-        # Enhanced analysis cost structure
-        instance_costs = []
-        storage_costs = []
-        total_costs = []
-        reader_costs = []
-        
-        for env in environments:
-            costs = environment_costs[env]
-            # Use writer_instance_cost instead of instance_cost
-            instance_costs.append(costs.get('writer_instance_cost', 0))
-            storage_costs.append(costs.get('storage_cost', 0))
-            total_costs.append(costs.get('total_monthly', 0))
-            reader_costs.append(costs.get('reader_costs', 0))
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            name='Writer Instance',
-            x=environments,
-            y=instance_costs,
-            marker_color='lightblue'
-        ))
-        
-        fig.add_trace(go.Bar(
-            name='Reader Instances',
-            x=environments,
-            y=reader_costs,
-            marker_color='lightgreen'
-        ))
-        
-        fig.add_trace(go.Bar(
-            name='Storage Cost',
-            x=environments,
-            y=storage_costs,
-            marker_color='lightcoral'
-        ))
-        
-        fig.update_layout(
-            title='Monthly Cost by Environment (Enhanced Analysis)',
-            xaxis_title='Environment',
-            yaxis_title='Monthly Cost ($)',
-            barmode='stack',
-            height=400
-        )
-        
-    else:
-        # Regular analysis cost structure
-        instance_costs = [environment_costs[env].get('instance_cost', 0) for env in environments]
-        storage_costs = [environment_costs[env].get('storage_cost', 0) for env in environments]
-        total_costs = [environment_costs[env].get('total_monthly', 0) for env in environments]
-        
-        fig = go.Figure()
-        
-        fig.add_trace(go.Bar(
-            name='Instance Cost',
-            x=environments,
-            y=instance_costs,
-            marker_color='lightblue'
-        ))
-        
-        fig.add_trace(go.Bar(
-            name='Storage Cost',
-            x=environments,
-            y=storage_costs,
-            marker_color='lightgreen'
-        ))
-        
-        fig.update_layout(
-            title='Monthly Cost by Environment (Standard Analysis)',
-            xaxis_title='Environment',
-            yaxis_title='Monthly Cost ($)',
-            barmode='stack',
-            height=400
-        )
-    
-    return fig
-
 
 def show_ai_insights():
     """Show AI insights dashboard"""
