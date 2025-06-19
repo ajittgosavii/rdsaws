@@ -3637,16 +3637,16 @@ def show_manual_cluster_configuration():
                         show_cluster_configuration_preview(recommendations)
                     else:
                 # Use standard analyzer
-                    analyzer = MigrationAnalyzer()
-                    recommendations = analyzer.calculate_instance_recommendations(environment_specs)
-                    st.session_state.recommendations = recommendations
+                        analyzer = MigrationAnalyzer()
+                        recommendations = analyzer.calculate_instance_recommendations(environment_specs)
+                        st.session_state.recommendations = recommendations
+                        
+                        st.success("✅ Standard analysis complete!")
+                        st.info("💡 For enhanced cluster analysis, use the cluster configuration options above.")
                     
-                    st.success("✅ Standard analysis complete!")
-                    st.info("💡 For enhanced cluster analysis, use the cluster configuration options above.")
-                
-                except Exception as e:
-                    st.error(f"❌ Analysis failed: {str(e)}")
-                    st.code(str(e))
+                    except Exception as e:
+                        st.error(f"❌ Analysis failed: {str(e)}")
+                        st.code(str(e))
 
 class DatabaseClusterConfiguration:
     """Enhanced database cluster configuration with Writer/Reader support"""
