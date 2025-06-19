@@ -7200,15 +7200,253 @@ class NetworkTransferAnalyzer:
 # NETWORK VISUALIZATION FUNCTIONS
 # ===========================
 
-def create_network_comparison_chart(transfer_analysis: Dict) -> go.Figure:
-    """Create comprehensive network pattern comparison chart"""
+def create_network_comparison_chart(transfer_analysis):
+    """Create network pattern comparison chart - COMPLETE REPLACEMENT"""
     
-    patterns = []
-    costs = []
-    durations = []
-    reliability = []
-    security = []
-    complexity = []
+    try:
+        import plotly.graph_objects as go
+        
+        # Initialize data lists
+        environments = []
+        online_costs = []
+        online_times = []
+        offline_costs = []
+        offline_times = []
+        data_sizes = []
+        
+        # Extract data from transfer_analysis (NOT from transfer_patterns)
+        for env_name, analysis in transfer_analysis.items():
+            if env_name == 'recommendations':  # Skip recommendations section
+                continue
+                
+            environments.append(env_name)
+            data_sizes.append(analysis.get('data_size_gb', 0))
+            
+            # Get transfer methods
+            transfer_methods = analysis.get('transfer_methods', {})
+            
+            # Online transfer data
+            online = transfer_methods.get('online', {})
+            online_costs.append(online.get('cost_estimate', 0))
+            online_times.append(online.get('estimated_time_hours', 0))
+            
+            # Offline transfer data
+            offline = transfer_methods.get('offline', {})
+            offline_costs.append(offline.get('cost_estimate', 0))
+            offline_times.append(offline.get('estimated_time_days', 0) * 24)  # Convert to hours
+        
+        # Create comparison chart
+        fig = go.Figure()
+        
+        # Add online transfer bars
+        fig.add_trace(go.Bar(
+            name='Online Transfer',
+            x=environments,
+            y=online_costs,
+            marker_color='lightblue',
+            text=[f'${cost:.0f}<br>{time:.1f}h' for cost, time in zip(online_costs, online_times)],
+            textposition='auto',
+        ))
+        
+        # Add offline transfer bars
+        fig.add_trace(go.Bar(
+            name='Offline Transfer',
+            x=environments,
+            y=offline_costs,
+            marker_color='lightcoral',
+            text=[f'${cost:.0f}<br>{time/24:.1f}d' for cost, time in zip(offline_costs, offline_times)],
+            textposition='auto',
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            title='Network Transfer Cost Comparison',
+            xaxis_title='Environment',
+            yaxis_title='Cost ($)',
+            barmode='group',
+            height=400,
+            showlegend=True
+        )
+        
+        return fig
+        
+    except Exception as e:
+        # Fallback: create a simple chart
+        import plotly.graph_objects as go
+        
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Chart temporarily unavailable: {str(e)}",
+            x=0.5, y=0.5,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font_size=16
+        )
+        fig.update_layout(
+            title='Network Transfer Analysis',
+            height=400
+        )
+        return fig
+
+def create_fallback_network_chart(transfer_analysis):
+    """Create a simple fallback chart when the main chart fails"""
+    
+    try:
+        import plotly.graph_objects as go
+        
+        # Simple bar chart with basic data
+        environments = list(transfer_analysis.keys())
+        if 'recommendations' in environments:
+            environments.remove('recommendations')
+        
+        # Create basic cost estimates
+        costs = []
+        for env in environments:
+            env_data = transfer_analysis.get(env, {})
+            online_cost = env_data.get('transfer_methods', {}).get('online', {}).get('cost_estimate', 50)
+            costs.append(online_cost)
+        
+        fig = go.Figure(data=[
+            go.Bar(
+                x=environments,
+                y=costs,
+                marker_color='steelblue',
+                text=[f'${cost:.0f}' for cost in costs],
+                textposition='auto'
+            )
+        ])
+        
+        fig.update_layout(
+            title='Network Transfer Costs (Estimated)',
+            xaxis_title='Environment',
+            yaxis_title='Cost ($)',
+            height=400
+        )
+        
+        return fig
+        
+    except Exception as e:
+        # Ultimate fallback: empty chart with message
+        import plotly.graph_objects as go
+        
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Chart data temporarily unavailable",
+            x=0.5, y=0.5,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font_size=16
+        )
+        fig.update_layout(
+            title='Network Transfer Analysis',
+            height=400
+        )
+        return fig
+
+
+def show_pattern_comparison(transfer_analysis):
+    """Show network pattern comparison with error handling"""
+    
+    st.markdown("### 📊 Network Pattern Comparison")
+    
+    try:
+        # Comparison chart
+        comparison_fig = create_network_comparison_chart(transfer_analysis)
+        st.plotly_chart(comparison_fig, use_container_width=True, key="network_comparison")
+        
+        # Cost vs Duration optimization table
+        st.markdown("#### ⚖️ Cost vs Duration Trade-offs")
+        
+        comparison_data = []
+        for env_name, analysis in transfer_analysis.items():
+            if env_name == 'recommendations':
+                continue
+                
+            transfer_methods = analysis.get('transfer_methods', {})
+            data_size = analysis.get('data_size_gb', 0)
+            
+            # Online method
+            if 'online' in transfer_methods:
+                online = transfer_methods['online']
+                comparison_data.append({
+                    'Environment': env_name,
+                    'Method': 'Online',
+                    'Data Size (GB)': f"{data_size:,.0f}",
+                    'Duration': f"{online.get('estimated_time_hours', 0):.1f} hours",
+                    'Cost': f"${online.get('cost_estimate', 0):.2f}",
+                    'Recommended': "✅" if online.get('recommended') else "⚠️"
+                })
+            
+            # Offline method
+            if 'offline' in transfer_methods:
+                offline = transfer_methods['offline']
+                comparison_data.append({
+                    'Environment': env_name,
+                    'Method': 'Offline (Snowball)',
+                    'Data Size (GB)': f"{data_size:,.0f}",
+                    'Duration': f"{offline.get('estimated_time_days', 0)} days",
+                    'Cost': f"${offline.get('cost_estimate', 0):.2f}",
+                    'Recommended': "✅" if offline.get('recommended') else "⚠️"
+                })
+        
+        if comparison_data:
+            import pandas as pd
+            df = pd.DataFrame(comparison_data)
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No comparison data available.")
+            
+    except Exception as e:
+        st.error(f"Error creating pattern comparison: {str(e)}")
+        st.info("💡 Basic analysis data is still available in other sections.")
+
+
+def show_network_analysis_results():
+    """Display network analysis results with proper error handling"""
+    
+    st.subheader("🌐 Network Analysis Results")
+    
+    try:
+        transfer_analysis = st.session_state.get('transfer_analysis', {})
+        
+        if not transfer_analysis:
+            st.warning("⚠️ No transfer analysis data found. Please run the analysis first.")
+            return
+        
+        # Create tabs for different views
+        tab1, tab2, tab3 = st.tabs(["📋 Recommendations", "📊 Pattern Comparison", "💰 Cost Analysis"])
+        
+        with tab1:
+            show_network_recommendations(transfer_analysis)
+        
+        with tab2:
+            show_pattern_comparison(transfer_analysis)
+        
+        with tab3:
+            show_network_cost_analysis(transfer_analysis)
+            
+    except Exception as e:
+        st.error(f"Error displaying network analysis results: {str(e)}")
+        st.info("💡 Please try running the network analysis again.")
+
+
+def show_transfer_analysis_results():
+    """Display transfer analysis results"""
+    
+    st.subheader("📊 Network Transfer Analysis Results")
+    
+    try:
+        # Check if we have analysis data
+        if not st.session_state.get('transfer_analysis'):
+            st.info("ℹ️ Run the network analysis to see results and recommendations.")
+            return
+        
+        # Display results
+        show_network_analysis_results()
+        
+    except Exception as e:
+        st.error(f"Error displaying transfer results: {str(e)}")
+        st.info("💡 Please try running the analysis again.")
     
     for pattern_id, metrics in transfer_analysis.items():
         if pattern_id == 'recommendations':
