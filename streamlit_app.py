@@ -9478,7 +9478,7 @@ def test_claude_ai_connection():
         except Exception as e:
             st.error(f"❌ Test failed: {str(e)}")
 
-def main():
+def main_fixed():
     """Main Streamlit application with fixed key management"""
     
     initialize_session_state()
@@ -12398,4 +12398,4 @@ def test_growth_setup():
             st.warning("⚠️ No growth analysis data in session state yet")
 
 if __name__ == "__main__":
-    main()
+    main_fixed()
