@@ -7959,7 +7959,7 @@ def initialize_session_state():
         'vrops_analyzer': None,        
         'enhanced_cost_chart': None,
         'growth_analysis': None,
-        'growth_projections': None
+        'growth_projections': None,
         'optimization_results': None,  # <-- ADD THIS LINE
     
     }
