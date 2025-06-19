@@ -428,57 +428,57 @@ def show_enhanced_environment_analysis():
     
     st.markdown("### 🏢 Enhanced Environment Analysis")
     
+    # Check if enhanced recommendations exist
+    if not hasattr(st.session_state, 'enhanced_recommendations') or not st.session_state.enhanced_recommendations:
+        st.warning("Enhanced recommendations not available.")
+        return
+    
     recommendations = st.session_state.enhanced_recommendations
     environment_specs = st.session_state.environment_specs
     
-    # Check for enhanced recommendations first
-    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
-        # Environment comparison with cluster details
-        env_comparison_data = []
+    # Environment comparison with cluster details
+    env_comparison_data = []
+    
+    for env_name, rec in recommendations.items():
+        specs = environment_specs.get(env_name, {})
         
-        for env_name, rec in recommendations.items():
-            specs = environment_specs.get(env_name, {})
-            
-            # Writer configuration
-            writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
-            
-            # Reader configuration  
-            reader_count = rec['readers']['count']
-            if reader_count > 0:
-                reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
-            else:
-                reader_config = "No readers"
-            
-            env_comparison_data.append({
-                'Environment': env_name,
-                'Type': rec['environment_type'].title(),
-                'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
-                'Writer Instance': writer_config,
-                'Read Replicas': reader_config,
-                'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
-                'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
-            })
+        # Writer configuration
+        writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
         
-        env_df = pd.DataFrame(env_comparison_data)
-        st.dataframe(env_df, use_container_width=True)
-    else:
-        st.warning("Enhanced recommendations not available.")
-        return
+        # Reader configuration
+        reader_count = rec['readers']['count']
+        if reader_count > 0:
+            reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
+        else:
+            reader_config = "No readers"
+        
+        env_comparison_data.append({
+            'Environment': env_name,
+            'Type': rec['environment_type'].title(),
+            'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
+            'Writer Instance': writer_config,
+            'Read Replicas': reader_config,
+            'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
+            'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
+        })
+    
+    env_df = pd.DataFrame(env_comparison_data)
+    st.dataframe(env_df, use_container_width=True)
     
     # Detailed environment insights
     st.markdown("#### 💡 Environment Insights")
     
     for env_name, rec in recommendations.items():
         with st.expander(f"🔍 {env_name} Environment Details"):
-            specs = environment_specs[env_name]
+            specs = environment_specs.get(env_name, {})
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown("**Current Configuration**")
-                st.write(f"CPU Cores: {specs['cpu_cores']}")
-                st.write(f"RAM: {specs['ram_gb']} GB")
-                st.write(f"Storage: {specs['storage_gb']} GB")
+                st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
+                st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
+                st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
                 st.write(f"IOPS Requirement: {specs.get('iops_requirement', 'N/A')}")
                 st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
             
@@ -534,7 +534,6 @@ def show_enhanced_environment_analysis():
                 st.info("⚡ High-performance io2 storage for demanding IOPS requirements")
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
-
 import asyncio
 import streamlit as st
 import anthropic
