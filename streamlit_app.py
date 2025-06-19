@@ -7510,71 +7510,194 @@ def show_transfer_analysis_results():
     
     return fig
 
-def create_cost_duration_optimization_chart(transfer_analysis: Dict) -> go.Figure:
-    """Create cost vs duration optimization chart"""
+def create_cost_duration_optimization_chart(transfer_analysis):
+    """Create cost vs duration optimization chart - COMPLETE REPLACEMENT"""
     
-    patterns = []
-    costs = []
-    durations = []
-    scores = []
-    
-    analyzer = NetworkTransferAnalyzer()
-    
-    for pattern_id, metrics in transfer_analysis.items():
-        if pattern_id == 'recommendations':
-            continue
-            
-        pattern_info = analyzer.transfer_patterns[pattern_id]
-        patterns.append(pattern_info['name'])
-        costs.append(metrics['total_cost'])
-        durations.append(metrics['transfer_time_days'])
+    try:
+        import plotly.graph_objects as go
+        import plotly.express as px
         
-        # Calculate efficiency score (inverse of cost and duration)
-        efficiency = 1000000 / (metrics['total_cost'] * metrics['transfer_time_days'])
-        scores.append(efficiency)
-    
-    fig = go.Figure()
-    
-    # Create scatter plot
-    fig.add_trace(go.Scatter(
-        x=durations,
-        y=costs,
-        mode='markers+text',
-        text=patterns,
-        textposition="top center",
-        marker=dict(
-            size=[score/max(scores)*50 + 10 for score in scores],  # Size based on efficiency
-            color=scores,
-            colorscale='RdYlGn',
-            showscale=True,
-            colorbar=dict(title="Efficiency Score")
-        ),
-        hovertemplate='<b>%{text}</b><br>' +
-                      'Duration: %{x:.1f} days<br>' +
-                      'Cost: $%{y:,.0f}<br>' +
-                      '<extra></extra>'
-    ))
-    
-    fig.update_layout(
-        title='Cost vs Duration Optimization Matrix',
-        xaxis_title='Transfer Duration (days)',
-        yaxis_title='Total Cost ($)',
-        height=600,
-        annotations=[
-            dict(
-                x=0.02, y=0.98,
+        # Initialize data for scatter plot
+        costs = []
+        durations = []
+        methods = []
+        environments = []
+        sizes = []
+        
+        # Extract data from transfer_analysis
+        for env_name, analysis in transfer_analysis.items():
+            if env_name == 'recommendations':  # Skip recommendations section
+                continue
+                
+            transfer_methods = analysis.get('transfer_methods', {})
+            data_size = analysis.get('data_size_gb', 0)
+            
+            # Online method data point
+            if 'online' in transfer_methods:
+                online = transfer_methods['online']
+                costs.append(online.get('cost_estimate', 0))
+                durations.append(online.get('estimated_time_hours', 0))
+                methods.append('Online')
+                environments.append(env_name)
+                sizes.append(data_size)
+            
+            # Offline method data point
+            if 'offline' in transfer_methods:
+                offline = transfer_methods['offline']
+                costs.append(offline.get('cost_estimate', 0))
+                durations.append(offline.get('estimated_time_days', 0) * 24)  # Convert to hours
+                methods.append('Offline')
+                environments.append(env_name)
+                sizes.append(data_size)
+        
+        if not costs:  # No data available
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No optimization data available",
+                x=0.5, y=0.5,
                 xref="paper", yref="paper",
-                text="🎯 Ideal: Lower-left quadrant (Low cost, Low duration)",
                 showarrow=False,
-                font=dict(size=12, color="green"),
-                bgcolor="lightgreen",
-                bordercolor="green",
-                borderwidth=1
+                font_size=16
             )
-        ]
-    )
+            fig.update_layout(
+                title='Cost vs Duration Optimization',
+                height=400
+            )
+            return fig
+        
+        # Create scatter plot
+        fig = go.Figure()
+        
+        # Add data points with different colors for methods
+        for method in ['Online', 'Offline']:
+            method_costs = [c for c, m in zip(costs, methods) if m == method]
+            method_durations = [d for d, m in zip(durations, methods) if m == method]
+            method_envs = [e for e, m in zip(environments, methods) if m == method]
+            method_sizes = [s for s, m in zip(sizes, methods) if m == method]
+            
+            if method_costs:  # Only add trace if we have data
+                fig.add_trace(go.Scatter(
+                    x=method_durations,
+                    y=method_costs,
+                    mode='markers',
+                    name=f'{method} Transfer',
+                    marker=dict(
+                        size=[max(8, min(20, s/100)) for s in method_sizes],  # Size based on data size
+                        color='lightblue' if method == 'Online' else 'lightcoral',
+                        opacity=0.7,
+                        line=dict(width=2, color='darkblue' if method == 'Online' else 'darkred')
+                    ),
+                    text=[f'{env}<br>{s:,.0f} GB' for env, s in zip(method_envs, method_sizes)],
+                    hovertemplate='<b>%{text}</b><br>Duration: %{x:.1f} hours<br>Cost: $%{y:.2f}<extra></extra>'
+                ))
+        
+        # Update layout
+        fig.update_layout(
+            title='Cost vs Duration Optimization Matrix',
+            xaxis_title='Transfer Duration (Hours)',
+            yaxis_title='Transfer Cost ($)',
+            height=500,
+            showlegend=True,
+            hovermode='closest'
+        )
+        
+        # Add optimal region annotation
+        if costs and durations:
+            min_cost = min(costs)
+            min_duration = min(durations)
+            fig.add_annotation(
+                x=min_duration,
+                y=min_cost,
+                text="Optimal Region<br>(Low Cost + Fast)",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor="green",
+                font=dict(color="green", size=12)
+            )
+        
+        return fig
+        
+    except Exception as e:
+        # Fallback chart
+        import plotly.graph_objects as go
+        
+        fig = go.Figure()
+        fig.add_annotation(
+            text=f"Optimization chart temporarily unavailable",
+            x=0.5, y=0.5,
+            xref="paper", yref="paper",
+            showarrow=False,
+            font_size=16
+        )
+        fig.update_layout(
+            title='Cost vs Duration Optimization',
+            height=400
+        )
+        return fig
+
+
+def show_pattern_comparison(transfer_analysis):
+    """Show network pattern comparison with error handling - UPDATED"""
     
-    return fig
+    st.markdown("### 📊 Network Pattern Comparison")
+    
+    try:
+        # Comparison chart
+        comparison_fig = create_network_comparison_chart(transfer_analysis)
+        st.plotly_chart(comparison_fig, use_container_width=True, key="network_comparison")
+        
+        # Cost vs Duration optimization chart
+        st.markdown("#### ⚖️ Cost vs Duration Optimization")
+        optimization_fig = create_cost_duration_optimization_chart(transfer_analysis)
+        st.plotly_chart(optimization_fig, use_container_width=True, key="cost_duration_optimization")
+        
+        # Optimization recommendations table
+        st.markdown("#### 📋 Transfer Method Recommendations")
+        
+        comparison_data = []
+        for env_name, analysis in transfer_analysis.items():
+            if env_name == 'recommendations':
+                continue
+                
+            transfer_methods = analysis.get('transfer_methods', {})
+            data_size = analysis.get('data_size_gb', 0)
+            
+            # Online method
+            if 'online' in transfer_methods:
+                online = transfer_methods['online']
+                comparison_data.append({
+                    'Environment': env_name,
+                    'Method': 'Online',
+                    'Data Size (GB)': f"{data_size:,.0f}",
+                    'Duration': f"{online.get('estimated_time_hours', 0):.1f} hours",
+                    'Cost': f"${online.get('cost_estimate', 0):.2f}",
+                    'Recommended': "✅" if online.get('recommended') else "⚠️"
+                })
+            
+            # Offline method
+            if 'offline' in transfer_methods:
+                offline = transfer_methods['offline']
+                comparison_data.append({
+                    'Environment': env_name,
+                    'Method': 'Offline (Snowball)',
+                    'Data Size (GB)': f"{data_size:,.0f}",
+                    'Duration': f"{offline.get('estimated_time_days', 0)} days",
+                    'Cost': f"${offline.get('cost_estimate', 0):.2f}",
+                    'Recommended': "✅" if offline.get('recommended') else "⚠️"
+                })
+        
+        if comparison_data:
+            import pandas as pd
+            df = pd.DataFrame(comparison_data)
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.info("No comparison data available.")
+            
+    except Exception as e:
+        st.error(f"Error creating pattern comparison: {str(e)}")
+        st.info("💡 Basic analysis data is still available in other sections.")
 
 def create_network_architecture_diagram(selected_pattern: str) -> go.Figure:
     """Create network architecture diagram for selected pattern"""
