@@ -54,12 +54,13 @@ def show_simplified_data_configuration():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # Single primary input for actual data
+        # Single primary input for actual data - ADD UNIQUE KEY
         actual_data_size_gb = st.number_input(
             "Current Database Size (GB)",
             min_value=1, 
             max_value=100000, 
             value=1000,
+            key="actual_data_size_gb_input",  # UNIQUE KEY ADDED
             help="💡 This is your actual database size that needs to be migrated. This directly impacts migration time and transfer costs."
         )
         
@@ -98,6 +99,7 @@ def show_simplified_data_configuration():
             "Storage Sizing Strategy",
             list(storage_strategies.keys()),
             index=1,  # Default to "Standard"
+            key="storage_sizing_strategy_select",  # UNIQUE KEY ADDED
             help="💡 Choose how much extra space to allocate beyond your current data size"
         )
         
@@ -106,7 +108,8 @@ def show_simplified_data_configuration():
                 "Custom Storage Size (GB)",
                 min_value=actual_data_size_gb,
                 max_value=actual_data_size_gb * 10,
-                value=actual_data_size_gb * 2
+                value=actual_data_size_gb * 2,
+                key="custom_storage_size_input"  # UNIQUE KEY ADDED
             )
         else:
             target_storage_gb = storage_strategies[sizing_strategy]
@@ -8933,13 +8936,7 @@ def show_migration_configuration():
                 **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
                 """)
     
-    # Data Configuration Section
-    st.markdown("### 💾 Data Size Configuration")
-    
-    # Call the simplified data configuration function here
-    data_config = show_simplified_data_configuration()
-    
-    # Migration Parameters Section
+        # Migration Parameters Section
     st.markdown("### ⚙️ Migration Parameters")
     
     col1, col2, col3 = st.columns(3)
