@@ -232,7 +232,7 @@ class SafeMigrationAnalyzer:
 
                 
                 # Create emergency fallback
-                        create_emergency_fallback_analysis()
+                create_emergency_fallback_analysis()
                 return False
 
     def show_fixed_analysis_summary():
