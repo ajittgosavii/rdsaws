@@ -8644,5 +8644,5 @@ def test_growth_setup():
 
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+ #   main()
