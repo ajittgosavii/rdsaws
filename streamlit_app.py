@@ -7354,60 +7354,7 @@ def create_risk_heatmap(risk_assessment: Dict) -> go.Figure:
     )
     
     return fig
-def show_results_dashboard():
-    """Show comprehensive results dashboard with all analysis views"""
-    
-    if not st.session_state.analysis_results:
-        st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
-        return
-    
-    st.markdown("## 📊 Migration Analysis Results")
-    
-    # Check for enhanced results
-    has_enhanced_results = (
-        hasattr(st.session_state, 'enhanced_analysis_results') and 
-        st.session_state.enhanced_analysis_results is not None
-    )
-    
-    # FIXED: Match the number of variables with the number of tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "💰 Cost Summary",
-        "📈 Growth Projections",
-        "💎 Enhanced Analysis",
-        "⚠️ Risk Assessment", 
-        "🏢 Environment Analysis",
-        "📊 Visualizations",
-        "🤖 AI Insights",
-        "📅 Timeline"
-    ])
-    
-    with tab1:
-        show_basic_cost_summary()
-    
-    with tab2:
-        show_growth_analysis_dashboard()
-    
-    with tab3:
-        if has_enhanced_results:
-            show_enhanced_cost_analysis()
-        else:
-            st.info("💡 Enhanced cost analysis not available.")
-            show_basic_cost_summary()
 
-    with tab4:
-        show_risk_assessment_tab()
-
-    with tab5:
-        show_environment_analysis_tab()
-
-    with tab6:
-        show_visualizations_tab()
-
-    with tab7:
-        show_ai_insights_tab()
-
-    with tab8:
-        show_timeline_analysis_tab()
         
 # Alternative simplified version if the above still has issues
 def show_results_dashboard_simple():
@@ -9368,7 +9315,7 @@ def run_enhanced_migration_analysis():
         st.markdown("3. Try using the 'Simple Configuration' option instead")
 
 def show_results_dashboard():
-    """Show comprehensive results dashboard with vROps analysis"""
+    """Show comprehensive results dashboard with all analysis views"""
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
@@ -9376,15 +9323,14 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
-     # FIXED: Define has_enhanced_results properly
+    # Check for enhanced results
     has_enhanced_results = (
         hasattr(st.session_state, 'enhanced_analysis_results') and 
         st.session_state.enhanced_analysis_results is not None
     )
     
-    
-    # Create tabs for different views - ADD VROPS TAB
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    # FIXED: Match the number of variables with the number of tabs
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "💰 Cost Summary",
         "📈 Growth Projections",
         "💎 Enhanced Analysis",
@@ -9401,7 +9347,6 @@ def show_results_dashboard():
     with tab2:
         show_growth_analysis_dashboard()
     
-    
     with tab3:
         if has_enhanced_results:
             show_enhanced_cost_analysis()
@@ -9410,15 +9355,18 @@ def show_results_dashboard():
             show_basic_cost_summary()
 
     with tab4:
-        show_environment_analysis_tab()
+        show_risk_assessment_tab()
 
     with tab5:
-        show_visualizations_tab()
+        show_environment_analysis_tab()
 
     with tab6:
-        show_ai_insights_tab()
+        show_visualizations_tab()
 
     with tab7:
+        show_ai_insights_tab()
+
+    with tab8:
         show_timeline_analysis_tab()
 
 def show_basic_cost_summary():
