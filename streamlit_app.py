@@ -2542,6 +2542,22 @@ def run_streamlit_migration_analysis():
     """Run migration analysis synchronously for Streamlit"""
     
     try:
+        
+         # Check if reconciliation is enabled
+        reconciliation_settings = getattr(st.session_state, 'reconciliation_settings', {})
+        use_reconciliation = reconciliation_settings.get('auto_reconcile', False)
+        
+        # Initialize analyzer with reconciliation if enabled
+        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+        
+        if use_reconciliation:
+            st.info("🔄 Using reconciliation-aware pricing API")
+            pricing_api = ReconciliationAWSPricingAPI()
+            analyzer = MigrationAnalyzer(anthropic_api_key)
+            analyzer.pricing_api = pricing_api
+        else:
+            analyzer = MigrationAnalyzer(anthropic_api_key)
+        
         # Check if this is enhanced environment data
         is_enhanced = is_enhanced_environment_data(st.session_state.environment_specs)
         
@@ -4467,6 +4483,119 @@ class RealAWSPricingAPI:
             print(f"Warning: Could not initialize AWS pricing client: {e}")
             self.pricing_client = None
     
+    # ===========================
+# COST RECONCILIATION MODULE  
+# ===========================
+
+def reconcile_cost_data_sources():
+    """Ensure both cost sources use identical parameters"""
+    
+    # 1. Standardize time periods
+    cost_analysis_period = {
+        'start_date': '2024-01-01',
+        'end_date': '2024-01-31',
+        'timezone': 'UTC'
+    }
+    
+    # 2. Verify AWS region consistency
+    aws_region = 'us-east-1'  # Ensure both use same region
+    
+    # 3. Check currency and billing cycle
+    currency = 'USD'
+    billing_cycle = 'monthly'  # vs daily/annual
+    
+    return cost_analysis_period, aws_region, currency, billing_cycle
+
+def map_cost_categories():
+    """Map your AI cost categories to AWS Cost Analysis categories"""
+    
+    cost_mapping = {
+        # Your AI Categories -> AWS Cost Analysis Categories
+        'instance_cost': 'Amazon RDS Instance',
+        'storage_cost': 'Amazon RDS Storage',
+        'backup_cost': 'Amazon RDS Backup',
+        'data_transfer': 'Data Transfer',
+        'monitoring_cost': 'CloudWatch',
+        'reader_costs': 'Amazon RDS Read Replica'
+    }
+    
+    return cost_mapping
+
+def standardize_cost_calculations():
+    """Align calculation methodologies"""
+    
+    # 1. Use same pricing model
+    pricing_model = {
+        'type': 'on_demand',  # vs reserved, spot
+        'include_taxes': True,
+        'include_credits': False,
+        'include_discounts': True
+    }
+    
+    return pricing_model
+
+def calculate_multi_az_cost(base_cost, is_multi_az):
+    """Standardize Multi-AZ calculations"""
+    if is_multi_az:
+        return base_cost * 2.0  # AWS standard multiplier
+    return base_cost
+
+def calculate_iops_cost(storage_type, iops, storage_gb):
+    """Align IOPS calculations"""
+    if storage_type == 'gp3':
+        base_iops = 3000
+        additional_iops = max(0, iops - base_iops)
+        return additional_iops * 0.005
+    elif storage_type == 'io2':
+        return iops * 0.065
+    return 0
+
+class ReconciliationAWSPricingAPI(RealAWSPricingAPI):
+    """Enhanced pricing API with cost analysis alignment"""
+    
+    def __init__(self):
+        super().__init__()
+        self.include_taxes = True
+        self.has_enterprise_discount = False
+        self.include_support_costs = True
+    
+    def get_reconciled_rds_pricing(self, region, engine, instance_class, multi_az=False):
+        """Get pricing that matches AWS Cost Analysis exactly"""
+        
+        try:
+            # Get real AWS pricing
+            real_pricing = self._fetch_real_aws_pricing(region, engine, instance_class, multi_az)
+            
+            if real_pricing:
+                # Apply cost analysis adjustments
+                reconciled_pricing = self._apply_cost_analysis_adjustments(real_pricing)
+                return reconciled_pricing
+                
+        except Exception as e:
+            st.warning(f"Using fallback pricing due to: {e}")
+            
+        return self._get_fallback_pricing(region, engine, instance_class, multi_az)
+    
+    def _apply_cost_analysis_adjustments(self, pricing):
+        """Apply adjustments to match Cost Analysis"""
+        
+        # 1. Add tax calculations (if applicable)
+        if self.include_taxes:
+            pricing['hourly'] *= 1.0875  # Example: 8.75% tax
+            
+        # 2. Apply enterprise discounts
+        if self.has_enterprise_discount:
+            pricing['hourly'] *= 0.95  # 5% enterprise discount
+            
+        # 3. Include support costs
+        if self.include_support_costs:
+            pricing['support_cost'] = pricing['hourly'] * 0.10  # 10% support
+            pricing['hourly'] += pricing['support_cost']
+        
+        pricing['source'] = 'AWS Pricing API (Reconciled)'
+        return pricing
+    
+    
     def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
         """Get real RDS pricing from AWS Pricing API"""
         cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
@@ -5052,6 +5181,12 @@ def run_real_migration_analysis():
         else:
             st.warning("⚠️ Using fallback pricing data (AWS API unavailable)")
         
+        # Add reconciliation metadata
+        if use_reconciliation:
+            cost_analysis['reconciliation_applied'] = True
+            cost_analysis['reconciliation_settings'] = reconciliation_settings
+        
+        
         st.session_state.analysis_results = cost_analysis
         
         # Step 3: Risk assessment
@@ -5078,6 +5213,10 @@ def run_real_migration_analysis():
             st.info("ℹ️ Provide Anthropic API key for Claude AI insights")
         
         st.success("✅ Analysis complete with real-time data!")
+       
+        # Suggest reconciliation if not already enabled
+        if not use_reconciliation:
+            st.info("💡 Visit the 'Cost Reconciliation' section to validate these costs against AWS Cost Analysis")
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
@@ -8345,7 +8484,11 @@ def initialize_session_state():
         'enhanced_cost_chart': None,
         'growth_analysis': None,  # ADD THIS LINE
         'growth_projections': None,  # ADD THIS LINE
-              
+          # ADD THESE NEW LINES:
+        'cost_reconciliation_data': None,
+        'aws_actual_costs': None,
+        'reconciliation_results': None,
+        'cost_validation_data': None,     
         'enhanced_cost_chart': None,
         'growth_analysis': None,
         'growth_projections': None,
@@ -8425,6 +8568,7 @@ def main():
                 "🧠 AI Optimizer",
                 "🚀 Analysis & Recommendations",
                 "📈 Results Dashboard",
+                "🔄 Cost Reconciliation",  # ADD THIS LINE
                 "📄 Reports & Export"
             ]
         )
@@ -8539,6 +8683,8 @@ def main():
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
+    elif page == "🔄 Cost Reconciliation":  # ADD THIS BLOCK
+        show_cost_reconciliation_page()
     elif page == "📄 Reports & Export":
         show_reports_section()
     else:
@@ -9978,6 +10124,455 @@ def show_reports_section():
                     st.error("Failed to generate reports package")
             except Exception as e:
                 st.error(f"Error generating bulk reports: {str(e)}")
+
+# ===========================
+# COST RECONCILIATION INTERFACE
+# ===========================
+
+def reconcile_costs_with_aws_analysis():
+    """Main reconciliation function"""
+    
+    st.markdown("### 🔄 Cost Reconciliation with AWS Cost Analysis")
+    
+    # Input AWS Cost Analysis data
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 📊 AWS Cost Analysis Data")
+        st.info("Enter your actual AWS Cost Analysis data below:")
+        
+        aws_total_cost = st.number_input(
+            "Total Monthly Cost from AWS Cost Analysis ($)", 
+            value=0.0, 
+            min_value=0.0,
+            help="Enter the total monthly cost shown in AWS Cost Analysis"
+        )
+        
+        aws_instance_cost = st.number_input(
+            "RDS Instance Costs ($)", 
+            value=0.0, 
+            min_value=0.0,
+            help="RDS instance costs from Cost Analysis"
+        )
+        
+        aws_storage_cost = st.number_input(
+            "Storage Costs ($)", 
+            value=0.0, 
+            min_value=0.0,
+            help="Storage and backup costs"
+        )
+        
+        aws_data_transfer = st.number_input(
+            "Data Transfer Costs ($)", 
+            value=0.0, 
+            min_value=0.0,
+            help="Cross-AZ and internet data transfer"
+        )
+    
+    with col2:
+        st.markdown("#### 🤖 AI Predicted Costs")
+        if st.session_state.analysis_results:
+            results = st.session_state.analysis_results
+            ai_total_cost = results.get('monthly_aws_cost', 0)
+            st.metric("AI Total Cost", f"${ai_total_cost:,.2f}")
+            
+            # Calculate variance
+            if aws_total_cost > 0:
+                variance = abs(aws_total_cost - ai_total_cost)
+                variance_pct = (variance / aws_total_cost) * 100
+                
+                st.metric("Cost Variance", f"${variance:,.2f}", f"{variance_pct:.1f}%")
+                
+                # Show color-coded status
+                if variance_pct <= 5:
+                    st.success("✅ Excellent alignment (≤5% variance)")
+                elif variance_pct <= 15:
+                    st.warning("⚠️ Acceptable variance (5-15%)")
+                else:
+                    st.error("❌ High variance (>15%) - needs investigation")
+            else:
+                st.info("Enter AWS Cost Analysis data to compare")
+        else:
+            st.warning("Run migration analysis first to get AI predictions")
+    
+    # Reconciliation analysis
+    if st.button("🔍 Analyze Cost Differences", type="primary"):
+        if aws_total_cost > 0 and st.session_state.analysis_results:
+            perform_cost_reconciliation(aws_total_cost, ai_total_cost, aws_instance_cost, aws_storage_cost, aws_data_transfer)
+        else:
+            st.error("Please enter AWS Cost Analysis data and run migration analysis first")
+
+def perform_cost_reconciliation(aws_cost, ai_cost, aws_instance, aws_storage, aws_transfer):
+    """Perform detailed cost reconciliation analysis"""
+    
+    st.markdown("### 📊 Detailed Cost Reconciliation Analysis")
+    
+    variance_threshold = 0.05  # 5% acceptable variance
+    variance_pct = abs(aws_cost - ai_cost) / max(aws_cost, 1)
+    
+    # Overall assessment
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("AWS Cost Analysis", f"${aws_cost:,.2f}")
+    
+    with col2:
+        st.metric("AI Prediction", f"${ai_cost:,.2f}")
+    
+    with col3:
+        variance_dollars = abs(aws_cost - ai_cost)
+        st.metric("Variance", f"${variance_dollars:,.2f}", f"{variance_pct*100:.1f}%")
+    
+    # Detailed breakdown comparison
+    st.markdown("#### 🔍 Component-Level Analysis")
+    
+    results = st.session_state.analysis_results
+    env_costs = results.get('environment_costs', {})
+    
+    # Calculate AI component costs
+    ai_instance_total = sum([env.get('instance_cost', 0) for env in env_costs.values()])
+    ai_storage_total = sum([env.get('storage_cost', 0) for env in env_costs.values()])
+    ai_transfer_total = sum([env.get('transfer_cost', 0) for env in env_costs.values()])
+    
+    # Component comparison table
+    comparison_data = [
+        ['Cost Component', 'AWS Cost Analysis', 'AI Prediction', 'Variance', 'Status'],
+        ['Instance Costs', f'${aws_instance:,.2f}', f'${ai_instance_total:,.2f}', 
+         f'${abs(aws_instance - ai_instance_total):,.2f}', 
+         get_variance_status(aws_instance, ai_instance_total)],
+        ['Storage Costs', f'${aws_storage:,.2f}', f'${ai_storage_total:,.2f}', 
+         f'${abs(aws_storage - ai_storage_total):,.2f}', 
+         get_variance_status(aws_storage, ai_storage_total)],
+        ['Data Transfer', f'${aws_transfer:,.2f}', f'${ai_transfer_total:,.2f}', 
+         f'${abs(aws_transfer - ai_transfer_total):,.2f}', 
+         get_variance_status(aws_transfer, ai_transfer_total)]
+    ]
+    
+    # Display comparison table
+    for i, row in enumerate(comparison_data):
+        if i == 0:  # Header
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.markdown(f"**{row[0]}**")
+            with col2:
+                st.markdown(f"**{row[1]}**")
+            with col3:
+                st.markdown(f"**{row[2]}**")
+            with col4:
+                st.markdown(f"**{row[3]}**")
+            with col5:
+                st.markdown(f"**{row[4]}**")
+        else:  # Data rows
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.write(row[0])
+            with col2:
+                st.write(row[1])
+            with col3:
+                st.write(row[2])
+            with col4:
+                st.write(row[3])
+            with col5:
+                if row[4] == '✅ Good':
+                    st.success(row[4])
+                elif row[4] == '⚠️ Check':
+                    st.warning(row[4])
+                else:
+                    st.error(row[4])
+    
+    # Reconciliation recommendations
+    st.markdown("#### 🔧 Reconciliation Recommendations")
+    
+    if variance_pct <= variance_threshold:
+        st.success(f"✅ Costs are aligned within {variance_threshold*100}% tolerance")
+        st.markdown("**Your AI cost predictions are accurate!**")
+    else:
+        st.warning(f"⚠️ Cost variance of {variance_pct*100:.1f}% exceeds {variance_threshold*100}% threshold")
+        
+        # Provide specific reconciliation suggestions
+        if ai_cost > aws_cost:
+            st.markdown("**AI costs are higher than AWS Cost Analysis - Possible causes:**")
+            st.markdown("• ✅ Check if AI includes Reserved Instance discounts")
+            st.markdown("• ✅ Verify Multi-AZ calculations (should be 2x base cost)")
+            st.markdown("• ✅ Review IOPS cost calculations for gp3/io2 storage")
+            st.markdown("• ✅ Check for included support/monitoring costs")
+            st.markdown("• ✅ Verify data transfer cost calculations")
+        else:
+            st.markdown("**AWS Cost Analysis is higher than AI predictions - Possible causes:**")
+            st.markdown("• ✅ Verify if taxes and fees are included in AWS costs")
+            st.markdown("• ✅ Check for additional AWS services not modeled by AI")
+            st.markdown("• ✅ Review data transfer and cross-AZ costs")
+            st.markdown("• ✅ Validate backup and snapshot costs")
+            st.markdown("• ✅ Check for hidden costs (CloudWatch, Enhanced Monitoring)")
+        
+        # Action items
+        st.markdown("#### 📋 Recommended Actions")
+        action_items = [
+            "Review AWS Cost Analysis filters and time period",
+            "Verify all cost components are included in both calculations",
+            "Check for region consistency between calculations",
+            "Validate Multi-AZ and Reserved Instance settings",
+            "Consider running analysis with reconciliation-aware pricing API"
+        ]
+        
+        for action in action_items:
+            st.markdown(f"• {action}")
+
+def show_cost_reconciliation_page():
+    """Show cost reconciliation page"""
+    
+    st.markdown("## 🔄 Cost Reconciliation & Validation")
+    
+    # Check prerequisites
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Please run the migration analysis first.")
+        st.info("👆 Go to 'Analysis & Recommendations' section and run the comprehensive analysis")
+        return
+    
+    # Create tabs for different reconciliation views
+    tab1, tab2, tab3 = st.tabs([
+        "🔍 AWS Cost Analysis Comparison",
+        "📊 Cost Validation Dashboard", 
+        "⚙️ Reconciliation Settings"
+    ])
+    
+    with tab1:
+        reconcile_costs_with_aws_analysis()
+    
+    with tab2:
+        show_cost_validation_dashboard()
+    
+    with tab3:
+        show_reconciliation_settings()
+
+def show_reconciliation_settings():
+    """Show reconciliation configuration settings"""
+    
+    st.markdown("### ⚙️ Reconciliation Settings")
+    
+    st.markdown("Configure how cost calculations align with AWS Cost Analysis:")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 💰 Cost Calculation Settings")
+        
+        include_taxes = st.checkbox(
+            "Include Taxes in Calculations", 
+            value=True,
+            help="Include estimated taxes to match AWS billing"
+        )
+        
+        include_support = st.checkbox(
+            "Include Support Costs", 
+            value=False,
+            help="Include AWS support plan costs (typically 10% of infrastructure)"
+        )
+        
+        enterprise_discount = st.checkbox(
+            "Apply Enterprise Discount", 
+            value=False,
+            help="Apply enterprise discount rate (typically 5-10%)"
+        )
+        
+        if enterprise_discount:
+            discount_rate = st.slider(
+                "Enterprise Discount Rate (%)",
+                min_value=1, max_value=20, value=5
+            )
+    
+    with col2:
+        st.markdown("#### 🔧 Reconciliation Preferences")
+        
+        variance_threshold = st.slider(
+            "Acceptable Variance Threshold (%)",
+            min_value=1, max_value=25, value=5,
+            help="Variance threshold for cost alignment"
+        )
+        
+        reconciliation_method = st.selectbox(
+            "Reconciliation Method",
+            ["Real-time AWS API", "Manual Input", "Hybrid"],
+            help="How to obtain AWS cost data for comparison"
+        )
+        
+        auto_reconcile = st.checkbox(
+            "Auto-reconcile on Analysis",
+            value=False,
+            help="Automatically attempt reconciliation when running analysis"
+        )
+    
+    # Save settings
+    if st.button("💾 Save Reconciliation Settings", type="primary"):
+        reconciliation_settings = {
+            'include_taxes': include_taxes,
+            'include_support': include_support,
+            'enterprise_discount': enterprise_discount,
+            'discount_rate': discount_rate if enterprise_discount else 0,
+            'variance_threshold': variance_threshold,
+            'reconciliation_method': reconciliation_method,
+            'auto_reconcile': auto_reconcile
+        }
+        
+        st.session_state.reconciliation_settings = reconciliation_settings
+        st.success("✅ Reconciliation settings saved!")
+
+
+def get_variance_status(aws_value, ai_value):
+    """Get status indicator for cost variance"""
+    if aws_value == 0 and ai_value == 0:
+        return '➖ N/A'
+    
+    variance_pct = abs(aws_value - ai_value) / max(aws_value, ai_value, 1) * 100
+    
+    if variance_pct <= 5:
+        return '✅ Good'
+    elif variance_pct <= 15:
+        return '⚠️ Check'
+    else:
+        return '❌ High'
+
+def show_cost_validation_dashboard():
+    """Dashboard to validate cost predictions against actual AWS billing"""
+    
+    st.markdown("### 📊 Cost Validation Dashboard")
+    
+    if not st.session_state.analysis_results:
+        st.warning("⚠️ Run migration analysis first to enable cost validation")
+        return
+    
+    st.info("💡 Use this dashboard to compare AI predictions with your actual AWS billing data")
+    
+    # Create comparison table
+    comparison_data = []
+    
+    env_costs = st.session_state.analysis_results.get('environment_costs', {})
+    
+    for env_name, costs in env_costs.items():
+        ai_predicted = costs.get('total_monthly', 0)
+        comparison_data.append({
+            'Environment': env_name,
+            'AI Predicted ($)': ai_predicted,
+            'AWS Actual ($)': 0.0,  # User will enter this
+            'Variance ($)': 0.0,
+            'Variance (%)': 0.0,
+            'Status': 'Pending'
+        })
+    
+    df = pd.DataFrame(comparison_data)
+    
+    # Editable dataframe for AWS actual costs
+    st.markdown("#### ✏️ Enter Your Actual AWS Costs")
+    
+    edited_df = st.data_editor(
+        df,
+        column_config={
+            "AWS Actual ($)": st.column_config.NumberColumn(
+                "AWS Actual ($)",
+                help="Enter actual costs from AWS billing/Cost Analysis",
+                min_value=0.0,
+                format="%.2f"
+            )
+        },
+        disabled=["Environment", "AI Predicted ($)", "Variance ($)", "Variance (%)", "Status"],
+        use_container_width=True,
+        key="cost_validation_editor"
+    )
+    
+    # Calculate variances
+    if st.button("📊 Calculate Variances", type="primary"):
+        calculate_and_display_variances(edited_df)
+
+def calculate_and_display_variances(df):
+    """Calculate and display cost variances"""
+    
+    st.markdown("#### 📈 Variance Analysis Results")
+    
+    # Calculate variances for each row
+    results_data = []
+    total_ai_cost = 0
+    total_aws_cost = 0
+    
+    for _, row in df.iterrows():
+        ai_cost = row['AI Predicted ($)']
+        aws_cost = row['AWS Actual ($)']
+        
+        total_ai_cost += ai_cost
+        total_aws_cost += aws_cost
+        
+        if aws_cost > 0:
+            variance_dollars = abs(ai_cost - aws_cost)
+            variance_pct = (variance_dollars / aws_cost) * 100
+            
+            # Determine status
+            if variance_pct <= 5:
+                status = '✅ Excellent'
+                status_color = 'success'
+            elif variance_pct <= 15:
+                status = '⚠️ Acceptable'
+                status_color = 'warning'
+            else:
+                status = '❌ High Variance'
+                status_color = 'error'
+            
+            results_data.append({
+                'Environment': row['Environment'],
+                'AI Predicted': f"${ai_cost:,.2f}",
+                'AWS Actual': f"${aws_cost:,.2f}",
+                'Variance': f"${variance_dollars:,.2f}",
+                'Variance %': f"{variance_pct:.1f}%",
+                'Status': status,
+                'Color': status_color
+            })
+    
+    # Display results
+    for result in results_data:
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.write(result['Environment'])
+        with col2:
+            st.write(result['AI Predicted'])
+        with col3:
+            st.write(result['AWS Actual'])
+        with col4:
+            st.write(result['Variance'])
+        with col5:
+            st.write(result['Variance %'])
+        with col6:
+            if result['Color'] == 'success':
+                st.success(result['Status'])
+            elif result['Color'] == 'warning':
+                st.warning(result['Status'])
+            else:
+                st.error(result['Status'])
+    
+    # Overall summary
+    if total_aws_cost > 0:
+        overall_variance = abs(total_ai_cost - total_aws_cost)
+        overall_variance_pct = (overall_variance / total_aws_cost) * 100
+        
+        st.markdown("#### 🎯 Overall Summary")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("Total AI Predicted", f"${total_ai_cost:,.2f}")
+        with col2:
+            st.metric("Total AWS Actual", f"${total_aws_cost:,.2f}")
+        with col3:
+            st.metric("Total Variance", f"${overall_variance:,.2f}")
+        with col4:
+            st.metric("Overall Variance %", f"{overall_variance_pct:.1f}%")
+        
+        # Recommendations
+        if overall_variance_pct <= 5:
+            st.success("🎉 Excellent! Your AI cost predictions are highly accurate.")
+        elif overall_variance_pct <= 15:
+            st.warning("👍 Good accuracy. Minor adjustments may improve predictions.")
+        else:
+            st.error("⚠️ High variance detected. Consider reviewing cost calculation methodology.")
+
 
 def show_optimized_recommendations():
     """Show optimized Reader/Writer recommendations"""
