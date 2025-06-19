@@ -204,7 +204,7 @@ class SafeMigrationAnalyzer:
 
                 if not normalized_specs:
                     st.error("❌ Failed to normalize environment specifications")
-                    return False
+                return False
 
                 st.session_state.environment_specs = normalized_specs
 
@@ -322,7 +322,7 @@ def create_emergency_fallback_analysis():
         'run_fixed_migration_analysis': run_fixed_migration_analysis,
         'show_fixed_analysis_summary': show_fixed_analysis_summary,
         'create_emergency_fallback_analysis': create_emergency_fallback_analysis
-    }
+        }
   
         
 class StreamlitKeyManager:
