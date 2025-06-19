@@ -8422,75 +8422,119 @@ def main():
                 "🔧 Migration Configuration",
                 "📊 Environment Setup",
                 "🌐 Network Analysis",
-                 "🧠 AI Optimizer",  # <-- ADD THIS NEW OPTION
+                "🧠 AI Optimizer",
                 "🚀 Analysis & Recommendations",
                 "📈 Results Dashboard",
                 "📄 Reports & Export"
             ]
         )
-    
-    # Add this to your page routing:
-    if page == "🧠 AI Optimizer":
-        show_optimized_recommendations()
-    
-   
-    # Status indicators
-        st.markdown("### 📋 Status")
         
-    env_specs = getattr(st.session_state, 'environment_specs', {})
-    if env_specs and len(env_specs) > 0:
-            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
-    else:
+        # Enhanced Status Section
+        st.markdown("---")
+        st.markdown("## 📋 Status")
+        
+        # Environment Configuration Status
+        env_specs = getattr(st.session_state, 'environment_specs', {})
+        if env_specs and len(env_specs) > 0:
+            st.success(f"✅ {len(env_specs)} environments configured")
+            st.caption(f"Num environments: `{len(env_specs)}`")
+            
+            # Check if enhanced data
+            is_enhanced = is_enhanced_environment_data(env_specs)
+            st.caption(f"Enhanced data: `{is_enhanced}`")
+        else:
             st.warning("⚠️ Configure environments")
         
-    if st.session_state.migration_params:
+        # Migration Parameters Status
+        if st.session_state.migration_params:
             st.success("✅ Migration parameters set")
-    else:
+        else:
             st.warning("⚠️ Set migration parameters")
         
-        # Check for both regular and enhanced analysis results
-    has_regular_results = st.session_state.analysis_results is not None
-    has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
+        # Analysis Results Status
+        has_regular_results = st.session_state.analysis_results is not None
+        has_enhanced_results = hasattr(st.session_state, 'enhanced_analysis_results') and st.session_state.enhanced_analysis_results is not None
         
-    if has_regular_results or has_enhanced_results:
+        if has_regular_results or has_enhanced_results:
             st.success("✅ Analysis complete")
             
-            # Show metrics from whichever analysis was completed
+            # Show cost metrics
             if has_enhanced_results:
                 results = st.session_state.enhanced_analysis_results
                 st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                migration_cost = results['migration_costs']['total']
+                st.metric("Migration Cost", f"${migration_cost:,.0f}")
                 st.info("🔬 Enhanced Analysis")
             elif has_regular_results:
                 results = st.session_state.analysis_results
                 st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
-                st.metric("Migration Cost", f"${results['migration_costs']['total']:,.0f}")
+                migration_cost = results.get('migration_costs', {}).get('total', 0)
+                st.metric("Migration Cost", f"${migration_cost:,.0f}")
                 st.info("📊 Standard Analysis")
-    else:
+        else:
             st.info("ℹ️ Analysis pending")
         
-        # Network analysis status
-    if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
+        # Network Analysis Status
+        if hasattr(st.session_state, 'transfer_analysis') and st.session_state.transfer_analysis:
             st.success("✅ Network analysis complete")
             recommendations = st.session_state.transfer_analysis.get('recommendations', {})
             primary = recommendations.get('primary_recommendation', {})
             if primary:
-                st.metric("Recommended Pattern", primary.get('pattern_name', 'N/A'))
-    else:
-            st.info("ℹ️ Network analysis pending")       
-       
+                st.caption("**Recommended Pattern:**")
+                st.caption(primary.get('pattern_name', 'N/A'))
+        else:
+            st.info("ℹ️ Network analysis pending")
+        
+        # AI Optimizer Status
+        if hasattr(st.session_state, 'optimization_results') and st.session_state.optimization_results:
+            st.success("✅ AI optimization complete")
             
-    if st.session_state.environment_specs:
-                st.write("Num environments:", len(st.session_state.environment_specs))
-                st.write("Enhanced data:", is_enhanced_environment_data(st.session_state.environment_specs))
+            # Show optimization metrics
+            total_monthly = sum([env['cost_analysis']['monthly_breakdown']['total'] 
+                               for env in st.session_state.optimization_results.values()])
+            avg_score = sum([env['optimization_score'] 
+                           for env in st.session_state.optimization_results.values()]) / len(st.session_state.optimization_results)
+            
+            st.metric("Optimized Monthly Cost", f"${total_monthly:,.0f}")
+            st.metric("Avg Optimization Score", f"{avg_score:.1f}/100")
+        else:
+            st.info("ℹ️ AI optimization pending")
+        
+        # Growth Analysis Status (if available)
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            st.success("✅ Growth analysis complete")
+            growth_summary = st.session_state.growth_analysis['growth_summary']
+            growth_percent = growth_summary['total_3_year_growth_percent']
+            st.metric("3-Year Growth", f"{growth_percent:.1f}%")
+        
+        # Quick Actions
+        st.markdown("---")
+        st.markdown("## ⚡ Quick Actions")
+        
+        if st.button("🔄 Refresh Status", use_container_width=True):
+            st.experimental_rerun()
+        
+        if st.session_state.migration_params and st.session_state.environment_specs:
+            if st.button("🚀 Run Analysis", use_container_width=True):
+                # Switch to analysis page
+                st.session_state.page = "🚀 Analysis & Recommendations"
+                st.experimental_rerun()
+        
+        # System Info
+        st.markdown("---")
+        st.markdown("## ℹ️ System Info")
+        st.caption(f"**Session:** {len(st.session_state)} variables")
+        st.caption(f"**Generated:** {datetime.now().strftime('%H:%M:%S')}")
     
-    # Main content area - THIS IS THE KEY FIX
+    # Main content area routing remains the same
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
         show_enhanced_environment_setup_with_cluster_config()
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
+    elif page == "🧠 AI Optimizer":
+        show_optimized_recommendations()
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
@@ -8501,7 +8545,6 @@ def main():
         # Default page
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
-      # Add this after your existing sections
             
 def show_migration_configuration():
     """Show migration configuration interface with growth planning"""
