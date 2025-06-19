@@ -2877,76 +2877,80 @@ def initialize_session_state():
     if 'network_analysis_results' not in st.session_state:
         st.session_state.network_analysis_results = None
 
+import streamlit as st
+
 def show_migration_configuration_tab():
-    """Shows the migration configuration tab."""
-    st.markdown("## ⚙️ Migration Configuration")
+    st.header("⚙️ Migration Configuration")
+
+    # Initialize session state for migration parameters if not already present
+    if 'migration_params' not in st.session_state:
+        st.session_state.migration_params = {
+            'source_engine': None,
+            'target_engine': None,
+            'region': 'us-east-1',
+            'data_size_gb': 100,
+            'migration_timeline_weeks': 4,
+            'annual_data_growth': 15,
+            'use_direct_connect': False,
+            'anthropic_api_key': '',
+            'existing_licensing': 'no_licensing' # Added to ensure it's always set
+        }
 
     params = st.session_state.migration_params
 
-    # General Migration Parameters
-    st.markdown("### General Migration Parameters")
-    params['source_engine'] = st.selectbox(
-        "Source Database Engine",
-        ['PostgreSQL', 'Oracle-EE', 'SQLServer', 'MySQL'],
-        index=['PostgreSQL', 'Oracle-EE', 'SQLServer', 'MySQL'].index(params['source_engine'])
-    )
-    params['target_engine'] = st.selectbox(
-        "Target AWS Database Engine",
-        ['Aurora-PostgreSQL', 'PostgreSQL', 'Aurora-MySQL', 'MySQL', 'Amazon RDS for Oracle'],
-        index=['Aurora-PostgreSQL', 'PostgreSQL', 'Aurora-MySQL', 'MySQL', 'Amazon RDS for Oracle'].index(params['target_engine'])
-    )
-    params['region'] = st.selectbox(
-        "Target AWS Region",
-        ['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-2'],
-        index=['us-east-1', 'us-west-2', 'eu-west-1', 'ap-southeast-2'].index(params['region'])
-    )
-    params['data_size_gb'] = st.number_input("Total Data Size (GB)", min_value=10, value=params['data_size_gb'], step=100)
-    params['migration_timeline_weeks'] = st.number_input("Desired Migration Timeline (weeks)", min_value=4, value=params['migration_timeline_weeks'], step=1)
+    st.subheader("Database Details")
 
-    st.markdown("---")
-    st.markdown("### Operational Considerations")
-    params['downtime_tolerance'] = st.select_slider(
-        "Downtime Tolerance during Cutover",
-        options=['high', 'medium', 'low', 'zero'],
-        value=params['downtime_tolerance']
-    )
-    params['data_security_level'] = st.select_slider(
-        "Data Security Level Required",
-        options=['standard', 'high', 'compliance'],
-        value=params['data_security_level']
-    )
-    params['annual_data_growth'] = st.slider(
-        "Estimated Annual Data Growth (%)",
-        min_value=0, max_value=50, value=params['annual_data_growth'], step=1
+    # Define the allowed source engines with consistent casing
+    allowed_source_engines = ['PostgreSQL', 'Oracle-EE', 'SQLServer', 'MySQL']
+    
+    # Use st.selectbox for user input, ensuring the default value is handled
+    # and providing a clear list of options
+    selected_source_engine = st.selectbox(
+        "Source Database Engine",
+        options=[''] + allowed_source_engines, # Add an empty string for initial selection
+        index=allowed_source_engines.index(params['source_engine']) + 1 if params['source_engine'] in allowed_source_engines else 0,
+        help="Select the database engine currently used on-premises."
     )
     
-    st.markdown("---")
-    st.markdown("### Team & Budget (for Timeline Analysis)")
-    params['team_size'] = st.number_input("Migration Team Size", min_value=1, value=params['team_size'])
-    params['team_expertise'] = st.selectbox(
-        "Team Expertise Level",
-        ['low', 'medium', 'high'],
-        index=['low', 'medium', 'high'].index(params['team_expertise'])
-    )
-    params['migration_budget'] = st.number_input(
-        "Overall Migration Budget ($)",
-        min_value=10000, value=params['migration_budget'], step=10000
-    )
+    # Update params['source_engine'] after user selection
+    params['source_engine'] = selected_source_engine
 
-    st.markdown("---")
-    st.markdown("### AI Integration")
-    params['anthropic_api_key'] = st.text_input(
-        "Anthropic API Key (for AI Insights)",
-        value=params['anthropic_api_key'],
-        type="password",
-        help="Enter your Anthropic API key to enable AI-powered risk assessment and recommendations."
-    )
-    st.markdown("Get your API key from [Anthropic Console](https://console.anthropic.com/settings/keys)")
+    # Add a check to prevent ValueError if an invalid engine is somehow set
+    if params['source_engine'] not in allowed_source_engines and params['source_engine'] != '':
+        st.warning(f"⚠️ Invalid source engine '{params['source_engine']}'. Please select from the list.")
+        # Optionally, reset to a default or clear the invalid entry
+        params['source_engine'] = None # Or set to a default valid engine
 
-    st.markdown("---")
-    if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+    # The rest of your migration configuration inputs would follow here,
+    # ensuring all 'params' values are properly initialized and validated.
+
+    # Example for target engine (similar validation can be applied)
+    allowed_target_engines = ['PostgreSQL', 'Aurora-PostgreSQL', 'MySQL', 'Aurora-MySQL']
+    params['target_engine'] = st.selectbox(
+        "Target AWS Database Engine",
+        options=allowed_target_engines,
+        index=allowed_target_engines.index(params['target_engine']) if params['target_engine'] in allowed_target_engines else 0,
+        help="Select the target database engine on AWS."
+    )
+    
+    # Example input fields (add your existing fields here)
+    params['data_size_gb'] = st.number_input("Total Database Size (GB)", value=params['data_size_gb'], min_value=1, help="Total size of your database(s) in Gigabytes.")
+    params['migration_timeline_weeks'] = st.number_input("Estimated Migration Timeline (weeks)", value=params['migration_timeline_weeks'], min_value=1, max_value=52, help="Approximate time needed for the migration project.")
+    
+    # Save button (ensure it updates st.session_state)
+    if st.button("Save Migration Configuration", type="primary"):
+        # You might want to add more comprehensive validation here before saving
         st.session_state.migration_params = params
-        st.success("✅ Migration configuration saved!")
+        st.success("Migration configuration saved successfully!")
+    
+    # Display current configuration
+    if st.session_state.migration_params['source_engine']:
+        st.markdown("---")
+        st.subheader("Current Configuration Summary")
+        st.write(f"**Source Engine:** {st.session_state.migration_params.get('source_engine', 'Not set')}")
+        st.write(f"**Target Engine:** {st.session_state.migration_params.get('target_engine', 'Not set')}")
+        st.write(f"**Data Size:** {st.session_state.migration_params.get('data_size_gb', 0)} GB")
+        st.write(f"**Timeline:** {st.session_state.migration_params.get('migration_timeline_weeks', 0)} weeks")
 
 def show_analysis_summary():
     """Shows a summary of the analysis results."""
