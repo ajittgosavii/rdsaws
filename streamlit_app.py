@@ -43,44 +43,34 @@ from datetime import datetime, timedelta
 import streamlit as st
 import pandas as pd
 
-# ===========================
-# FIXED CSS STYLES
-# ===========================
-
-def apply_comprehensive_css():
-    """Apply comprehensive CSS with fixed alignment and responsive design"""
+def apply_fixed_css():
+    """Apply fixed CSS with better alignment and responsive design"""
     st.markdown("""
     <style>
         /* Reset and base styles */
         .main .block-container {
-            max-width: 1400px;
+            max-width: 1200px;
             padding-top: 1rem;
             padding-bottom: 2rem;
             padding-left: 1rem;
             padding-right: 1rem;
-            margin: 0 auto;
         }
         
-        /* Fix for Streamlit's default column gaps */
-        .row-widget.stHorizontal {
-            gap: 1rem;
-        }
-        
-        /* Enterprise header - FIXED */
+        /* Fixed header styling */
         .enterprise-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem 1.5rem;
-            border-radius: 12px;
+            padding: 1.5rem;
+            border-radius: 0.8rem;
             text-align: center;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             width: 100%;
             box-sizing: border-box;
         }
         
         .enterprise-header h1 {
-            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
             font-weight: 700;
             margin: 0 0 0.5rem 0;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
@@ -88,58 +78,46 @@ def apply_comprehensive_css():
         }
         
         .enterprise-header p {
-            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            font-size: clamp(0.8rem, 2vw, 1rem);
             margin: 0;
-            opacity: 0.95;
-            line-height: 1.4;
+            opacity: 0.9;
         }
         
-        /* Configuration sections - FIXED */
+        /* Fixed section styling */
         .config-section {
             background: white;
             padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border-radius: 0.8rem;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
             margin-bottom: 1.5rem;
             border: 1px solid #e2e8f0;
             width: 100%;
             box-sizing: border-box;
         }
         
-        /* Metric cards - FIXED ALIGNMENT */
+        /* Fixed metric cards */
         .metric-card {
             background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            padding: 1.25rem;
-            border-radius: 10px;
+            padding: 1rem;
+            border-radius: 0.6rem;
             border-left: 4px solid #4299e1;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-            margin: 0.75rem 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            margin: 0.5rem 0;
             width: 100%;
             box-sizing: border-box;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
         }
         
         .metric-value {
-            font-size: clamp(1.4rem, 3vw, 2rem);
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
             font-weight: 700;
             color: #2d3748;
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 0.3rem 0;
             line-height: 1.1;
         }
         
-        .metric-label {
-            font-size: clamp(0.85rem, 2vw, 1rem);
-            color: #718096;
-            font-weight: 500;
-            line-height: 1.3;
-        }
-        
-        /* Fix Streamlit columns */
+        /* Fixed columns */
         .stColumn {
-            padding: 0 0.5rem;
+            padding: 0 0.25rem;
         }
         
         .stColumn:first-child {
@@ -150,72 +128,14 @@ def apply_comprehensive_css():
             padding-right: 0;
         }
         
-        /* Environment cards - FIXED */
-        .environment-card {
-            background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
-            padding: 1.5rem;
-            border-radius: 12px;
-            border: 2px solid #38b2ac;
-            margin: 1rem 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        /* AI insight cards - FIXED */
-        .ai-insight-card {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin: 1rem 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        .ai-insight-card h3 {
-            margin-top: 0;
-            margin-bottom: 1rem;
-        }
-        
-        /* Risk level indicators */
-        .risk-high { 
-            border-left-color: #e53e3e !important; 
-            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
-        }
-        .risk-medium { 
-            border-left-color: #d69e2e !important; 
-            background: linear-gradient(135deg, #fefcbf 0%, #faf089 100%);
-        }
-        .risk-low { 
-            border-left-color: #38a169 !important; 
-            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
-        }
-        
-        /* Strategy cards */
-        .strategy-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin: 1rem 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
         /* Fixed expander styling */
         .streamlit-expanderHeader {
             font-weight: 600;
-            font-size: 1.1rem;
-            background-color: #f7fafc;
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
+            font-size: 1rem;
         }
         
         .streamlit-expanderContent {
-            padding: 1rem 0.5rem;
-            border-left: 3px solid #e2e8f0;
-            margin-left: 1rem;
-            padding-left: 1rem;
+            padding: 0.5rem 0;
         }
         
         /* Fixed dataframe styling */
@@ -224,25 +144,19 @@ def apply_comprehensive_css():
             overflow-x: auto;
         }
         
-        .stDataFrame > div {
-            width: 100%;
-        }
-        
         /* Fixed button styling */
         .stButton > button {
             width: 100%;
-            border-radius: 8px;
+            border-radius: 0.5rem;
             border: none;
-            padding: 0.75rem 1.5rem;
+            padding: 0.5rem 1rem;
             font-weight: 600;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
         }
         
         .stButton > button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
         /* Fixed tabs */
@@ -250,112 +164,28 @@ def apply_comprehensive_css():
             gap: 0.5rem;
             overflow-x: auto;
             flex-wrap: nowrap;
-            padding-bottom: 0.5rem;
         }
         
         .stTabs [data-baseweb="tab"] {
-            padding: 0.75rem 1.25rem;
+            padding: 0.4rem 0.8rem;
             white-space: nowrap;
-            font-size: 0.95rem;
-            border-radius: 8px 8px 0 0;
-            background-color: #f7fafc;
-            border: 1px solid #e2e8f0;
-            margin-right: 2px;
-        }
-        
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {
-            background-color: white;
-            border-bottom: 1px solid white;
-            font-weight: 600;
+            font-size: 0.9rem;
         }
         
         /* Fixed plotly charts */
         .js-plotly-plot {
             width: 100% !important;
-            margin: 0 auto;
         }
         
-        /* Fixed input fields */
-        .stSelectbox, .stNumberInput, .stTextInput, .stSlider {
-            margin-bottom: 1rem;
-        }
-        
-        .stSelectbox > div > div,
-        .stNumberInput > div > div,
-        .stTextInput > div > div {
-            border-radius: 8px;
-            border: 2px solid #e2e8f0;
-            transition: border-color 0.3s ease;
-        }
-        
-        .stSelectbox > div > div:focus-within,
-        .stNumberInput > div > div:focus-within,
-        .stTextInput > div > div:focus-within {
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-        }
-        
-        /* Fixed radio buttons */
-        .stRadio > div {
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        
-        .stRadio > div > label {
-            background-color: #f7fafc;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            border: 2px solid #e2e8f0;
-            transition: all 0.3s ease;
-        }
-        
-        .stRadio > div > label:has(input:checked) {
-            background-color: #4299e1;
-            color: white;
-            border-color: #4299e1;
-        }
-        
-        /* Fixed file uploader */
-        .stFileUploader {
-            width: 100%;
-            border: 2px dashed #e2e8f0;
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-            transition: border-color 0.3s ease;
-        }
-        
-        .stFileUploader:hover {
-            border-color: #4299e1;
-            background-color: #f7fafc;
-        }
-        
-        /* Container alignment fixes */
-        div[data-testid="stVerticalBlock"] > div {
-            gap: 1rem;
-        }
-        
-        div[data-testid="stHorizontalBlock"] > div {
-            gap: 1rem;
-        }
-        
-        /* Element container fixes */
-        .element-container {
-            width: 100%;
-            margin-bottom: 1rem;
-        }
-        
-        /* Mobile responsiveness - ENHANCED */
+        /* Mobile responsiveness */
         @media (max-width: 768px) {
             .main .block-container {
                 padding-left: 0.5rem;
                 padding-right: 0.5rem;
-                max-width: 100%;
             }
             
             .enterprise-header {
-                padding: 1.5rem 1rem;
+                padding: 1rem;
                 margin-bottom: 1rem;
             }
             
@@ -365,139 +195,63 @@ def apply_comprehensive_css():
             }
             
             .metric-card {
-                padding: 1rem;
-                margin: 0.5rem 0;
-                min-height: 100px;
+                padding: 0.8rem;
+                margin: 0.3rem 0;
             }
             
             .stColumn {
-                padding: 0 0.25rem;
-                margin-bottom: 1rem;
+                padding: 0 0.1rem;
             }
             
             .stTabs [data-baseweb="tab"] {
-                padding: 0.5rem 0.75rem;
-                font-size: 0.85rem;
-            }
-            
-            .stButton > button {
-                padding: 0.6rem 1rem;
-                font-size: 0.9rem;
+                padding: 0.3rem 0.6rem;
+                font-size: 0.8rem;
             }
         }
         
-        @media (max-width: 480px) {
-            .enterprise-header h1 {
-                font-size: 1.5rem;
-            }
-            
-            .enterprise-header p {
-                font-size: 0.9rem;
-            }
-            
-            .metric-value {
-                font-size: 1.25rem;
-            }
-            
-            .stTabs [data-baseweb="tab-list"] {
-                flex-direction: column;
-            }
-            
-            .stTabs [data-baseweb="tab"] {
-                width: 100%;
-                text-align: center;
-            }
+        /* Fix overflow issues */
+        .stMarkdown {
+            max-width: 100%;
+            overflow-wrap: break-word;
         }
         
-        /* Progress bar styling */
-        .stProgress > div > div > div {
-            background-color: #4299e1;
-            border-radius: 4px;
-        }
-        
-        /* Info, warning, error boxes */
-        .stAlert {
-            border-radius: 8px;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Sidebar fixes */
+        /* Fix sidebar */
         .css-1d391kg {
             padding-top: 1rem;
         }
         
-        .css-1d391kg .stRadio > div {
-            flex-direction: column;
+        /* Fix selectbox and input alignment */
+        .stSelectbox, .stNumberInput, .stTextInput {
+            margin-bottom: 0.5rem;
         }
         
-        /* Table improvements */
-        .dataframe {
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        /* Fix chart container */
+        .plotly-graph-div {
+            width: 100% !important;
         }
         
-        /* Download button improvements */
-        .stDownloadButton > button {
-            background-color: #38a169;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
+        /* Fix radio buttons */
+        .stRadio > div {
+            flex-direction: row;
+            flex-wrap: wrap;
         }
         
-        .stDownloadButton > button:hover {
-            background-color: #2f855a;
-            transform: translateY(-1px);
+        /* Fix file uploader */
+        .stFileUploader {
+            width: 100%;
+        }
+        
+        /* Container fixes */
+        div[data-testid="stVerticalBlock"] > div {
+            gap: 0.5rem;
+        }
+        
+        /* Ensure all containers are properly aligned */
+        .element-container {
+            width: 100%;
         }
     </style>
     """, unsafe_allow_html=True)
-
-# ===========================
-# FIXED LAYOUT FUNCTIONS
-# ===========================
-
-def create_aligned_container(content_func, title=None, description=None):
-    """Create a properly aligned container for content"""
-    with st.container():
-        if title:
-            st.markdown(f"### {title}")
-        if description:
-            st.info(description)
-        
-        # Apply the content function within the container
-        content_func()
-
-def create_metric_card(title, value, delta=None, help_text=None):
-    """Create a properly aligned metric card"""
-    if delta:
-        delta_html = f"<div style='font-size: 0.85rem; color: #718096; margin-top: 0.25rem;'>{delta}</div>"
-    else:
-        delta_html = ""
-    
-    help_html = f"<div style='font-size: 0.8rem; color: #a0aec0; margin-top: 0.5rem;'>{help_text}</div>" if help_text else ""
-    
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-value">{value}</div>
-        <div class="metric-label">{title}</div>
-        {delta_html}
-        {help_html}
-    </div>
-    """, unsafe_allow_html=True)
-
-def create_aligned_columns(column_configs, content_functions):
-    """Create properly aligned columns with content"""
-    cols = st.columns(column_configs)
-    
-    for i, (col, content_func) in enumerate(zip(cols, content_functions)):
-        with col:
-            if content_func:
-                content_func()
-
 
 
 def show_simplified_data_configuration():
@@ -9034,14 +8788,6 @@ def generate_executive_summary_pdf(analysis_results: Dict, migration_params: Dic
         "Establish comprehensive testing protocols for each environment",
         "Consider Aurora for production workloads to optimize performance and cost"
     ]
-    # Add this before line 9040
-    data_config = {
-        'actual_data_size_gb': 0,
-        'target_storage_gb': 0, 
-        'sizing_strategy': 'default',
-        'migration_cost_estimate': 0
-    }
-
     
     for rec in recommendations:
         story.append(Paragraph(f"• {rec}", styles['Normal']))
@@ -9389,142 +9135,105 @@ def main():
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
             
-def show_migration_configuration_fixed():
-    """Fixed migration configuration interface"""
+def show_migration_configuration():
+    """Show migration configuration interface with growth planning"""
     
     # Apply CSS first
-    apply_comprehensive_css()
-    
+    apply_fixed_css()
     st.markdown("## 🔧 Migration Configuration")
     
-    # Use proper container structure
+    
+    # Use containers for better layout
     with st.container():
-        # Header section
-        st.markdown("""
-        <div class="config-section">
-            <h4>Database Migration Setup</h4>
-            <p>Configure your source and target database specifications for accurate migration analysis.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        # Source and target configuration
-    with st.container():
-        st.markdown("### 📊 Database Configuration")
-        
-       # Aligned columns for source and target
-        def source_config():
-            st.markdown("#### 📥 Source Database")
+        # Source and target engine selection
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("### 📥 Source Database")
             source_engine = st.selectbox(
                 "Source Engine",
                 options=['oracle-ee', 'oracle-se', 'postgres', 'mysql', 'sql-server', 'mariadb'],
                 index=0,
-                key="source_engine_select",
-                help="Select your current database engine"
+                key="source_engine_select"
             )
-            return source_engine
         
-        def target_config():
-            st.markdown("#### 📤 Target AWS Database")
+        with col2:
+            st.markdown("### 📤 Target AWS Database")
             target_engine = st.selectbox(
                 "Target Engine",
                 options=['aurora-postgresql', 'postgres', 'aurora-mysql', 'mysql'],
                 index=0,
-                key="target_engine_select",
-                help="Select your target AWS database engine"
-            )
-            return target_engine
+                key="target_engine_select"
+            )    
+    
             
-          # Create aligned columns
-        source_engine, target_engine = None, None
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            source_engine = source_config()
-        
-        with col2:
-            target_engine = target_config()
+            #if target_engine:
+            #    migration_type = DatabaseEngine.get_migration_type(source_engine, target_engine)
+            #    complexity = DatabaseEngine.get_complexity_multiplier(source_engine, target_engine)
+                
+            #    st.markdown(f"""
+            #    **Migration Type:** {migration_type.title()}  
+            #    **Complexity Factor:** {complexity:.1f}x  
+            #    **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
+            #    """)
     
-    # Migration parameters section
-    with st.container():
-        st.markdown("### ⚙️ Migration Parameters")
+        # Migration Parameters Section
+    st.markdown("### ⚙️ Migration Parameters")
     
-    def app_config():
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
             st.markdown("#### 📱 Application Configuration")
             num_applications = st.number_input(
                 "Connected Applications", 
                 min_value=1, max_value=50, value=3,
-                key="num_apps",
-                help="Number of applications connected to the database"
+                key="num_apps"
             )
             num_stored_procedures = st.number_input(
                 "Stored Procedures/Functions", 
                 min_value=0, max_value=10000, value=50,
-                key="num_procedures",
-                help="Number of stored procedures and functions to migrate"
+                key="num_procedures"
             )
-            return num_applications, num_stored_procedures
 
-def timeline_config():
+        with col2:
             st.markdown("#### ⏱️ Timeline & Resources")
             migration_timeline_weeks = st.slider(
                 "Migration Timeline (weeks)", 
                 min_value=4, max_value=52, value=12,
-                key="timeline_weeks",
-                help="Planned duration for the complete migration"
+                key="timeline_weeks"
             )
             team_size = st.number_input(
                 "Team Size", 
                 min_value=2, max_value=20, value=5,
-                key="team_size_input",
-                help="Number of team members working on the migration"
+                key="team_size_input"
             )
-            return migration_timeline_weeks, team_size
 
-def infra_config():
+        with col3:
             st.markdown("#### 🌐 Infrastructure")
             region = st.selectbox(
                 "AWS Region", 
                 ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], 
                 index=0,
-                key="aws_region",
-                help="Target AWS region for migration"
+                key="aws_region"
             )
             migration_budget = st.number_input(
                 "Migration Budget ($)", 
                 min_value=10000, max_value=5000000, value=500000,
-                key="migration_budget_input",
-                help="Total budget allocated for the migration project"
+                key="migration_budget_input"
             )
-            return region, migration_budget
         
-       # Create aligned three-column layout
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            num_applications, num_stored_procedures = app_config()
-        
-        with col2:
-            migration_timeline_weeks, team_size = timeline_config()
-        
-        with col3:
-            region, migration_budget = infra_config()
-    
-    # Data configuration section
+    # Data Configuration Section
     with st.container():
         st.markdown("### 💾 Data Configuration")
-        data_config = show_simplified_data_configuration_fixed()
-    
-    # Growth planning section
-    with st.container():
-        st.markdown("### 📈 Growth Planning")
-        growth_config = show_growth_planning_fixed()
-    
-    # Save configuration
+        data_config = show_simplified_data_configuration()
+
+    # Save Configuration
     with st.container():
         if st.button("💾 Save Configuration", type="primary", use_container_width=True):
             st.session_state.migration_params = {
                 'source_engine': source_engine,
                 'target_engine': target_engine,
-                'data_size_gb': data_config.get('actual_data_size_gb', 0),
+                'data_size_gb': data_config['actual_data_size_gb'],
                 'target_storage_gb': data_config['target_storage_gb'],
                 'num_applications': num_applications,
                 'num_stored_procedures': num_stored_procedures,
@@ -9532,7 +9241,6 @@ def infra_config():
                 'team_size': team_size,
                 'region': region,
                 'migration_budget': migration_budget,
-                **growth_config
             }
             
             st.success("✅ Configuration saved! Proceed to Environment Setup.")
