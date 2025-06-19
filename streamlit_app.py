@@ -10616,3 +10616,31 @@ def test_growth_setup():
 
 if __name__ == "__main__":
     main()
+
+def show_migration_configuration():
+    st.header("🧭 Migration Configuration")
+    st.write("Please provide the migration details below:")
+
+    with st.form("migration_config_form"):
+        source_engine = st.selectbox("Source Database Engine", ["oracle", "mysql", "sqlserver", "postgres"])
+        target_engine = st.selectbox("Target Database Engine", ["aurora-postgresql", "aurora-mysql", "postgres"])
+        data_size = st.number_input("Data Size (in GB)", min_value=1)
+        timeline = st.number_input("Migration Timeline (weeks)", min_value=1)
+        team_size = st.number_input("Team Size", min_value=1)
+        budget = st.number_input("Estimated Budget ($)", min_value=1000)
+        use_dx = st.checkbox("Use Direct Connect for transfer?")
+        anthropic_api_key = st.text_input("Claude API Key (optional)", type="password")
+
+        submitted = st.form_submit_button("Save Configuration")
+        if submitted:
+            st.session_state.migration_params = {
+                'source_engine': source_engine,
+                'target_engine': target_engine,
+                'data_size_gb': data_size,
+                'migration_timeline_weeks': timeline,
+                'team_size': team_size,
+                'migration_budget': budget,
+                'use_direct_connect': use_dx,
+                'anthropic_api_key': anthropic_api_key
+            }
+            st.success("✅ Migration configuration saved.")
