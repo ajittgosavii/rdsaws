@@ -995,7 +995,7 @@ class NetworkTransferAnalyzer:
     def _calculate_pattern_metrics(self, pattern_id: str, pattern_info: Dict, 
                              data_size_gb: int, region: str, bandwidth_mbps: int,
                              security_req: str, timeline_weeks: int) -> Dict:
-    """Calculate metrics for a specific transfer pattern - WITH ERROR HANDLING"""
+    "   ""Calculate metrics for a specific transfer pattern - WITH ERROR HANDLING"""
     
     try:
         # Base calculations
