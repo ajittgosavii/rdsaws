@@ -415,14 +415,17 @@ def main_cost_refresh_section_fixed():
     with col3:
         export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
         if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
+            # Add placeholder code or actual export functionality here
+            st.warning("Export functionality not implemented yet")  # Temporary placeholder
+
+# Function definition moved OUTSIDE the 'with col3' block
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
-    
     st.markdown("### 🏢 Enhanced Environment Analysis")
     
     recommendations = st.session_state.enhanced_recommendations
     environment_specs = st.session_state.environment_specs
-    
+
     # Environment comparison with cluster details
     env_comparison_data = []
     
