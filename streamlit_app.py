@@ -161,8 +161,7 @@ class EnhancedAWSPricingAPI:
     writer_pricing = self.get_rds_pricing(region, engine, writer_instance, writer_multi_az)
     total_cost += writer_pricing['hourly']
     
-    # Reader costs
-    for reader_instance, multi_az in reader_instances:
+        for reader_instance, multi_az in reader_instances:
         reader_pricing = self.get_rds_pricing(region, engine, reader_instance, multi_az)
         total_cost += reader_pricing['hourly']
     
