@@ -415,6 +415,14 @@ def main_cost_refresh_section_fixed():
     with col3:
         export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
         if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
+# If you have something like this (BROKEN):
+# if some_condition
+# def show_enhanced_environment_analysis():
+
+# Fix it to this (WORKING):
+if True:  # Replace with your actual condition or remove if not needed
+    pass
+
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
     
@@ -423,34 +431,39 @@ def show_enhanced_environment_analysis():
     recommendations = st.session_state.enhanced_recommendations
     environment_specs = st.session_state.environment_specs
     
-    # Environment comparison with cluster details
-    env_comparison_data = []
-    
-    for env_name, rec in recommendations.items():
-        specs = environment_specs[env_name]
+    # Check for enhanced recommendations first
+    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
+        # Environment comparison with cluster details
+        env_comparison_data = []
         
-        # Writer configuration
-        writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
+        for env_name, rec in recommendations.items():
+            specs = environment_specs.get(env_name, {})
+            
+            # Writer configuration
+            writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
+            
+            # Reader configuration  
+            reader_count = rec['readers']['count']
+            if reader_count > 0:
+                reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
+            else:
+                reader_config = "No readers"
+            
+            env_comparison_data.append({
+                'Environment': env_name,
+                'Type': rec['environment_type'].title(),
+                'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
+                'Writer Instance': writer_config,
+                'Read Replicas': reader_config,
+                'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
+                'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
+            })
         
-        # Reader configuration
-        reader_count = rec['readers']['count']
-        if reader_count > 0:
-            reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
-        else:
-            reader_config = "No readers"
-        
-        env_comparison_data.append({
-            'Environment': env_name,
-            'Type': rec['environment_type'].title(),
-            'Current Resources': f"{specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM",
-            'Writer Instance': writer_config,
-            'Read Replicas': reader_config,
-            'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
-            'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
-        })
-    
-    env_df = pd.DataFrame(env_comparison_data)
-    st.dataframe(env_df, use_container_width=True)
+        env_df = pd.DataFrame(env_comparison_data)
+        st.dataframe(env_df, use_container_width=True)
+    else:
+        st.warning("Enhanced recommendations not available.")
+        return
     
     # Detailed environment insights
     st.markdown("#### 💡 Environment Insights")
