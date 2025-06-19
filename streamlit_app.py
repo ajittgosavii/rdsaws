@@ -170,62 +170,79 @@ class StorageConfigurationManager:
         return validation_result
 
     
-   def show_storage_validation_widget():
-       """Show storage validation widget in environment setup"""
+   import streamlit as st
+import pandas as pd
+
+def show_storage_validation_widget():
+    """Show storage validation widget in environment setup"""
     
-        if not st.session_state.migration_params or not st.session_state.environment_specs:
-            return
+    # Early return if required data is missing
+    if not st.session_state.migration_params or not st.session_state.environment_specs:
+        return
     
-        migration_data_gb = st.session_state.migration_params.get('data_size_gb', 0)
-        storage_manager = StorageConfigurationManager()
-        
-        st.markdown("#### 🔍 Storage Configuration Validation")
-        
-        validation = storage_manager.validate_storage_configuration(
-            migration_data_gb, st.session_state.environment_specs
-        )
-    # Status indicator
+    # Get migration data size
+    migration_data_gb = st.session_state.migration_params.get('data_size_gb', 0)
+    storage_manager = StorageConfigurationManager()
+    
+    st.markdown("#### 🔍 Storage Configuration Validation")
+    
+    # Validate storage configuration
+    validation = storage_manager.validate_storage_configuration(
+        migration_data_gb, 
+        st.session_state.environment_specs
+    )
+    
+    # Status indicator section
     col1, col2, col3 = st.columns(3)
     
     with col1:
         status_icon = "✅" if validation['is_valid'] else "❌"
-        st.metric("Configuration Status", f"{status_icon} {'Valid' if validation['is_valid'] else 'Invalid'}")
+        status_text = 'Valid' if validation['is_valid'] else 'Invalid'
+        st.metric("Configuration Status", f"{status_icon} {status_text}")
     
     with col2:
-        st.metric("Total Environment Storage", f"{validation['total_env_storage']:,} GB")
+        total_storage = validation['total_env_storage']
+        st.metric("Total Environment Storage", f"{total_storage:,} GB")
     
     with col3:
         if validation['migration_to_env_ratio'] > 0:
-            st.metric("Storage Ratio", f"{validation['migration_to_env_ratio']:.1f}x")
+            ratio = validation['migration_to_env_ratio']
+            st.metric("Storage Ratio", f"{ratio:.1f}x")
     
-    # Show issues if any
+    # Display errors if any
     if validation['errors']:
         st.error("🚨 **Critical Issues:**")
         for error in validation['errors']:
             st.error(f"• {error}")
     
+    # Display warnings if any
     if validation['warnings']:
         st.warning("⚠️ **Warnings:**")
         for warning in validation['warnings']:
             st.warning(f"• {warning}")
     
+    # Display recommendations if any
     if validation['recommendations']:
         st.info("💡 **Recommendations:**")
         for rec in validation['recommendations']:
             st.info(f"• {rec}")
     
-    # Environment-specific analysis
+    # Environment-specific analysis section
     if validation['environment_analysis']:
         with st.expander("📊 Environment Analysis Details"):
             analysis_data = []
             
+            # Status icon mapping
+            status_icons = {
+                'good': '✅',
+                'warning': '⚠️',
+                'critical': '🚨',
+                'over_provisioned': '💰'
+            }
+            
+            # Process each environment analysis
             for env_name, analysis in validation['environment_analysis'].items():
-                status_icon = {
-                    'good': '✅',
-                    'warning': '⚠️', 
-                    'critical': '🚨',
-                    'over_provisioned': '💰'
-                }.get(analysis['status'], '❓')
+                status_icon = status_icons.get(analysis['status'], '❓')
                 
                 analysis_data.append({
                     'Environment': env_name,
@@ -235,9 +252,12 @@ class StorageConfigurationManager:
                     'Status': f"{status_icon} {analysis['status'].title()}"
                 })
             
-            analysis_df = pd.DataFrame(analysis_data)
-            st.dataframe(analysis_df, use_container_width=True)
-    
+            # Create and display dataframe
+            if analysis_data:
+                analysis_df = pd.DataFrame(analysis_data)
+                st.dataframe(analysis_df, use_container_width=True)
+            else:
+                st.info("No environment analysis data available.")
 class VRopsMetricsAnalyzer:
     def __init__(self):
         # Initialize your analyzer
