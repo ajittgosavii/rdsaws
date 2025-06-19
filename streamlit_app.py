@@ -1229,7 +1229,7 @@ def show_analysis_summary():
 
 
 # FIXED: Update the analysis section to use synchronous function
-def show_analysis_section():
+def show_analysis_section_fixed():
     """Show analysis and recommendations section - FIXED for Streamlit"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
@@ -7112,7 +7112,7 @@ def main():
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section()
+        show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
     elif page == "📄 Reports & Export":
@@ -7175,38 +7175,17 @@ def show_migration_configuration():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("#### 📦 **Data Migration Scope**")
-        st.caption("Size of data being migrated from source to target")
-        migration_data_size_gb = st.number_input(
-            "Migration Data Size (GB)", 
-            min_value=1, max_value=500000, value=1000,
-            help="Total size of database data to be migrated (not storage capacity)"
-        )
-        
-        data_growth_buffer = st.slider(
-            "Data Growth Buffer (%)", 
-            min_value=0, max_value=200, value=20,
-            help="Additional capacity for data growth during migration"
-        )
-        
-        # Calculate effective data size for planning
-        effective_data_size = migration_data_size_gb * (1 + data_growth_buffer/100)
-        st.info(f"**Planning Data Size:** {effective_data_size:,.0f} GB")
-        
+        st.markdown("#### 💾 Data Configuration")
+        data_size_gb = st.number_input("Total Data Size (GB)", min_value=1, max_value=100000, value=1000)
         num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
         num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
-            
+    
     with col2:
         st.markdown("#### ⏱️ Timeline & Resources")
         migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
         team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
         team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
-        migration_strategy = st.selectbox(
-            "Migration Strategy",
-            ["Lift and Shift", "Re-platforming", "Re-architecting"],
-            help="Strategy affects writer/reader recommendations"
-        )
-
+    
     with col3:
         st.markdown("#### 🌐 Infrastructure")
         region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
@@ -7214,92 +7193,33 @@ def show_migration_configuration():
         bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
         migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
 
-    st.markdown("### 🗄️ **RDS Writer/Reader Strategy**")
-    
-    col1, col2 = st.columns(2)
-    
     # ADD NEW GROWTH PLANNING SECTION:
     st.markdown("### 📈 Growth Planning & Forecasting")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### 📝 **Writer Configuration**")
-        
-        default_writer_strategy = st.selectbox(
-            "Default Writer Strategy",
-            ["Conservative", "Balanced", "Performance-Optimized"],
-            index=1,
-            help="Default strategy for writer instances across environments"
-        )
-        
-        multi_az_default = st.selectbox(
-            "Multi-AZ Default Policy",
-            ["Production Only", "Production + Staging", "All Environments"],
-            index=1
-        )
-        
-        # Writer sizing approach
-        writer_sizing_approach = st.selectbox(
-            "Writer Sizing Approach",
-            ["Match Current Capacity", "Right-size for Workload", "Performance Buffer"],
-            help="How to size writer instances relative to current systems"
-        )
-    
-    with col2:
-        st.markdown("#### 📖 **Reader Configuration**")
-        
-        default_reader_strategy = st.selectbox(
-            "Reader Replica Strategy", 
-            ["No Readers", "Read-Heavy Only", "Balanced Workloads", "All Production"],
-            index=2,
-            help="When to provision read replicas"
-        )
-        
-        max_readers_per_env = st.slider(
-            "Max Readers per Environment",
-            min_value=0, max_value=5, value=2,
-            help="Maximum read replicas for any single environment"
-        )
-        
-        reader_sizing_strategy = st.selectbox(
-            "Reader Sizing Strategy",
-            ["Same as Writer", "One Size Smaller", "Workload-Based"],
-            index=2,
-            help="How to size reader instances relative to writers"
-        )
-
-    # FIXED: Growth Planning with separate data vs infrastructure growth
-    st.markdown("### 📈 **Growth Planning & Capacity Forecasting**")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 📊 **Data & Workload Growth**")
-        st.caption("Growth in data size and transaction volume")
-        
+        st.markdown("#### 📊 Workload Growth")
         annual_data_growth = st.slider(
-            "Annual Data Size Growth (%)", 
+            "Annual Data Growth Rate (%)", 
             min_value=0, max_value=100, value=15,
-            help="Expected annual growth in database data size"
-        )
-        
-        annual_transaction_growth = st.slider(
-            "Annual Transaction Growth (%)", 
-            min_value=0, max_value=150, value=20,
-            help="Expected annual growth in transaction volume (affects IOPS/compute)"
+            help="Expected annual growth in database size"
         )
         
         annual_user_growth = st.slider(
-            "Annual Concurrent User Growth (%)", 
+            "Annual User Growth Rate (%)", 
             min_value=0, max_value=200, value=25,
-            help="Expected annual growth in concurrent users (affects connections/readers)"
+            help="Expected annual growth in concurrent users"
+        )
+        
+        annual_transaction_growth = st.slider(
+            "Annual Transaction Growth Rate (%)", 
+            min_value=0, max_value=150, value=20,
+            help="Expected annual growth in transaction volume"
         )
     
     with col2:
-        st.markdown("#### 🎯 **Infrastructure Scaling**")
-        st.caption("How infrastructure should scale with growth")
-        
+        st.markdown("#### 🎯 Growth Scenarios")
         growth_scenario = st.selectbox(
             "Growth Scenario",
             ["Conservative", "Moderate", "Aggressive", "Custom"],
@@ -7308,6 +7228,7 @@ def show_migration_configuration():
         )
         
         if growth_scenario != "Custom":
+            # Auto-adjust growth rates based on scenario
             scenario_multipliers = {
                 "Conservative": 0.7,
                 "Moderate": 1.0,
@@ -7315,26 +7236,25 @@ def show_migration_configuration():
             }
             multiplier = scenario_multipliers[growth_scenario]
             annual_data_growth = int(annual_data_growth * multiplier)
-            annual_transaction_growth = int(annual_transaction_growth * multiplier)
             annual_user_growth = int(annual_user_growth * multiplier)
+            annual_transaction_growth = int(annual_transaction_growth * multiplier)
             
             st.info(f"**{growth_scenario} Scenario Applied:**")
             st.write(f"Data Growth: {annual_data_growth}%")
-            st.write(f"Transaction Growth: {annual_transaction_growth}%")
             st.write(f"User Growth: {annual_user_growth}%")
+            st.write(f"Transaction Growth: {annual_transaction_growth}%")
         
         seasonality_factor = st.slider(
-            "Peak Load Multiplier", 
+            "Seasonality Factor", 
             min_value=1.0, max_value=3.0, value=1.2, step=0.1,
-            help="Peak season/holiday traffic multiplier"
+            help="Peak season multiplier (1.0 = no seasonality)"
         )
         
         scaling_strategy = st.selectbox(
-            "Infrastructure Scaling Strategy",
+            "Scaling Strategy",
             ["Auto-scaling", "Manual scaling", "Over-provision"],
             help="How to handle growth in infrastructure"
         )
-
 
     # AI Configuration
     st.markdown("### 🤖 AI Integration")
@@ -7345,719 +7265,33 @@ def show_migration_configuration():
         help="Provide your Anthropic API key for AI-powered insights"
     )
     
-    # FIXED: Validation and Summary
     if st.button("💾 Save Configuration", type="primary", use_container_width=True):
-        
-        # Validation logic
-        validation_errors = []
-        
-        if migration_data_size_gb > 50000 and migration_timeline_weeks < 12:
-            validation_errors.append("⚠️ Large data migrations typically need 12+ weeks")
-        
-        if team_size < 3 and migration_data_size_gb > 10000:
-            validation_errors.append("⚠️ Large migrations typically need teams of 3+ people")
-        
-        if use_direct_connect and migration_data_size_gb < 500:
-            validation_errors.append("💡 Direct Connect may not be cost-effective for smaller migrations")
-        
-        # Show validation warnings
-        if validation_errors:
-            st.warning("**Configuration Warnings:**")
-            for error in validation_errors:
-                st.write(error)
-            
-            if not st.checkbox("Proceed despite warnings"):
-                st.stop()
-        
-        # FIXED: Save with proper data separation
         st.session_state.migration_params = {
-            # Migration Data Scope
             'source_engine': source_engine,
             'target_engine': target_engine,
-            'migration_data_size_gb': migration_data_size_gb,  # FIXED: Clear naming
-            'data_growth_buffer_percent': data_growth_buffer,
-            'effective_data_size_gb': effective_data_size,
+            'data_size_gb': data_size_gb,
             'num_applications': num_applications,
             'num_stored_procedures': num_stored_procedures,
-            
-            # Timeline & Resources
             'migration_timeline_weeks': migration_timeline_weeks,
             'team_size': team_size,
             'team_expertise': team_expertise,
-            'migration_strategy': migration_strategy,
-            
-            # Infrastructure
             'region': region,
             'use_direct_connect': use_direct_connect,
             'bandwidth_mbps': bandwidth_mbps,
             'migration_budget': migration_budget,
-            
-            # FIXED: RDS Writer/Reader Strategy
-            'default_writer_strategy': default_writer_strategy,
-            'multi_az_default_policy': multi_az_default,
-            'writer_sizing_approach': writer_sizing_approach,
-            'default_reader_strategy': default_reader_strategy,
-            'max_readers_per_env': max_readers_per_env,
-            'reader_sizing_strategy': reader_sizing_strategy,
-            
-            # Growth Parameters
+            'anthropic_api_key': anthropic_api_key,
+            'estimated_migration_cost': 0,
+            # ADD THESE NEW GROWTH PARAMETERS:
             'annual_data_growth': annual_data_growth,
             'annual_user_growth': annual_user_growth,
             'annual_transaction_growth': annual_transaction_growth,
             'growth_scenario': growth_scenario,
             'seasonality_factor': seasonality_factor,
-            'scaling_strategy': scaling_strategy,
-            
-            # AI Integration
-            'anthropic_api_key': anthropic_api_key,
-            'estimated_migration_cost': 0
+            'scaling_strategy': scaling_strategy
         }
         
-        st.success("✅ Configuration saved successfully!")
-        
-        # Show configuration summary
-        show_migration_config_summary()
-        
+        st.success("✅ Configuration saved! Proceed to Environment Setup.")
         st.balloons()
-
-def show_migration_config_summary():
-    """Show summary of migration configuration"""
-    
-    params = st.session_state.migration_params
-    
-    st.markdown("#### 📋 Configuration Summary")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("**Migration Scope**")
-        st.write(f"Migration: {params['source_engine']} → {params['target_engine']}")
-        st.write(f"Data Size: {params['migration_data_size_gb']:,} GB")
-        st.write(f"With Buffer: {params['effective_data_size_gb']:,.0f} GB")
-        st.write(f"Timeline: {params['migration_timeline_weeks']} weeks")
-    
-    with col2:
-        st.markdown("**RDS Strategy**")
-        st.write(f"Writer Strategy: {params['default_writer_strategy']}")
-        st.write(f"Reader Strategy: {params['default_reader_strategy']}")
-        st.write(f"Multi-AZ Policy: {params['multi_az_default_policy']}")
-        st.write(f"Max Readers: {params['max_readers_per_env']}")
-    
-    with col3:
-        st.markdown("**Growth Planning**")
-        st.write(f"Scenario: {params['growth_scenario']}")
-        st.write(f"Data Growth: {params['annual_data_growth']}%/year")
-        st.write(f"User Growth: {params['annual_user_growth']}%/year")
-        st.write(f"Peak Factor: {params['seasonality_factor']}x")
-
-class FixedRDSRecommendationEngine:
-    """Fixed RDS recommendation engine with proper writer/reader logic"""
-    
-    def __init__(self, migration_params: Dict):
-        self.migration_params = migration_params
-        self.writer_strategy = migration_params.get('default_writer_strategy', 'Balanced')
-        self.reader_strategy = migration_params.get('default_reader_strategy', 'Balanced Workloads')
-        self.multi_az_policy = migration_params.get('multi_az_default_policy', 'Production + Staging')
-        self.max_readers = migration_params.get('max_readers_per_env', 2)
-        
-    def calculate_environment_recommendations(self, environment_specs: Dict) -> Dict:
-        """Calculate recommendations with proper writer/reader sizing"""
-        
-        recommendations = {}
-        
-        for env_name, specs in environment_specs.items():
-            # FIXED: Separate operational storage from migration data
-            operational_storage_gb = specs.get('storage_gb', 500)  # Environment operational needs
-            migration_data_portion = self._calculate_data_portion_for_env(env_name)
-            
-            # Total storage = operational + data portion + growth buffer
-            total_storage_gb = operational_storage_gb + migration_data_portion + (migration_data_portion * 0.3)
-            
-            env_recommendation = self._calculate_single_environment(env_name, specs, total_storage_gb)
-            recommendations[env_name] = env_recommendation
-            
-        return recommendations
-    
-    def _calculate_data_portion_for_env(self, env_name: str) -> float:
-        """Calculate what portion of migration data goes to each environment"""
-        total_migration_data = self.migration_params.get('migration_data_size_gb', 1000)
-        
-        # Environment-based data distribution
-        env_type = self._categorize_environment(env_name)
-        data_distribution = {
-            'production': 0.7,      # 70% of data typically in production
-            'staging': 0.2,         # 20% in staging
-            'testing': 0.08,        # 8% in testing
-            'development': 0.02     # 2% in development
-        }
-        
-        return total_migration_data * data_distribution.get(env_type, 0.25)
-    
-    def _calculate_single_environment(self, env_name: str, specs: Dict, total_storage_gb: float) -> Dict:
-        """Calculate recommendations for a single environment"""
-        
-        env_type = self._categorize_environment(env_name)
-        
-        # Writer instance calculation
-        writer_instance = self._calculate_writer_instance(specs, env_type)
-        writer_multi_az = self._should_use_multi_az(env_type)
-        
-        # Reader calculation
-        reader_config = self._calculate_reader_configuration(specs, env_type, writer_instance)
-        
-        # Storage configuration
-        storage_config = self._calculate_storage_configuration(total_storage_gb, specs, env_type)
-        
-        return {
-            'environment_type': env_type,
-            'writer': {
-                'instance_class': writer_instance,
-                'multi_az': writer_multi_az,
-                'cpu_cores': self._get_instance_specs(writer_instance)['cpu'],
-                'ram_gb': self._get_instance_specs(writer_instance)['ram']
-            },
-            'readers': {
-                'count': reader_config['count'],
-                'instance_class': reader_config['instance_class'],
-                'multi_az': reader_config['multi_az']
-            },
-            'storage': storage_config,
-            'workload_pattern': specs.get('workload_pattern', 'balanced'),
-            'read_write_ratio': specs.get('read_write_ratio', 70),
-            'connections': specs.get('peak_connections', 100),
-            'optimization_notes': self._generate_optimization_notes(env_type, reader_config['count'])
-        }
-    
-    def _calculate_writer_instance(self, specs: Dict, env_type: str) -> str:
-        """Calculate writer instance size based on strategy"""
-        
-        cpu_cores = specs.get('cpu_cores', 4)
-        ram_gb = specs.get('ram_gb', 16)
-        
-        # Base instance calculation
-        if cpu_cores <= 2 and ram_gb <= 8:
-            base_instance = 'db.t3.medium'
-        elif cpu_cores <= 4 and ram_gb <= 16:
-            base_instance = 'db.t3.large'
-        elif cpu_cores <= 8 and ram_gb <= 32:
-            base_instance = 'db.r5.large'
-        elif cpu_cores <= 16 and ram_gb <= 64:
-            base_instance = 'db.r5.xlarge'
-        elif cpu_cores <= 32 and ram_gb <= 128:
-            base_instance = 'db.r5.2xlarge'
-        elif cpu_cores <= 64 and ram_gb <= 256:
-            base_instance = 'db.r5.4xlarge'
-        else:
-            base_instance = 'db.r5.8xlarge'
-        
-        # Apply writer strategy adjustments
-        if self.writer_strategy == 'Conservative':
-            # Downsize for cost savings
-            downsize_map = {
-                'db.r5.8xlarge': 'db.r5.4xlarge',
-                'db.r5.4xlarge': 'db.r5.2xlarge',
-                'db.r5.2xlarge': 'db.r5.xlarge',
-                'db.r5.xlarge': 'db.r5.large'
-            }
-            base_instance = downsize_map.get(base_instance, base_instance)
-        elif self.writer_strategy == 'Performance-Optimized':
-            # Upsize for performance
-            upsize_map = {
-                'db.t3.medium': 'db.r5.large',
-                'db.t3.large': 'db.r5.xlarge',
-                'db.r5.large': 'db.r5.xlarge',
-                'db.r5.xlarge': 'db.r5.2xlarge',
-                'db.r5.2xlarge': 'db.r5.4xlarge'
-            }
-            base_instance = upsize_map.get(base_instance, base_instance)
-        
-        # Environment-specific adjustments
-        if env_type == 'development':
-            downsize_map = {
-                'db.r5.8xlarge': 'db.r5.2xlarge',
-                'db.r5.4xlarge': 'db.r5.xlarge',
-                'db.r5.2xlarge': 'db.r5.large',
-                'db.r5.xlarge': 'db.t3.large'
-            }
-            base_instance = downsize_map.get(base_instance, base_instance)
-        
-        return base_instance
-    
-    def _calculate_reader_configuration(self, specs: Dict, env_type: str, writer_instance: str) -> Dict:
-        """Calculate reader configuration based on strategy"""
-        
-        # Determine if readers are needed
-        if self.reader_strategy == 'No Readers':
-            return {'count': 0, 'instance_class': None, 'multi_az': False}
-        
-        if self.reader_strategy == 'Read-Heavy Only':
-            workload_pattern = specs.get('workload_pattern', 'balanced')
-            if workload_pattern != 'read_heavy':
-                return {'count': 0, 'instance_class': None, 'multi_az': False}
-        
-        if self.reader_strategy == 'All Production' and env_type != 'production':
-            return {'count': 0, 'instance_class': None, 'multi_az': False}
-        
-        # Calculate number of readers
-        read_ratio = specs.get('read_write_ratio', 70)
-        peak_connections = specs.get('peak_connections', 100)
-        
-        if env_type == 'production':
-            if read_ratio >= 80:
-                reader_count = min(self.max_readers, 2)
-            elif read_ratio >= 60:
-                reader_count = min(self.max_readers, 1)
-            else:
-                reader_count = 0
-        elif env_type == 'staging':
-            reader_count = min(self.max_readers, 1) if read_ratio >= 70 else 0
-        else:
-            reader_count = 0
-        
-        # Adjust for high connection counts
-        if peak_connections > 500:
-            reader_count = min(self.max_readers, reader_count + 1)
-        
-        if reader_count == 0:
-            return {'count': 0, 'instance_class': None, 'multi_az': False}
-        
-        # Calculate reader instance size
-        reader_sizing = self.migration_params.get('reader_sizing_strategy', 'Workload-Based')
-        
-        if reader_sizing == 'Same as Writer':
-            reader_instance = writer_instance
-        elif reader_sizing == 'One Size Smaller':
-            downsize_map = {
-                'db.r5.8xlarge': 'db.r5.4xlarge',
-                'db.r5.4xlarge': 'db.r5.2xlarge',
-                'db.r5.2xlarge': 'db.r5.xlarge',
-                'db.r5.xlarge': 'db.r5.large',
-                'db.r5.large': 'db.t3.large'
-            }
-            reader_instance = downsize_map.get(writer_instance, writer_instance)
-        else:  # Workload-Based
-            if read_ratio >= 80:
-                reader_instance = writer_instance  # Same size for heavy read loads
-            else:
-                downsize_map = {
-                    'db.r5.8xlarge': 'db.r5.4xlarge',
-                    'db.r5.4xlarge': 'db.r5.2xlarge',
-                    'db.r5.2xlarge': 'db.r5.xlarge',
-                    'db.r5.xlarge': 'db.r5.large'
-                }
-                reader_instance = downsize_map.get(writer_instance, writer_instance)
-        
-        reader_multi_az = (env_type == 'production' and self.multi_az_policy == 'Production Only') or \
-                         (env_type in ['production', 'staging'] and 'Production + Staging' in self.multi_az_policy) or \
-                         ('All Environments' in self.multi_az_policy)
-        
-        return {
-            'count': reader_count,
-            'instance_class': reader_instance,
-            'multi_az': reader_multi_az
-        }
-    
-    def _calculate_storage_configuration(self, total_storage_gb: float, specs: Dict, env_type: str) -> Dict:
-        """Calculate storage configuration"""
-        
-        iops_requirement = specs.get('iops_requirement', 3000)
-        
-        # Determine storage type based on IOPS requirements
-        if iops_requirement > 20000:
-            storage_type = 'io2'
-            provisioned_iops = iops_requirement
-        elif iops_requirement > 10000:
-            storage_type = 'io1'
-            provisioned_iops = iops_requirement
-        else:
-            storage_type = 'gp3'
-            provisioned_iops = min(16000, max(3000, iops_requirement))
-        
-        return {
-            'size_gb': int(total_storage_gb),
-            'type': storage_type,
-            'iops': provisioned_iops,
-            'encrypted': env_type in ['production', 'staging'],
-            'backup_retention_days': 30 if env_type == 'production' else 7,
-            'performance_insights': env_type == 'production'
-        }
-    
-    def _should_use_multi_az(self, env_type: str) -> bool:
-        """Determine if Multi-AZ should be used"""
-        
-        if self.multi_az_policy == 'Production Only':
-            return env_type == 'production'
-        elif self.multi_az_policy == 'Production + Staging':
-            return env_type in ['production', 'staging']
-        elif self.multi_az_policy == 'All Environments':
-            return True
-        else:
-            return env_type == 'production'  # Default
-    
-    def _categorize_environment(self, env_name: str) -> str:
-        """Categorize environment type from name"""
-        env_lower = env_name.lower()
-        if any(term in env_lower for term in ['prod', 'production', 'prd']):
-            return 'production'
-        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
-            return 'staging'
-        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
-            return 'testing'
-        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
-            return 'development'
-        return 'production'
-    
-    def _get_instance_specs(self, instance_class: str) -> Dict:
-        """Get CPU and RAM specs for instance class"""
-        instance_specs = {
-            'db.t3.medium': {'cpu': 2, 'ram': 4},
-            'db.t3.large': {'cpu': 2, 'ram': 8},
-            'db.r5.large': {'cpu': 2, 'ram': 16},
-            'db.r5.xlarge': {'cpu': 4, 'ram': 32},
-            'db.r5.2xlarge': {'cpu': 8, 'ram': 64},
-            'db.r5.4xlarge': {'cpu': 16, 'ram': 128},
-            'db.r5.8xlarge': {'cpu': 32, 'ram': 256}
-        }
-        return instance_specs.get(instance_class, {'cpu': 4, 'ram': 16})
-    
-    def _generate_optimization_notes(self, env_type: str, reader_count: int) -> List[str]:
-        """Generate optimization notes for the configuration"""
-        
-        notes = []
-        
-        if env_type == 'production':
-            notes.append("✅ Production-grade configuration with high availability")
-            if reader_count > 0:
-                notes.append(f"📊 {reader_count} read replicas will distribute read load effectively")
-            else:
-                notes.append("💡 Consider read replicas if read load increases")
-        
-        if env_type == 'development':
-            notes.append("💰 Cost-optimized configuration for development workloads")
-            if reader_count == 0:
-                notes.append("✅ No read replicas to minimize development costs")
-        
-        return notes
-
-
-# FIXED: Environment setup logic to use operational storage
-def show_enhanced_environment_setup_fixed():
-    """FIXED environment setup with proper operational storage vs migration data separation"""
-    
-    st.markdown("## 📊 Environment Configuration")
-    st.caption("Configure operational database requirements for each environment")
-    
-    if not st.session_state.migration_params:
-        st.warning("⚠️ Please complete Migration Configuration first.")
-        return
-    
-    # Show migration data context
-    migration_data = st.session_state.migration_params.get('migration_data_size_gb', 1000)
-    st.info(f"📦 Migration Data Size: {migration_data:,} GB (configured separately)")
-    
-    # Configuration method selection
-    config_method = st.radio(
-        "Choose configuration method:",
-        [
-            "📝 Manual Environment Configuration", 
-            "📁 Bulk Upload",
-            "🔄 Quick Setup (Recommended)"
-        ],
-        horizontal=True
-    )
-    
-    if config_method == "🔄 Quick Setup (Recommended)":
-        show_quick_environment_setup()
-    elif config_method == "📝 Manual Environment Configuration":
-        show_manual_environment_configuration()
-    else:
-        show_bulk_upload_interface()
-
-
-def show_quick_environment_setup():
-    """Quick environment setup with intelligent defaults"""
-    
-    st.markdown("### 🔄 Quick Environment Setup")
-    st.caption("Configure environments with intelligent defaults based on your migration parameters")
-    
-    # Environment selection
-    st.markdown("#### 🏢 Select Environments to Configure")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        environments = st.multiselect(
-            "Environments",
-            ["Production", "Staging", "QA", "Development"],
-            default=["Production", "Staging", "QA", "Development"]
-        )
-    
-    with col2:
-        workload_type = st.selectbox(
-            "Primary Workload Type",
-            ["OLTP (Transactional)", "OLAP (Analytics)", "Mixed Workload"],
-            help="Affects resource allocation and reader recommendations"
-        )
-    
-    if environments:
-        st.markdown("#### ⚙️ Environment Configurations")
-        
-        environment_specs = {}
-        
-        # Generate intelligent defaults based on migration params
-        migration_params = st.session_state.migration_params
-        base_sizing = generate_intelligent_defaults(migration_params, workload_type)
-        
-        for env in environments:
-            with st.expander(f"🏢 {env} Environment", expanded=env == "Production"):
-                
-                # Get environment-specific defaults
-                env_defaults = base_sizing[env.lower()]
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    st.markdown("**Compute Resources**")
-                    cpu_cores = st.number_input(
-                        "CPU Cores", 
-                        min_value=1, max_value=128,
-                        value=env_defaults['cpu_cores'],
-                        key=f"cpu_{env}"
-                    )
-                    
-                    ram_gb = st.number_input(
-                        "RAM (GB)", 
-                        min_value=4, max_value=1024,
-                        value=env_defaults['ram_gb'],
-                        key=f"ram_{env}"
-                    )
-                
-                with col2:
-                    st.markdown("**Storage & Performance**")
-                    # FIXED: This is operational storage, not migration data
-                    operational_storage_gb = st.number_input(
-                        "Operational Storage (GB)", 
-                        min_value=100, max_value=50000,
-                        value=env_defaults['storage_gb'],
-                        help="Database operational storage (logs, temp, working space)",
-                        key=f"storage_{env}"
-                    )
-                    
-                    iops_requirement = st.number_input(
-                        "IOPS Requirement", 
-                        min_value=1000, max_value=50000,
-                        value=env_defaults['iops'],
-                        key=f"iops_{env}"
-                    )
-                
-                with col3:
-                    st.markdown("**Workload Characteristics**")
-                    peak_connections = st.number_input(
-                        "Peak Connections", 
-                        min_value=10, max_value=10000,
-                        value=env_defaults['connections'],
-                        key=f"conn_{env}"
-                    )
-                    
-                    read_write_ratio = st.slider(
-                        "Read/Write Ratio (% Reads)", 
-                        min_value=10, max_value=95,
-                        value=env_defaults['read_ratio'],
-                        key=f"ratio_{env}"
-                    )
-                
-                # Advanced settings
-                with st.expander("🔧 Advanced Settings"):
-                    daily_usage_hours = st.slider(
-                        "Daily Usage Hours", 
-                        min_value=1, max_value=24,
-                        value=env_defaults['usage_hours'],
-                        key=f"hours_{env}"
-                    )
-                    
-                    workload_pattern = st.selectbox(
-                        "Workload Pattern",
-                        ["balanced", "read_heavy", "write_heavy", "analytics"],
-                        index=["balanced", "read_heavy", "write_heavy", "analytics"].index(env_defaults['pattern']),
-                        key=f"pattern_{env}"
-                    )
-                
-                # Store configuration
-                environment_specs[env] = {
-                    'cpu_cores': cpu_cores,
-                    'ram_gb': ram_gb,
-                    'storage_gb': operational_storage_gb,  # FIXED: Clearly operational storage
-                    'iops_requirement': iops_requirement,
-                    'peak_connections': peak_connections,
-                    'read_write_ratio': read_write_ratio,
-                    'daily_usage_hours': daily_usage_hours,
-                    'workload_pattern': workload_pattern,
-                    'environment_type': env.lower()
-                }
-        
-        if st.button("💾 Save Environment Configuration", type="primary", use_container_width=True):
-            st.session_state.environment_specs = environment_specs
-            st.success("✅ Environment configuration saved!")
-            
-            # Show configuration preview
-            show_environment_config_preview(environment_specs)
-
-
-def generate_intelligent_defaults(migration_params: Dict, workload_type: str) -> Dict:
-    """Generate intelligent defaults based on migration parameters"""
-    
-    data_size = migration_params.get('migration_data_size_gb', 1000)
-    team_expertise = migration_params.get('team_expertise', 'medium')
-    
-    # Base sizing factors
-    if workload_type == "OLTP (Transactional)":
-        cpu_factor = 1.0
-        ram_factor = 1.0
-        iops_factor = 1.5
-        read_ratio_base = 70
-    elif workload_type == "OLAP (Analytics)":
-        cpu_factor = 1.5
-        ram_factor = 2.0
-        iops_factor = 0.8
-        read_ratio_base = 85
-    else:  # Mixed
-        cpu_factor = 1.2
-        ram_factor = 1.3
-        iops_factor = 1.2
-        read_ratio_base = 75
-    
-    # Data size influence
-    if data_size > 10000:
-        size_multiplier = 1.5
-    elif data_size > 5000:
-        size_multiplier = 1.3
-    elif data_size > 1000:
-        size_multiplier = 1.0
-    else:
-        size_multiplier = 0.8
-    
-    # Team expertise influence (conservative if low expertise)
-    expertise_multiplier = {'low': 0.8, 'medium': 1.0, 'high': 1.2}[team_expertise]
-    
-    return {
-        'production': {
-            'cpu_cores': int(32 * cpu_factor * size_multiplier * expertise_multiplier),
-            'ram_gb': int(128 * ram_factor * size_multiplier * expertise_multiplier),
-            'storage_gb': int(max(500, data_size * 0.3)),  # 30% of migration data for operational needs
-            'iops': int(10000 * iops_factor * size_multiplier),
-            'connections': int(500 * size_multiplier),
-            'read_ratio': min(95, read_ratio_base + 10),
-            'usage_hours': 24,
-            'pattern': 'read_heavy' if workload_type == "OLAP (Analytics)" else 'balanced'
-        },
-        'staging': {
-            'cpu_cores': int(16 * cpu_factor * size_multiplier * 0.7),
-            'ram_gb': int(64 * ram_factor * size_multiplier * 0.7),
-            'storage_gb': int(max(300, data_size * 0.2)),
-            'iops': int(5000 * iops_factor * size_multiplier * 0.7),
-            'connections': int(200 * size_multiplier * 0.7),
-            'read_ratio': read_ratio_base,
-            'usage_hours': 16,
-            'pattern': 'balanced'
-        },
-        'qa': {
-            'cpu_cores': int(8 * cpu_factor * size_multiplier * 0.5),
-            'ram_gb': int(32 * ram_factor * size_multiplier * 0.5),
-            'storage_gb': int(max(200, data_size * 0.15)),
-            'iops': int(3000 * iops_factor * size_multiplier * 0.5),
-            'connections': int(100 * size_multiplier * 0.5),
-            'read_ratio': max(50, read_ratio_base - 10),
-            'usage_hours': 12,
-            'pattern': 'balanced'
-        },
-        'development': {
-            'cpu_cores': int(4 * cpu_factor * size_multiplier * 0.3),
-            'ram_gb': int(16 * ram_factor * size_multiplier * 0.3),
-            'storage_gb': int(max(100, data_size * 0.1)),
-            'iops': int(1000 * iops_factor * size_multiplier * 0.3),
-            'connections': int(50 * size_multiplier * 0.3),
-            'read_ratio': max(40, read_ratio_base - 20),
-            'usage_hours': 8,
-            'pattern': 'write_heavy'  # Dev environments typically have more writes
-        }
-    }
-
-
-def show_environment_config_preview(environment_specs: Dict):
-    """Show preview of environment configuration"""
-    
-    st.markdown("#### 📊 Configuration Summary")
-    
-    migration_data_size = st.session_state.migration_params.get('migration_data_size_gb', 1000)
-    
-    preview_data = []
-    total_operational_storage = 0
-    
-    for env_name, specs in environment_specs.items():
-        operational_storage = specs['storage_gb']
-        total_operational_storage += operational_storage
-        
-        preview_data.append({
-            'Environment': env_name,
-            'Compute': f"{specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM",
-            'Operational Storage': f"{operational_storage:,} GB",
-            'IOPS': f"{specs['iops_requirement']:,}",
-            'Workload': f"{specs['workload_pattern']} ({specs['read_write_ratio']}% reads)",
-            'Peak Connections': specs['peak_connections']
-        })
-    
-    preview_df = pd.DataFrame(preview_data)
-    st.dataframe(preview_df, use_container_width=True)
-    
-    # Storage summary
-    st.markdown("#### 💾 Storage Planning Summary")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Migration Data", f"{migration_data_size:,} GB", help="Data being migrated from source")
-    
-    with col2:
-        st.metric("Total Operational Storage", f"{total_operational_storage:,} GB", help="Database operational storage across all environments")
-    
-    with col3:
-        estimated_total = migration_data_size + total_operational_storage + (migration_data_size * 0.3)  # 30% buffer
-        st.metric("Estimated Total AWS Storage", f"{estimated_total:,.0f} GB", help="Migration data + operational + growth buffer")
-    
-    st.info("💡 Total AWS storage includes migration data, operational storage, and growth buffers")
-
-
-# Integration function to replace existing functions
-def integrate_fixed_migration_logic():
-    """Instructions to integrate the fixed migration logic"""
-    
-    st.markdown("""
-    ## 🔧 Integration Instructions
-    
-    To integrate these fixes into your application:
-    
-    1. **Replace the migration configuration function:**
-       - Replace `show_migration_configuration()` with `show_migration_configuration_fixed()`
-    
-    2. **Update the environment setup:**
-       - Replace `show_environment_setup()` with `show_enhanced_environment_setup_fixed()`
-    
-    3. **Use the fixed RDS recommendation engine:**
-       - Initialize with: `engine = FixedRDSRecommendationEngine(migration_params)`
-       - Call: `recommendations = engine.calculate_environment_recommendations(environment_specs)`
-    
-    4. **Update session state initialization:**
-       - Ensure proper separation of migration data vs operational storage
-    
-    ### Key Fixes Applied:
-    
-    ✅ **Separated migration data size from operational storage requirements**
-    ✅ **Enhanced RDS writer/reader recommendation logic**  
-    ✅ **Improved cost calculation with proper data/storage separation**
-    ✅ **Added intelligent environment defaults based on migration scope**
-    ✅ **Enhanced validation and configuration summary**
-    """)
-
 
 def show_environment_analysis():
     """Show environment analysis dashboard"""
@@ -8325,7 +7559,7 @@ def show_manual_environment_setup():
         summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
         st.dataframe(summary_df, use_container_width=True)
 
-def show_analysis_section():
+def show_analysis_section_fixed():
     """Show analysis and recommendations section - UPDATED"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
