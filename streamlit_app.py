@@ -187,63 +187,53 @@ class SafeMigrationAnalyzer:
                 # Fallback to a safe default
                 return 'db.r5.large'
         def run_fixed_migration_analysis():
-            """Run migration analysis with comprehensive error handling"""
-        
             try:
-                # Step 1: Validate inputs
                 if not st.session_state.migration_params:
                     st.error("❌ Migration parameters required")
                     return False
-                
+
                 if not st.session_state.environment_specs:
                     st.error("❌ Environment specifications required")
                     return False
-            
-            # Step 2: Initialize analyzer
-                    anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
-                    analyzer = SafeMigrationAnalyzer(anthropic_api_key)
-            
-# Step 3: Normalize environment specs BEFORE analysis
-    
-                    st.write("🔄 Normalizing environment specifications...")
-                    normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
 
-                    if not normalized_specs:
-                        st.error("❌ Failed to normalize environment specifications")
-                        return False
+                anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+                analyzer = SafeMigrationAnalyzer(anthropic_api_key)
 
-                    # Update session state with normalized specs
-                    st.session_state.environment_specs = normalized_specs
+                st.write("🔄 Normalizing environment specifications...")
+                normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
 
-                    # Step 4: Calculate recommendations
-                    st.write("📊 Calculating instance recommendations...")
-                    recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
-                    st.session_state.recommendations = recommendations
+                if not normalized_specs:
+                    st.error("❌ Failed to normalize environment specifications")
+                    return False
 
-                    # Step 5: Calculate costs
-                    st.write("💰 Analyzing costs...")
-                    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
-                    st.session_state.analysis_results = cost_analysis
+                st.session_state.environment_specs = normalized_specs
 
-                    # Step 6: Risk assessment
-                    st.write("⚠️ Assessing risks...")
-                    risk_assessment = create_default_risk_assessment()
-                    st.session_state.risk_assessment = risk_assessment
+                st.write("📊 Calculating instance recommendations...")
+                recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
+                st.session_state.recommendations = recommendations
 
-                    st.success("✅ Analysis completed successfully!")
+                st.write("💰 Analyzing costs...")
+                cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+                st.session_state.analysis_results = cost_analysis
 
-                    # Show summary
-                    show_fixed_analysis_summary()
+                st.write("⚠️ Assessing risks...")
+                risk_assessment = create_default_risk_assessment()
+                st.session_state.risk_assessment = risk_assessment
+
+                st.success("✅ Analysis completed successfully!")
+                show_fixed_analysis_summary()
 
                 return True
-                            
-                    except Exception as e:
-                        st.error(f"❌ Error during analysis: {str(e)}")
-                    return False
-            
-            # Create emergency fallback
-                    create_emergency_fallback_analysis()
-            return False
+
+            except Exception as e:
+                st.error(f"❌ Error during analysis: {str(e)}")
+                create_emergency_fallback_analysis()
+                return False
+
+                
+                # Create emergency fallback
+                        create_emergency_fallback_analysis()
+                return False
 
     def show_fixed_analysis_summary():
         """Show analysis summary with error handling"""
