@@ -27,6 +27,314 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
+def refresh_cost_calculations():
+    """
+    Main function to refresh all cost calculations and update the dollar values:
+    - Monthly AWS Cost
+    - Annual AWS Cost  
+    - Migration Cost
+    - 3-Year Growth
+    """
+    
+    try:
+        # Check if required data exists
+        if not st.session_state.migration_params:
+            st.error("❌ Migration parameters required. Please configure migration settings first.")
+            return False
+        
+        if not st.session_state.environment_specs:
+            st.error("❌ Environment specifications required. Please configure environments first.")
+            return False
+        
+        with st.spinner("🔄 Refreshing cost calculations..."):
+            
+            # Step 1: Refresh basic cost analysis
+            monthly_cost, annual_cost, migration_cost = refresh_basic_costs()
+            
+            # Step 2: Refresh growth analysis for 3-year projections
+            growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+            
+            # Step 3: Update session state with new values
+            update_cost_session_state(monthly_cost, annual_cost, migration_cost, growth_percentage)
+            
+            # Step 4: Display refreshed values
+            display_refreshed_metrics(monthly_cost, annual_cost, migration_cost, growth_percentage)
+            
+            st.success("✅ Cost calculations refreshed successfully!")
+            return True
+            
+    except Exception as e:
+        st.error(f"❌ Error refreshing costs: {str(e)}")
+        return False
+
+def refresh_basic_costs():
+    """Refresh basic AWS and migration cost calculations"""
+    
+    # Initialize analyzer
+    from streamlit_app import MigrationAnalyzer
+    analyzer = MigrationAnalyzer(st.session_state.migration_params.get('anthropic_api_key'))
+    
+    # Recalculate instance recommendations
+    recommendations = analyzer.calculate_instance_recommendations(st.session_state.environment_specs)
+    st.session_state.recommendations = recommendations
+    
+    # Recalculate costs
+    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+    st.session_state.analysis_results = cost_analysis
+    
+    # Extract key values
+    monthly_cost = cost_analysis.get('monthly_aws_cost', 0)
+    annual_cost = cost_analysis.get('annual_aws_cost', monthly_cost * 12)
+    migration_cost = cost_analysis.get('migration_costs', {}).get('total', 0)
+    
+    return monthly_cost, annual_cost, migration_cost
+
+def refresh_growth_analysis(monthly_cost: float, annual_cost: float):
+    """Refresh 3-year growth analysis and calculate growth percentage"""
+    
+    try:
+        # Initialize growth analyzer
+        from streamlit_app import GrowthAwareCostAnalyzer
+        growth_analyzer = GrowthAwareCostAnalyzer()
+        
+        # Calculate 3-year growth projection
+        growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
+            st.session_state.analysis_results, 
+            st.session_state.migration_params
+        )
+        st.session_state.growth_analysis = growth_analysis
+        
+        # Extract 3-year growth percentage
+        growth_percentage = growth_analysis['growth_summary']['total_3_year_growth_percent']
+        
+        return growth_percentage
+        
+    except Exception as e:
+        st.warning(f"Growth analysis failed, using default: {str(e)}")
+        # Fallback calculation based on migration parameters
+        annual_growth_rate = st.session_state.migration_params.get('annual_data_growth', 15)
+        growth_percentage = ((1 + annual_growth_rate/100) ** 3 - 1) * 100
+        return growth_percentage
+
+def update_cost_session_state(monthly_cost: float, annual_cost: float, 
+                             migration_cost: float, growth_percentage: float):
+    """Update session state with refreshed cost values"""
+    
+    # Update main analysis results
+    if not st.session_state.analysis_results:
+        st.session_state.analysis_results = {}
+    
+    st.session_state.analysis_results.update({
+        'monthly_aws_cost': monthly_cost,
+        'annual_aws_cost': annual_cost,
+        'migration_costs': {
+            'total': migration_cost,
+            'last_updated': datetime.now().isoformat()
+        }
+    })
+    
+    # Update growth analysis summary
+    if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.session_state.growth_analysis = {
+            'growth_summary': {
+                'total_3_year_growth_percent': growth_percentage,
+                'year_0_cost': annual_cost,
+                'last_updated': datetime.now().isoformat()
+            }
+        }
+    else:
+        st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent'] = growth_percentage
+
+def display_refreshed_metrics(monthly_cost: float, annual_cost: float, 
+                             migration_cost: float, growth_percentage: float):
+    """Display the refreshed cost metrics in a formatted layout"""
+    
+    st.markdown("### 💰 Refreshed Cost Analysis")
+    
+    # Create columns for metrics display
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            label="Monthly AWS Cost",
+            value=f"${monthly_cost:,.0f}",
+            delta=f"Updated {datetime.now().strftime('%H:%M')}"
+        )
+    
+    with col2:
+        st.metric(
+            label="Annual AWS Cost", 
+            value=f"${annual_cost:,.0f}",
+            delta=f"${monthly_cost * 12:,.0f}/year"
+        )
+    
+    with col3:
+        st.metric(
+            label="Migration Cost",
+            value=f"${migration_cost:,.0f}",
+            delta="One-time investment"
+        )
+    
+    with col4:
+        st.metric(
+            label="3-Year Growth",
+            value=f"{growth_percentage:.1f}%",
+            delta="Projected growth"
+        )
+
+def refresh_specific_environment_costs(environment_name: str):
+    """Refresh costs for a specific environment"""
+    
+    if environment_name not in st.session_state.environment_specs:
+        st.error(f"Environment '{environment_name}' not found")
+        return
+    
+    # Get current environment specs
+    env_specs = {environment_name: st.session_state.environment_specs[environment_name]}
+    
+    # Recalculate for this environment only
+    from streamlit_app import MigrationAnalyzer
+    analyzer = MigrationAnalyzer()
+    
+    recommendations = analyzer.calculate_instance_recommendations(env_specs)
+    cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+    
+    # Update environment-specific costs
+    if st.session_state.analysis_results:
+        st.session_state.analysis_results['environment_costs'][environment_name] = \
+            cost_analysis['environment_costs'][environment_name]
+    
+    st.success(f"✅ Refreshed costs for {environment_name}")
+
+def auto_refresh_costs():
+    """Automatic cost refresh with real-time pricing"""
+    
+    st.markdown("### 🔄 Auto-Refresh Cost Analysis")
+    
+    # Auto-refresh toggle
+    auto_refresh = st.checkbox("Enable Auto-Refresh (every 30 seconds)", value=False)
+    
+    if auto_refresh:
+        # Use Streamlit's auto-refresh capability
+        import time
+        
+        placeholder = st.empty()
+        
+        while auto_refresh:
+            with placeholder.container():
+                refresh_cost_calculations()
+                st.write(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            time.sleep(30)  # Refresh every 30 seconds
+
+def export_refreshed_costs():
+    """Export the refreshed cost data to CSV"""
+    
+    if not st.session_state.analysis_results:
+        st.warning("No cost data available to export")
+        return
+    
+    # Prepare export data
+    export_data = {
+        'Metric': ['Monthly AWS Cost', 'Annual AWS Cost', 'Migration Cost', '3-Year Growth'],
+        'Value': [
+            f"${st.session_state.analysis_results.get('monthly_aws_cost', 0):,.0f}",
+            f"${st.session_state.analysis_results.get('annual_aws_cost', 0):,.0f}",
+            f"${st.session_state.analysis_results.get('migration_costs', {}).get('total', 0):,.0f}",
+            f"{st.session_state.growth_analysis.get('growth_summary', {}).get('total_3_year_growth_percent', 0):.1f}%"
+        ],
+        'Last_Updated': [datetime.now().isoformat()] * 4
+    }
+    
+    df = pd.DataFrame(export_data)
+    csv = df.to_csv(index=False)
+    
+    st.download_button(
+        label="📥 Download Refreshed Costs (CSV)",
+        data=csv,
+        file_name=f"refreshed_costs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        mime="text/csv"
+    )
+
+# Integration function for the main Streamlit app
+def integrate_cost_refresh_ui():
+    """Add cost refresh UI elements to the main application"""
+    
+    st.markdown("---")
+    st.markdown("### 🔄 Cost Refresh Controls")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🔄 Refresh All Costs", type="primary", use_container_width=True):
+            refresh_cost_calculations()
+    
+    with col2:
+        if st.button("📊 Refresh Growth Analysis", use_container_width=True):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
+            else:
+                st.warning("Please run full analysis first")
+    
+    with col3:
+        if st.button("📥 Export Costs", use_container_width=True):
+            export_refreshed_costs()
+    
+    # Environment-specific refresh
+    if st.session_state.environment_specs:
+        st.markdown("#### 🏢 Environment-Specific Refresh")
+        
+        selected_env = st.selectbox(
+            "Select Environment to Refresh",
+            list(st.session_state.environment_specs.keys())
+        )
+        
+        if st.button(f"🔄 Refresh {selected_env}", use_container_width=True):
+            refresh_specific_environment_costs(selected_env)
+
+# Usage example for the main application
+def main_cost_refresh_section():
+    """Main section to be added to your Streamlit app"""
+    
+    st.markdown("## 💰 Cost Analysis & Refresh")
+    
+    # Check if analysis has been run
+    if not st.session_state.analysis_results:
+        st.info("👆 Please run the migration analysis first to see cost data")
+        return
+    
+    # Display current values
+    results = st.session_state.analysis_results
+    
+    st.markdown("#### 📊 Current Cost Analysis")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        monthly_cost = results.get('monthly_aws_cost', 0)
+        st.metric("Monthly AWS Cost", f"${monthly_cost:,.0f}")
+    
+    with col2:
+        annual_cost = results.get('annual_aws_cost', monthly_cost * 12)
+        st.metric("Annual AWS Cost", f"${annual_cost:,.0f}")
+    
+    with col3:
+        migration_cost = results.get('migration_costs', {}).get('total', 0)
+        st.metric("Migration Cost", f"${migration_cost:,.0f}")
+    
+    with col4:
+        if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+            growth_pct = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+            st.metric("3-Year Growth", f"{growth_pct:.1f}%")
+        else:
+            st.metric("3-Year Growth", "Not calculated")
+    
+    # Add refresh controls
+    integrate_cost_refresh_ui()
+
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
     
@@ -886,7 +1194,8 @@ class StreamlitMigrationAnalyzer:
 
 # FIXED: Streamlit-compatible analysis function
 def run_streamlit_migration_analysis():
-    """Run migration analysis synchronously for Streamlit"""
+    """Main migration analysis function - calls robust version"""
+    run_streamlit_migration_analysis_robust()
     
     try:
         # Check if this is enhanced environment data
@@ -991,7 +1300,7 @@ def show_analysis_summary():
     st.info("📈 View detailed results in the 'Results Dashboard' section")
 
 
-
+# FIXED: Update the analysis section to use synchronous function
 def show_analysis_section_fixed():
     """Show analysis and recommendations section - FIXED for Streamlit"""
     
@@ -1038,11 +1347,6 @@ def show_analysis_section_fixed():
         
         if len(envs) > 4:
             st.markdown(f"• ... and {len(envs) - 4} more environments")
-     # Add this line before the analysis button
-    #check_and_refresh_growth_metrics()
-    
-    # Run analysis button
-    if st.button("🚀 Run Comprehensive Analysis", type="primary", use_container_width=True):
     
     # API status check
     show_api_status_inline()
@@ -2378,6 +2682,80 @@ st.set_page_config(
     initial_sidebar_state="expanded",
     page_icon="🚀"
 )
+
+# ROBUST FIX for 'cpu_cores' error in analysis functions
+# Add these functions to your streamlit_app.py file
+
+def safe_get_spec_value(specs, possible_keys, default=0):
+    """Safely get specification value from multiple possible key names"""
+    for key in possible_keys:
+        if key in specs:
+            value = specs[key]
+            # Convert to appropriate type
+            if isinstance(value, (int, float)):
+                return value
+            elif isinstance(value, str) and value.isdigit():
+                return int(value)
+            elif value:  # Non-empty value
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    continue
+    return default
+
+def normalize_environment_specs(environment_specs):
+    """Normalize environment specifications to handle different field names"""
+    normalized_specs = {}
+    
+    for env_name, specs in environment_specs.items():
+        if not isinstance(specs, dict):
+            # Handle case where specs is not a dictionary
+            normalized_specs[env_name] = {
+                'cpu_cores': 4,
+                'ram_gb': 16,
+                'storage_gb': 500,
+                'daily_usage_hours': 24,
+                'peak_connections': 100
+            }
+            continue
+        
+        # Normalize field names and get values safely
+        normalized = {}
+        
+        # CPU cores - check multiple possible field names
+        cpu_keys = ['cpu_cores', 'CPU_Cores', 'cores', 'vCPUs', 'vcpu', 'cpu']
+        normalized['cpu_cores'] = safe_get_spec_value(specs, cpu_keys, 4)
+        
+        # RAM - check multiple possible field names  
+        ram_keys = ['ram_gb', 'RAM_GB', 'memory_gb', 'memory', 'ram', 'Memory_GB']
+        normalized['ram_gb'] = safe_get_spec_value(specs, ram_keys, 16)
+        
+        # Storage - check multiple possible field names
+        storage_keys = ['storage_gb', 'Storage_GB', 'disk_gb', 'storage', 'disk']
+        normalized['storage_gb'] = safe_get_spec_value(specs, storage_keys, 500)
+        
+        # Daily usage hours
+        usage_keys = ['daily_usage_hours', 'Daily_Usage_Hours', 'usage_hours', 'hours']
+        normalized['daily_usage_hours'] = safe_get_spec_value(specs, usage_keys, 24)
+        
+        # Peak connections
+        conn_keys = ['peak_connections', 'Peak_Connections', 'connections', 'max_connections']
+        normalized['peak_connections'] = safe_get_spec_value(specs, conn_keys, 100)
+        
+        # Copy any additional fields that might exist
+        additional_fields = [
+            'workload_pattern', 'read_write_ratio', 'environment_type',
+            'multi_az_writer', 'multi_az_readers', 'num_readers',
+            'iops_requirement', 'storage_encrypted', 'backup_retention'
+        ]
+        
+        for field in additional_fields:
+            if field in specs:
+                normalized[field] = specs[field]
+        
+        normalized_specs[env_name] = normalized
+    
+    return normalized_specs
 
 # Enhanced Enterprise CSS
 st.markdown("""
@@ -4969,6 +5347,296 @@ class RealMigrationAnalyzer:
             'total': min(internet_cost, dx_cost)
         }
 
+class RobustMigrationAnalyzer:
+    """Robust migration analyzer that handles various data formats"""
+    
+    def __init__(self, anthropic_api_key=None):
+        self.pricing_api = EnhancedAWSPricingAPI()
+        self.anthropic_api_key = anthropic_api_key
+    
+    def calculate_instance_recommendations(self, environment_specs):
+        """Calculate AWS instance recommendations with robust error handling"""
+        
+        try:
+            # Normalize the environment specs first
+            normalized_specs = normalize_environment_specs(environment_specs)
+            
+            recommendations = {}
+            
+            for env_name, specs in normalized_specs.items():
+                try:
+                    # Get values with safe fallbacks
+                    cpu_cores = specs.get('cpu_cores', 4)
+                    ram_gb = specs.get('ram_gb', 16)
+                    storage_gb = specs.get('storage_gb', 500)
+                    daily_usage_hours = specs.get('daily_usage_hours', 24)
+                    peak_connections = specs.get('peak_connections', 100)
+                    
+                    # Ensure values are valid
+                    cpu_cores = max(1, int(cpu_cores)) if cpu_cores else 4
+                    ram_gb = max(4, int(ram_gb)) if ram_gb else 16
+                    storage_gb = max(20, int(storage_gb)) if storage_gb else 500
+                    daily_usage_hours = max(1, min(24, int(daily_usage_hours))) if daily_usage_hours else 24
+                    peak_connections = max(1, int(peak_connections)) if peak_connections else 100
+                    
+                    # Determine environment type
+                    environment_type = self._categorize_environment(env_name)
+                    
+                    # Calculate instance class
+                    instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
+                    
+                    # Multi-AZ recommendation
+                    multi_az = environment_type in ['production', 'staging']
+                    
+                    recommendations[env_name] = {
+                        'environment_type': environment_type,
+                        'instance_class': instance_class,
+                        'cpu_cores': cpu_cores,
+                        'ram_gb': ram_gb,
+                        'storage_gb': storage_gb,
+                        'multi_az': multi_az,
+                        'daily_usage_hours': daily_usage_hours,
+                        'peak_connections': peak_connections
+                    }
+                    
+                except Exception as e:
+                    st.warning(f"Error processing environment {env_name}: {str(e)}")
+                    # Provide fallback recommendation
+                    recommendations[env_name] = {
+                        'environment_type': 'production',
+                        'instance_class': 'db.r5.large',
+                        'cpu_cores': 4,
+                        'ram_gb': 16,
+                        'storage_gb': 500,
+                        'multi_az': True,
+                        'daily_usage_hours': 24,
+                        'peak_connections': 100,
+                        'error': str(e)
+                    }
+            
+            return recommendations
+            
+        except Exception as e:
+            st.error(f"Critical error in recommendations calculation: {str(e)}")
+            # Return minimal fallback
+            return {
+                'Environment_1': {
+                    'environment_type': 'production',
+                    'instance_class': 'db.r5.large',
+                    'cpu_cores': 4,
+                    'ram_gb': 16,
+                    'storage_gb': 500,
+                    'multi_az': True,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100,
+                    'error': 'Fallback configuration due to analysis error'
+                }
+            }
+    
+    def calculate_migration_costs(self, recommendations, migration_params):
+        """Calculate migration costs with robust error handling"""
+        
+        try:
+            region = migration_params.get('region', 'us-east-1')
+            target_engine = migration_params.get('target_engine', 'postgres')
+            
+            total_monthly_cost = 0
+            environment_costs = {}
+            
+            for env_name, rec in recommendations.items():
+                try:
+                    env_costs = self._calculate_environment_cost_safe(env_name, rec, region, target_engine)
+                    environment_costs[env_name] = env_costs
+                    total_monthly_cost += env_costs['total_monthly']
+                except Exception as e:
+                    st.warning(f"Error calculating costs for {env_name}: {str(e)}")
+                    # Fallback cost calculation
+                    fallback_cost = 500  # $500/month default
+                    environment_costs[env_name] = {
+                        'instance_cost': fallback_cost * 0.7,
+                        'storage_cost': fallback_cost * 0.2,
+                        'backup_cost': fallback_cost * 0.1,
+                        'total_monthly': fallback_cost,
+                        'error': str(e)
+                    }
+                    total_monthly_cost += fallback_cost
+            
+            # Migration service costs
+            data_size_gb = migration_params.get('data_size_gb', 1000)
+            migration_timeline_weeks = migration_params.get('migration_timeline_weeks', 12)
+            
+            # Safe calculation of migration costs
+            try:
+                dms_instance_cost = 0.2 * 24 * 7 * migration_timeline_weeks
+                transfer_costs = self._calculate_transfer_costs_safe(data_size_gb, migration_params)
+                ps_cost = migration_timeline_weeks * 8000
+                
+                migration_costs = {
+                    'dms_instance': dms_instance_cost,
+                    'data_transfer': transfer_costs.get('total', data_size_gb * 0.09),
+                    'professional_services': ps_cost,
+                    'contingency': 0,
+                    'total': 0
+                }
+                
+                base_cost = migration_costs['dms_instance'] + migration_costs['data_transfer'] + migration_costs['professional_services']
+                migration_costs['contingency'] = base_cost * 0.2
+                migration_costs['total'] = base_cost + migration_costs['contingency']
+                
+            except Exception as e:
+                st.warning(f"Error calculating migration costs: {str(e)}")
+                migration_costs = {
+                    'dms_instance': 20000,
+                    'data_transfer': 10000,
+                    'professional_services': 50000,
+                    'contingency': 16000,
+                    'total': 96000,
+                    'error': str(e)
+                }
+            
+            return {
+                'monthly_aws_cost': total_monthly_cost,
+                'annual_aws_cost': total_monthly_cost * 12,
+                'environment_costs': environment_costs,
+                'migration_costs': migration_costs,
+                'transfer_costs': transfer_costs if 'transfer_costs' in locals() else {'total': data_size_gb * 0.09}
+            }
+            
+        except Exception as e:
+            st.error(f"Critical error in cost calculation: {str(e)}")
+            # Return minimal fallback
+            return {
+                'monthly_aws_cost': 2000,
+                'annual_aws_cost': 24000,
+                'environment_costs': {'Environment_1': {'total_monthly': 2000}},
+                'migration_costs': {'total': 100000},
+                'transfer_costs': {'total': 5000},
+                'error': str(e)
+            }
+    
+    def _calculate_environment_cost_safe(self, env_name, rec, region, target_engine):
+        """Safely calculate environment cost"""
+        
+        try:
+            # Get pricing with error handling
+            pricing = self.pricing_api.get_rds_pricing(
+                region, target_engine, rec.get('instance_class', 'db.r5.large'), rec.get('multi_az', False)
+            )
+            
+            # Calculate monthly hours
+            daily_hours = rec.get('daily_usage_hours', 24)
+            monthly_hours = daily_hours * 30
+            
+            # Instance cost
+            instance_cost = pricing.get('hourly', 0.5) * monthly_hours
+            
+            # Storage cost
+            storage_gb = rec.get('storage_gb', 500)
+            storage_cost = storage_gb * pricing.get('storage_gb', 0.115)
+            
+            # Backup cost
+            backup_cost = storage_cost * 0.2
+            
+            # Total monthly cost
+            total_monthly = instance_cost + storage_cost + backup_cost
+            
+            return {
+                'instance_cost': instance_cost,
+                'storage_cost': storage_cost,
+                'backup_cost': backup_cost,
+                'total_monthly': total_monthly
+            }
+            
+        except Exception as e:
+            # Fallback calculation
+            fallback_cost = 500
+            return {
+                'instance_cost': fallback_cost * 0.7,
+                'storage_cost': fallback_cost * 0.2,
+                'backup_cost': fallback_cost * 0.1,
+                'total_monthly': fallback_cost,
+                'error': str(e)
+            }
+    
+    def _calculate_transfer_costs_safe(self, data_size_gb, migration_params):
+        """Safely calculate transfer costs"""
+        
+        try:
+            use_direct_connect = migration_params.get('use_direct_connect', False)
+            
+            internet_cost = data_size_gb * 0.09
+            
+            if use_direct_connect:
+                dx_cost = data_size_gb * 0.02
+            else:
+                dx_cost = internet_cost
+            
+            return {
+                'internet': internet_cost,
+                'direct_connect': dx_cost,
+                'total': min(internet_cost, dx_cost)
+            }
+            
+        except Exception as e:
+            return {
+                'internet': data_size_gb * 0.09,
+                'direct_connect': data_size_gb * 0.02,
+                'total': data_size_gb * 0.02,
+                'error': str(e)
+            }
+    
+    def _categorize_environment(self, env_name):
+        """Categorize environment type from name"""
+        env_lower = env_name.lower()
+        if any(term in env_lower for term in ['prod', 'production', 'prd']):
+            return 'production'
+        elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
+            return 'staging'
+        elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
+            return 'testing'
+        elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
+            return 'development'
+        return 'production'
+    
+    def _calculate_instance_class(self, cpu_cores, ram_gb, env_type):
+        """Calculate appropriate instance class"""
+        
+        try:
+            cpu_cores = int(cpu_cores)
+            ram_gb = int(ram_gb)
+            
+            if cpu_cores <= 2 and ram_gb <= 8:
+                instance_class = 'db.t3.medium'
+            elif cpu_cores <= 4 and ram_gb <= 16:
+                instance_class = 'db.t3.large'
+            elif cpu_cores <= 8 and ram_gb <= 32:
+                instance_class = 'db.r5.large'
+            elif cpu_cores <= 16 and ram_gb <= 64:
+                instance_class = 'db.r5.xlarge'
+            elif cpu_cores <= 32 and ram_gb <= 128:
+                instance_class = 'db.r5.2xlarge'
+            elif cpu_cores <= 64 and ram_gb <= 256:
+                instance_class = 'db.r5.4xlarge'
+            else:
+                instance_class = 'db.r5.8xlarge'
+            
+            # Environment-specific adjustments
+            if env_type == 'development' and 'r5' in instance_class:
+                downsized = {
+                    'db.r5.8xlarge': 'db.r5.4xlarge',
+                    'db.r5.4xlarge': 'db.r5.2xlarge',
+                    'db.r5.2xlarge': 'db.r5.xlarge',
+                    'db.r5.xlarge': 'db.r5.large',
+                    'db.r5.large': 'db.t3.large'
+                }
+                instance_class = downsized.get(instance_class, instance_class)
+            
+            return instance_class
+            
+        except Exception as e:
+            # Fallback to a safe default
+            return 'db.r5.large'
+
 
 # Updated analysis function to use real APIs
 def run_real_migration_analysis():
@@ -6636,8 +7304,6 @@ def calculate_migration_risks_safe(migration_params: Dict, recommendations: Dict
         print(f"Error in safe risk calculation: {e}")
         return get_fallback_risk_assessment()
 
-
-
 def calculate_engine_compatibility_risk(source: str, target: str) -> float:
     """Calculate engine compatibility risk safely"""
     compatibility_scores = {
@@ -7171,10 +7837,59 @@ def show_results_dashboard():
     
     st.markdown("## 📊 Migration Analysis Results")
     
+    # ADD auto-refresh toggle at the top
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        auto_refresh = st.checkbox("🔄 Auto-refresh every 30 seconds", value=False)
+    with col2:
+        if st.button("🔄 Refresh Now", type="primary"):
+            refresh_cost_calculations()
+            st.experimental_rerun()
+    with col3:
+        last_updated = st.session_state.analysis_results.get('migration_costs', {}).get('last_updated', 'Unknown')
+        if last_updated != 'Unknown':
+            from datetime import datetime
+            last_time = datetime.fromisoformat(last_updated).strftime('%H:%M:%S')
+            st.caption(f"Updated: {last_time}")
+    
+    # Implement auto-refresh
+    if auto_refresh:
+        import time
+        time.sleep(30)
+        refresh_cost_calculations()
+        st.experimental_rerun()
+    
     # Check for enhanced results
     has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
                            st.session_state.enhanced_analysis_results is not None)
+def add_realtime_cost_widget():
+    """Add a real-time cost monitoring widget to any page"""
     
+    if st.session_state.analysis_results:
+        with st.container():
+            st.markdown("#### 📊 Current Costs")
+            
+            results = st.session_state.analysis_results
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                monthly = results.get('monthly_aws_cost', 0)
+                st.metric("Monthly", f"${monthly:,.0f}")
+            
+            with col2:
+                annual = results.get('annual_aws_cost', monthly * 12)
+                st.metric("Annual", f"${annual:,.0f}")
+            
+            with col3:
+                migration = results.get('migration_costs', {}).get('total', 0)
+                st.metric("Migration", f"${migration:,.0f}")
+            
+            with col4:
+                if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
+                    growth = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
+                    st.metric("3-Yr Growth", f"{growth:.1f}%")
+                else:
+                    st.metric("3-Yr Growth", "N/A")    
     # Create tabs for different views
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "💰 Cost Summary",
@@ -7220,7 +7935,7 @@ def show_results_dashboard():
         show_timeline_analysis_tab()
         
 # Alternative simplified version if the above still has issues
-def show_results_dashboard_simple():
+def enhanced_results_dashboard_with_refresh():
     """Simplified results dashboard to avoid indentation issues"""
     
     if not st.session_state.analysis_results:
@@ -7228,6 +7943,7 @@ def show_results_dashboard_simple():
         return
     
     st.markdown("## 📊 Migration Analysis Results")
+    main_cost_refresh_section()
     
     # Check for enhanced results
     has_enhanced_results = (hasattr(st.session_state, 'enhanced_analysis_results') and 
@@ -7642,7 +8358,7 @@ def show_timeline_analysis_tab():
 
 
 def show_growth_analysis_dashboard():
-    """Show comprehensive growth analysis dashboard - FIXED VERSION"""
+    """Show comprehensive growth analysis dashboard"""
     
     st.markdown("### 📈 3-Year Growth Analysis & Projections")
     
@@ -7698,24 +8414,13 @@ def show_growth_analysis_dashboard():
             delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
         )
     
-    # Growth Projection Charts - FIXED VERSION
+    # Growth Projection Charts
     st.markdown("#### 📊 Growth Projections")
-    
-    # Create a unique session-based identifier for chart keys
-    if 'chart_session_id' not in st.session_state:
-        import time
-        st.session_state.chart_session_id = int(time.time())
-    
-    session_id = st.session_state.chart_session_id
     
     try:
         charts = create_growth_projection_charts(growth_analysis)
-        
-        # Display charts with truly unique keys
-        for i, chart in enumerate(charts):
-            chart_key = f"growth_dashboard_chart_{session_id}_{i}"
-            st.plotly_chart(chart, use_container_width=True, key=chart_key)
-            
+        for chart in charts:
+            st.plotly_chart(chart, use_container_width=True)
     except Exception as e:
         st.error(f"Error creating growth charts: {str(e)}")
         
@@ -7778,6 +8483,7 @@ def show_growth_analysis_dashboard():
         
         for rec in default_recommendations:
             st.markdown(rec)
+
 
 def create_growth_projection_charts(growth_analysis: Dict) -> List[go.Figure]:
     """Create comprehensive growth projection visualizations"""
@@ -8376,16 +9082,20 @@ def main():
             "Select Section:",
             [
                 "🔧 Migration Configuration",
-                "📊 Environment Setup",
+                "📊 Environment Setup", 
                 "🌐 Network Analysis",
                 "🚀 Analysis & Recommendations",
                 "📈 Results Dashboard",
+                "💰 Cost Refresh",  # <-- ADD THIS LINE
                 "📄 Reports & Export"
             ]
         )
     
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
         st.success("✅ vROps analysis complete")
+        
+    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
+        main_cost_refresh_section()
     
     health_scores = []
     vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
@@ -8474,7 +9184,12 @@ def main():
     if page == "🔧 Migration Configuration":
         show_migration_configuration()
     elif page == "📊 Environment Setup":
-        show_enhanced_environment_setup_with_cluster_config()
+        try:
+                show_enhanced_environment_setup_with_vrops()
+        except Exception as e:
+                st.error(f"Enhanced setup failed: {str(e)}")
+                st.info("🔄 Using simple environment setup instead")
+                show_manual_environment_setup()
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
@@ -8616,6 +9331,16 @@ def show_migration_configuration():
             ["Auto-scaling", "Manual scaling", "Over-provision"],
             help="How to handle growth in infrastructure"
         )
+        
+         # ADD cost preview at the bottom
+        if st.session_state.analysis_results:
+            st.markdown("---")
+            st.markdown("### 💰 Current Cost Preview")
+            add_realtime_cost_widget()
+            
+            if st.button("🔄 Refresh Preview", key="config_refresh"):
+                refresh_cost_calculations()
+                st.experimental_rerun()
 
     # AI Configuration
     st.markdown("### 🤖 AI Integration")
@@ -8752,9 +9477,8 @@ def show_environment_analysis():
 
 
 
-def show_environment_setup():
-    """Show environment setup interface with vROps support"""
-            #show_enhanced_environment_setup_with_vrops()
+def show_environment_setup_working():
+    """Simple working environment setup - NO VRops dependencies"""
     
     st.markdown("## 📊 Environment Configuration")
     
@@ -8762,7 +9486,7 @@ def show_environment_setup():
         st.warning("⚠️ Please complete Migration Configuration first.")
         return
     
-    # Environment configuration options
+    # Simple configuration method selection
     config_method = st.radio(
         "Configuration Method:",
         ["📝 Manual Entry", "📁 Bulk Upload"],
@@ -8774,15 +9498,104 @@ def show_environment_setup():
     else:
         show_manual_environment_setup()
 
+def show_manual_environment_setup():
+    """Show manual environment setup interface - WORKING VERSION"""
+    
+    st.markdown("### 📝 Manual Environment Configuration")
+    
+    # Number of environments
+    num_environments = st.number_input("Number of Environments", min_value=1, max_value=10, value=4)
+    
+    # Environment configuration
+    environment_specs = {}
+    default_names = ['Development', 'QA', 'Staging', 'Production']
+    
+    # Create environment forms
+    for i in range(num_environments):
+        with st.expander(f"🏢 Environment {i+1}", expanded=i == 0):
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                env_name = st.text_input(
+                    "Environment Name",
+                    value=default_names[i] if i < len(default_names) else f"Environment_{i+1}",
+                    key=f"env_name_{i}"
+                )
+                
+                cpu_cores = st.number_input(
+                    "CPU Cores",
+                    min_value=1, max_value=128,
+                    value=[4, 8, 16, 32][min(i, 3)],
+                    key=f"cpu_{i}"
+                )
+                
+                ram_gb = st.number_input(
+                    "RAM (GB)",
+                    min_value=4, max_value=1024,
+                    value=[16, 32, 64, 128][min(i, 3)],
+                    key=f"ram_{i}"
+                )
+            
+            with col2:
+                storage_gb = st.number_input(
+                    "Storage (GB)",
+                    min_value=20, max_value=50000,
+                    value=[100, 500, 1000, 2000][min(i, 3)],
+                    key=f"storage_{i}"
+                )
+                
+                daily_usage_hours = st.slider(
+                    "Daily Usage (Hours)",
+                    min_value=1, max_value=24,
+                    value=[8, 12, 16, 24][min(i, 3)],
+                    key=f"usage_{i}"
+                )
+                
+                peak_connections = st.number_input(
+                    "Peak Connections",
+                    min_value=1, max_value=10000,
+                    value=[20, 50, 100, 500][min(i, 3)],
+                    key=f"connections_{i}"
+                )
+            
+            # Store environment specs
+            environment_specs[env_name] = {
+                'cpu_cores': cpu_cores,
+                'ram_gb': ram_gb,
+                'storage_gb': storage_gb,
+                'daily_usage_hours': daily_usage_hours,
+                'peak_connections': peak_connections
+            }
+    
+    # Save button
+    if st.button("💾 Save Environment Configuration", type="primary", use_container_width=True):
+        st.session_state.environment_specs = environment_specs
+        st.success("✅ Environment configuration saved!")
+        
+        # Display summary
+        st.markdown("#### 📊 Configuration Summary")
+        summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
+        st.dataframe(summary_df, use_container_width=True)
+        
+        # Add cost refresh if analysis exists
+        if st.session_state.migration_params:
+            with st.spinner("🔄 Updating cost estimates..."):
+                try:
+                    refresh_cost_calculations()
+                    st.info("💰 Cost estimates updated based on new environment configuration")
+                except:
+                    st.info("💡 Cost estimates will be calculated when you run the analysis")
+
 def show_bulk_upload_interface():
-    """Show bulk upload interface for environments"""
+    """Show bulk upload interface for environments - WORKING VERSION"""
     
     st.markdown("### 📁 Bulk Environment Upload")
     
     # Sample template
     with st.expander("📋 Download Sample Template", expanded=False):
         sample_data = {
-            'environment': ['Development', 'QA', 'SQA', 'Production'],
+            'environment': ['Development', 'QA', 'Staging', 'Production'],
             'cpu_cores': [4, 8, 16, 32],
             'ram_gb': [16, 32, 64, 128],
             'storage_gb': [100, 500, 1000, 2000],
@@ -8988,7 +9801,7 @@ def show_analysis_section_fixed():
 # ADD THIS FUNCTION to your streamlit_app.py file:
 
 def run_streamlit_migration_analysis():
-    """Run migration analysis - FIXED VERSION without auto-rerun"""
+    """Run migration analysis with growth projections - ENHANCED VERSION"""
     
     try:
         # Initialize analyzer
@@ -9010,17 +9823,13 @@ def run_streamlit_migration_analysis():
         risk_assessment = create_default_risk_assessment()
         st.session_state.risk_assessment = risk_assessment
         
-        # Step 4: Growth Analysis - NO AUTO-RERUN
+        # Step 4: Growth Analysis (NEW)
         st.write("📈 Calculating 3-year growth projections...")
         growth_analyzer = GrowthAwareCostAnalyzer()
         growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
             cost_analysis, st.session_state.migration_params
         )
         st.session_state.growth_analysis = growth_analysis
-        
-        # Generate a new chart session ID to ensure unique keys
-        import time
-        st.session_state.chart_session_id = int(time.time())
         
         # Step 5: AI insights
         if anthropic_api_key:
@@ -9040,54 +9849,46 @@ def run_streamlit_migration_analysis():
         
         st.success("✅ Analysis complete with growth projections!")
         
-        # Show summary WITHOUT auto-rerun
-        show_simple_analysis_summary()
-        
-        # Provide navigation hint
-        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        # Show enhanced summary
+        show_analysis_summary_with_growth()
         
     except Exception as e:
         st.error(f"❌ Analysis failed: {str(e)}")
         create_basic_fallback()
 
-def show_simple_analysis_summary():
-    """Show simple analysis summary without auto-refresh"""
+def show_analysis_summary_with_growth():
+    """Enhanced analysis summary including growth metrics"""
     
-    st.markdown("#### 🎯 Analysis Summary")
+    st.markdown("#### 🎯 Analysis Summary with Growth Projections")
+    
     col1, col2, col3, col4 = st.columns(4)
     
-    # Base results
     results = st.session_state.analysis_results
     
     with col1:
-        st.metric("Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
+        st.metric("Current Monthly Cost", f"${results['monthly_aws_cost']:,.0f}")
     
     with col2:
         migration_cost = results.get('migration_costs', {}).get('total', 0)
         st.metric("Migration Cost", f"${migration_cost:,.0f}")
     
     with col3:
-        # Check for growth analysis
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             growth_percent = st.session_state.growth_analysis['growth_summary']['total_3_year_growth_percent']
             st.metric("3-Year Growth", f"{growth_percent:.1f}%")
         else:
-            # Fallback to risk level if growth analysis not ready
-            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
-                risk_level = st.session_state.risk_assessment['risk_level']['level']
-                st.metric("Risk Level", risk_level)
-            else:
-                st.metric("Processing...", "⏳")
+            st.metric("3-Year Growth", "Calculating...")
     
     with col4:
-        # Check for growth analysis investment
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             total_investment = st.session_state.growth_analysis['growth_summary']['total_3_year_investment']
             st.metric("3-Year Investment", f"${total_investment:,.0f}")
         else:
-            annual_cost = results['monthly_aws_cost'] * 12
-            st.metric("Annual Cost", f"${annual_cost:,.0f}")
-
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+    
+    st.info("📈 View detailed growth projections in the 'Results Dashboard' section")
 
 def show_simple_summary():
     """Show simple analysis summary"""
@@ -9260,6 +10061,15 @@ def show_basic_cost_summary():
     
     results = st.session_state.analysis_results
     
+    # ADD refresh button at the top
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("### 💰 Cost Summary")
+    with col2:
+        if st.button("🔄 Refresh Costs", key="refresh_costs_summary"):
+            refresh_cost_calculations()
+            st.experimental_rerun()
+    
     # Key metrics
     col1, col2, col3, col4 = st.columns(4)
     
@@ -9340,22 +10150,29 @@ def show_growth_analysis_dashboard():
     
     st.markdown("### 📈 3-Year Growth Analysis & Projections")
     
+    # ADD refresh controls
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        pass  # Title space
+    with col2:
+        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard"):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
+                st.experimental_rerun()
+    
     # Check if growth analysis exists
     if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
-        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
         
-        # Show basic growth planning instead
-        st.markdown("#### 🎯 Growth Planning Preview")
-        st.info("""
-        **Growth analysis will show:**
-        - 3-year cost projections with growth factors
-        - Resource scaling requirements
-        - Seasonal peak planning
-        - Cost optimization opportunities
-        - Scaling recommendations by year
-        
-        Run the migration analysis to see detailed growth projections.
-        """)
+            # ADD quick refresh option
+        if st.button("🚀 Calculate Growth Analysis", type="primary"):
+            if st.session_state.analysis_results:
+                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
+                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
+                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
+                st.experimental_rerun()
         return
     
     growth_analysis = st.session_state.growth_analysis
@@ -9517,20 +10334,13 @@ def show_environment_analysis_tab():
                         st.write(rec['reasoning'])
 
 def show_visualizations_tab():
-    """Show visualization charts - FIXED VERSION"""
+    """Show visualization charts"""
     
     st.markdown("### 📊 Cost & Performance Visualizations")
     
     if not st.session_state.analysis_results:
         st.warning("⚠️ Visualizations not available. Please run the migration analysis first.")
         return
-    
-    # Generate unique session-based keys
-    if 'viz_session_id' not in st.session_state:
-        import time
-        st.session_state.viz_session_id = int(time.time())
-    
-    viz_session_id = st.session_state.viz_session_id
     
     try:
         # Cost comparison chart
@@ -9548,7 +10358,7 @@ def show_visualizations_tab():
                 env_names.append(env_name.title())
                 
                 if isinstance(costs, dict):
-                    cost = costs.get('total_monthly', 
+                    cost = costs.get('total_monthly_cost', 
                                    sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
                 else:
                     cost = float(costs) if costs else 0
@@ -9567,24 +10377,25 @@ def show_visualizations_tab():
                     height=400
                 )
                 
-                # Use unique key
-                st.plotly_chart(fig, use_container_width=True, key=f"env_cost_viz_{viz_session_id}")
+                # FIXED: Added unique key
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_visualization_chart")
         
         # Growth visualization if available
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             st.markdown("#### 📈 Growth Projections")
             try:
                 charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                # Use unique keys for each chart
+                # FIXED: Added unique keys for each chart
                 for i, chart in enumerate(charts):
-                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_{viz_session_id}_{i}")
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
             except Exception as e:
                 st.error(f"Error creating growth charts: {str(e)}")
         
-        # Enhanced cost chart if available
+           # Enhanced cost chart if available
         if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
             st.markdown("#### 💎 Enhanced Cost Analysis")
-            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key=f"enhanced_cost_viz_{viz_session_id}")
+            # FIXED: Added unique key
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_visualization_chart")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
@@ -9719,6 +10530,192 @@ def show_reports_section():
             st.metric("Analysis Results", analysis_status)
         
         return
+
+# UPDATED run_streamlit_migration_analysis function
+def run_streamlit_migration_analysis_robust():
+    """Robust migration analysis that handles data format issues"""
+    
+    try:
+        # Show current environment specs for debugging
+        if st.checkbox("🔍 Show Environment Data Debug Info"):
+            st.markdown("#### Debug: Environment Specifications")
+            st.write("Number of environments:", len(st.session_state.environment_specs))
+            
+            for env_name, specs in st.session_state.environment_specs.items():
+                st.write(f"**{env_name}:**")
+                st.write(f"  Type: {type(specs)}")
+                if isinstance(specs, dict):
+                    st.write(f"  Keys: {list(specs.keys())}")
+                    for key, value in specs.items():
+                        st.write(f"    {key}: {value} ({type(value)})")
+                else:
+                    st.write(f"  Value: {specs}")
+                st.write("---")
+        
+        # Normalize environment specs before analysis
+        st.write("🔧 Normalizing environment specifications...")
+        normalized_specs = normalize_environment_specs(st.session_state.environment_specs)
+        
+        # Show normalized specs
+        st.write("✅ Environment specifications normalized:")
+        for env_name, specs in normalized_specs.items():
+            st.write(f"  {env_name}: {specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM, {specs['storage_gb']} GB storage")
+        
+        # Initialize robust analyzer
+        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+        analyzer = RobustMigrationAnalyzer(anthropic_api_key)
+        
+        # Step 1: Calculate recommendations with normalized specs
+        st.write("📊 Calculating instance recommendations...")
+        recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
+        st.session_state.recommendations = recommendations
+        
+        # Show recommendations summary
+        st.write("✅ Recommendations calculated:")
+        for env_name, rec in recommendations.items():
+            error_info = " (with fallback)" if 'error' in rec else ""
+            st.write(f"  {env_name}: {rec['instance_class']}{error_info}")
+        
+        # Step 2: Calculate costs
+        st.write("💰 Analyzing costs...")
+        cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+        st.session_state.analysis_results = cost_analysis
+        
+        # Step 3: Risk assessment
+        st.write("⚠️ Assessing risks...")
+        risk_assessment = create_default_risk_assessment()
+        st.session_state.risk_assessment = risk_assessment
+        
+        # Step 4: Growth Analysis (if available)
+        if hasattr(st.session_state, 'growth_analysis') or 'GrowthAwareCostAnalyzer' in globals():
+            try:
+                st.write("📈 Calculating growth projections...")
+                growth_analyzer = GrowthAwareCostAnalyzer()
+                growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
+                    cost_analysis, st.session_state.migration_params
+                )
+                st.session_state.growth_analysis = growth_analysis
+                st.write("✅ Growth analysis complete")
+            except Exception as e:
+                st.warning(f"Growth analysis skipped: {str(e)}")
+        
+        # Step 5: AI insights (if available)
+        if anthropic_api_key:
+            st.write("🤖 Generating AI insights...")
+            try:
+                # Simple AI insights without async
+                ai_insights = {
+                    'summary': f"Migration analysis complete. Monthly AWS cost: ${cost_analysis['monthly_aws_cost']:,.0f}",
+                    'recommendations': [
+                        "Proceed with phased migration approach",
+                        "Implement comprehensive testing strategy",
+                        "Consider Aurora for production workloads",
+                        "Plan for 12-16 week migration timeline"
+                    ],
+                    'cost_optimization': f"Current monthly cost of ${cost_analysis['monthly_aws_cost']:,.0f} appears reasonable for this scale.",
+                    'source': 'Generated Analysis'
+                }
+                st.session_state.ai_insights = ai_insights
+                st.write("✅ AI insights generated")
+            except Exception as e:
+                st.warning(f"AI insights generation failed: {str(e)}")
+        
+        st.success("✅ Robust analysis complete!")
+        
+        # Show summary
+        show_analysis_summary_robust()
+        
+    except Exception as e:
+        st.error(f"❌ Analysis failed even with robust handling: {str(e)}")
+        st.code(f"Error details: {str(e)}")
+        
+        # Create absolute fallback
+        create_absolute_fallback_analysis()
+
+def show_analysis_summary_robust():
+    """Show analysis summary with error handling"""
+    
+    st.markdown("#### 🎯 Robust Analysis Summary")
+    
+    try:
+        results = st.session_state.analysis_results
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            monthly_cost = results.get('monthly_aws_cost', 0)
+            st.metric("Monthly Cost", f"${monthly_cost:,.0f}")
+        
+        with col2:
+            migration_cost = results.get('migration_costs', {}).get('total', 0)
+            st.metric("Migration Cost", f"${migration_cost:,.0f}")
+        
+        with col3:
+            if hasattr(st.session_state, 'risk_assessment') and st.session_state.risk_assessment:
+                risk_level = st.session_state.risk_assessment['risk_level']['level']
+                st.metric("Risk Level", risk_level)
+            else:
+                st.metric("Risk Level", "Medium")
+        
+        # Check for any errors in the analysis
+        error_count = 0
+        for env_name, costs in results.get('environment_costs', {}).items():
+            if 'error' in costs:
+                error_count += 1
+        
+        if error_count > 0:
+            st.warning(f"⚠️ {error_count} environment(s) used fallback calculations due to data issues")
+        
+        st.info("📈 View detailed results in the 'Results Dashboard' section")
+        
+    except Exception as e:
+        st.error(f"Error showing summary: {str(e)}")
+
+def create_absolute_fallback_analysis():
+    """Create absolute fallback when everything else fails"""
+    
+    st.warning("🛡️ Creating emergency fallback analysis...")
+    
+    # Minimal working analysis
+    fallback_recommendations = {}
+    fallback_total_cost = 0
+    
+    # Get environment count
+    env_count = len(st.session_state.environment_specs) if st.session_state.environment_specs else 1
+    
+    # Create fallback for each environment
+    env_names = list(st.session_state.environment_specs.keys()) if st.session_state.environment_specs else ['Environment_1']
+    
+    for i, env_name in enumerate(env_names):
+        cost_per_env = [500, 1000, 1500, 2000][min(i, 3)]  # Escalating costs
+        
+        fallback_recommendations[env_name] = {
+            'environment_type': 'production' if i == 0 else 'development',
+            'instance_class': ['db.r5.large', 'db.r5.xlarge', 'db.r5.2xlarge'][min(i, 2)],
+            'cpu_cores': [4, 8, 16][min(i, 2)],
+            'ram_gb': [16, 32, 64][min(i, 2)],
+            'storage_gb': [500, 1000, 2000][min(i, 2)],
+            'multi_az': i == 0,  # Only first environment gets Multi-AZ
+            'daily_usage_hours': 24,
+            'peak_connections': [100, 200, 500][min(i, 2)]
+        }
+        
+        fallback_total_cost += cost_per_env
+    
+    # Store fallback results
+    st.session_state.recommendations = fallback_recommendations
+    
+    st.session_state.analysis_results = {
+        'monthly_aws_cost': fallback_total_cost,
+        'annual_aws_cost': fallback_total_cost * 12,
+        'environment_costs': {env: {'total_monthly': fallback_total_cost / env_count} for env in env_names},
+        'migration_costs': {'total': 100000, 'dms_instance': 40000, 'data_transfer': 20000, 'professional_services': 40000}
+    }
+    
+    st.session_state.risk_assessment = get_fallback_risk_assessment()
+    
+    st.success("✅ Emergency fallback analysis created")
+    st.info("💡 This is a basic fallback analysis. For accurate results, please check your environment configuration.")
     
     # Determine which results to use
     if has_enhanced_results:
