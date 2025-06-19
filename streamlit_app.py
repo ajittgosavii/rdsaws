@@ -3613,40 +3613,42 @@ def show_manual_cluster_configuration():
         
         # Option to run immediate analysis
         st.markdown("---")
-        if st.button("🚀 Analyze Cluster Configuration", type="secondary", use_container_width=True):
-            with st.spinner("🔄 Analyzing cluster requirements..."):
-                try:
-                    # Check if we have enhanced data
-                    is_enhanced = is_enhanced_environment_data(environment_specs)
-                    
-                    if is_enhanced:
-                        # Use enhanced analyzer
-                        analyzer = EnhancedMigrationAnalyzer()
-                        recommendations = analyzer.calculate_enhanced_instance_recommendations(environment_specs)
-                        st.session_state.enhanced_recommendations = recommendations
-                        
-                        # Calculate enhanced costs
-                        if st.session_state.migration_params:
-                            cost_analysis = analyzer.calculate_enhanced_migration_costs(
-                                recommendations, 
-                                st.session_state.migration_params
-                            )
-                            st.session_state.enhanced_analysis_results = cost_analysis
-                        
-                        st.success("✅ Enhanced cluster analysis complete!")
-                        show_cluster_configuration_preview(recommendations)
-                    else:
+if st.button("🚀 Analyze Cluster Configuration", type="secondary", use_container_width=True):
+    with st.spinner("🔄 Analyzing cluster requirements..."):
+        try:
+            # Check if we have enhanced data
+            is_enhanced = is_enhanced_environment_data(environment_specs)
+            
+            if is_enhanced:
+                # Use enhanced analyzer
+                analyzer = EnhancedMigrationAnalyzer()
+                recommendations = analyzer.calculate_enhanced_instance_recommendations(environment_specs)
+                st.session_state.enhanced_recommendations = recommendations
+                
+                # Calculate enhanced costs
+                if st.session_state.migration_params:
+                    cost_analysis = analyzer.calculate_enhanced_migration_costs(
+                        recommendations, 
+                        st.session_state.migration_params
+                    )
+                    st.session_state.enhanced_analysis_results = cost_analysis
+                
+                st.success("✅ Enhanced cluster analysis complete!")
+                show_cluster_configuration_preview(recommendations)
+            else:
+                # CORRECTED INDENTATION STARTS HERE
                 # Use standard analyzer
-                        analyzer = MigrationAnalyzer()
-                        recommendations = analyzer.calculate_instance_recommendations(environment_specs)
-                        st.session_state.recommendations = recommendations
-                        
-                        st.success("✅ Standard analysis complete!")
-                        st.info("💡 For enhanced cluster analysis, use the cluster configuration options above.")
-                    
-except Exception as e:
-st.error(f"❌ Analysis failed: {str(e)}")
-st.code(str(e))
+                analyzer = MigrationAnalyzer()
+                recommendations = analyzer.calculate_instance_recommendations(environment_specs)
+                st.session_state.recommendations = recommendations
+                
+                st.success("✅ Standard analysis complete!")
+                st.info("💡 For enhanced cluster analysis, use the cluster configuration options above.")
+                # CORRECTED INDENTATION ENDS HERE
+            
+        except Exception as e:
+            st.error(f"❌ Analysis failed: {str(e)}")
+            st.code(str(e))
 
 class DatabaseClusterConfiguration:
     """Enhanced database cluster configuration with Writer/Reader support"""
