@@ -415,6 +415,7 @@ def main_cost_refresh_section_fixed():
     with col3:
         export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
         if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
+        pass 
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
     
