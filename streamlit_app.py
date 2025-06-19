@@ -39,8 +39,6 @@ from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-
-
 @dataclass
 class InstanceSpecs:
     """Instance specifications with performance metrics"""
