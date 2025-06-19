@@ -154,7 +154,7 @@ class EnhancedAWSPricingAPI:
     def calculate_cluster_cost(self, region: str, engine: str, 
                           writer_instance: str, writer_multi_az: bool,
                           reader_instances: List[Tuple[str, bool]]) -> float:
-    """Calculate total cost for writer and readers"""
+        """Calculate total cost for writer and readers"""
         total_cost = 0
     
     # Writer cost
