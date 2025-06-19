@@ -18,12 +18,6 @@ import hashlib
 import tempfile
 import os
 import anthropic 
-import asyncio
-import streamlit as st
-import anthropic
-import boto3
-from typing import Dict, Optional
-import json
 
 # PDF Generation imports
 from reportlab.lib import colors
@@ -141,7 +135,12 @@ def show_enhanced_environment_analysis():
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
 
-
+import asyncio
+import streamlit as st
+import anthropic
+import boto3
+from typing import Dict, Optional
+import json
 
 # ADD THIS CLASS to your streamlit_app.py file (put it near the top with other classes):
 
@@ -8991,7 +8990,7 @@ def immediate_fix():
     elif page == "🌐 Network Analysis":
         show_network_transfer_analysis()
     elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
+        show_analysis_section()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()
     elif page == "📄 Reports & Export":
@@ -10204,7 +10203,7 @@ def show_manual_environment_setup():
         summary_df = pd.DataFrame.from_dict(environment_specs, orient='index')
         st.dataframe(summary_df, use_container_width=True)
 
-def show_analysis_section_fixed():
+def show_analysis_section():
     """Show analysis and recommendations section - UPDATED"""
     
     st.markdown("## 🚀 Migration Analysis & Recommendations")
