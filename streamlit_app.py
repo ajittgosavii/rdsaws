@@ -415,17 +415,14 @@ def main_cost_refresh_section_fixed():
     with col3:
         export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
         if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
-            # Add placeholder code or actual export functionality here
-            st.warning("Export functionality not implemented yet")  # Temporary placeholder
-
-# Function definition moved OUTSIDE the 'with col3' block
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
+    
     st.markdown("### 🏢 Enhanced Environment Analysis")
     
     recommendations = st.session_state.enhanced_recommendations
     environment_specs = st.session_state.environment_specs
-
+    
     # Environment comparison with cluster details
     env_comparison_data = []
     
@@ -9479,7 +9476,7 @@ def test_claude_ai_connection():
             st.error(f"❌ Test failed: {str(e)}")
 
 def main_fixed():
-    """Main Streamlit application with FIXED navigation - NO RERUN VERSION"""
+    """Main Streamlit application with fixed key management"""
     
     initialize_session_state()
     
@@ -9491,11 +9488,12 @@ def main_fixed():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar navigation - SIMPLIFIED VERSION
+    # Sidebar navigation
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
         
-        # BEST FIX: Direct radio without any session state complications
+        # FIXED: Unique key for navigation radio
+        nav_key = key_manager.get_unique_key("main_navigation", "sidebar")
         page = st.radio("Select Section:", [
             "🔧 Migration Configuration",
             "📊 Environment Setup", 
@@ -9503,7 +9501,8 @@ def main_fixed():
             "🚀 Analysis & Recommendations",
             "📈 Results Dashboard",
             "📄 Reports & Export"
-        ])
+            ], key=nav_key
+        )
     
     # Main content area
     if page == "🔧 Migration Configuration":
@@ -9515,85 +9514,12 @@ def main_fixed():
     elif page == "🚀 Analysis & Recommendations":
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
-        show_results_dashboard_fixed()
+        show_results_dashboard_fixed()  # Use fixed version
     elif page == "📄 Reports & Export":
-        show_reports_section_fixed()
+        show_reports_section_fixed()  # Use fixed version
     else:
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
-
-# Alternative: If radio still doesn't work, use selectbox
-def main_selectbox():
-    """Main function using selectbox instead of radio"""
-    
-    initialize_session_state()
-    
-    # Header
-    st.markdown("""
-    <div class="enterprise-header">
-        <h1>🚀 Enterprise AWS Database Migration Tool</h1>
-        <p>AI-Powered Analysis • Real-time AWS Pricing • Comprehensive Risk Assessment</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Sidebar navigation with selectbox
-    with st.sidebar:
-        st.markdown("## 🧭 Navigation")
-        
-        page = st.selectbox("Select Section:", [
-            "🔧 Migration Configuration",
-            "📊 Environment Setup", 
-            "🌐 Network Analysis",
-            "🚀 Analysis & Recommendations",
-            "📈 Results Dashboard",
-            "📄 Reports & Export"
-        ])
-    
-    # Main content area (same as above)
-    if page == "🔧 Migration Configuration":
-        show_migration_configuration()
-    elif page == "📊 Environment Setup":
-        show_environment_setup_main_fixed()
-    elif page == "🌐 Network Analysis":
-        show_network_transfer_analysis()
-    elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
-    elif page == "📈 Results Dashboard":
-        show_results_dashboard_fixed()
-    elif page == "📄 Reports & Export":
-        show_reports_section_fixed()
-    else:
-        st.markdown("## Welcome to the AWS Database Migration Tool")
-        st.markdown("Please select a section from the sidebar to get started.")
-
-# Also fix any other instances of experimental_rerun in your code:
-
-def refresh_with_rerun_fix():
-    """Fixed version of refresh functions"""
-    if st.button("🔄 Refresh"):
-        refresh_cost_calculations()
-        st.rerun()  # Changed from st.experimental_rerun()
-
-# Find and replace all instances of st.experimental_rerun() with st.rerun()
-# Common places to check:
-# 1. show_basic_cost_summary_fixed()
-# 2. show_growth_analysis_dashboard_fixed() 
-# 3. Any refresh buttons
-# 4. Configuration save functions
-
-def fix_all_reruns_in_file():
-    """
-    Search your file for these patterns and replace:
-    
-    OLD: st.experimental_rerun()
-    NEW: st.rerun()
-    
-    This affects multiple functions in your code including:
-    - show_basic_cost_summary_fixed()
-    - show_growth_analysis_dashboard_fixed()
-    - Any function with refresh buttons
-    """
-    pass
 
 def show_results_dashboard_fixed():
     """Show comprehensive results dashboard - FIXED KEYS"""
@@ -12469,4 +12395,4 @@ def test_growth_setup():
             st.warning("⚠️ No growth analysis data in session state yet")
 
 if __name__ == "__main__":
-    main_fixed()
+    main()
