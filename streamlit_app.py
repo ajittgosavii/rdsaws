@@ -43,41 +43,528 @@ from datetime import datetime, timedelta
 import streamlit as st
 import pandas as pd
 
+# ===========================
+# FIXED CSS STYLES
+# ===========================
+
+def apply_comprehensive_css():
+    """Apply comprehensive CSS with fixed alignment and responsive design"""
+    st.markdown("""
+    <style>
+        /* Reset and base styles */
+        .main .block-container {
+            max-width: 1400px;
+            padding-top: 1rem;
+            padding-bottom: 2rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            margin: 0 auto;
+        }
+        
+        /* Fix for Streamlit's default column gaps */
+        .row-widget.stHorizontal {
+            gap: 1rem;
+        }
+        
+        /* Enterprise header - FIXED */
+        .enterprise-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .enterprise-header h1 {
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            line-height: 1.2;
+        }
+        
+        .enterprise-header p {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            margin: 0;
+            opacity: 0.95;
+            line-height: 1.4;
+        }
+        
+        /* Configuration sections - FIXED */
+        .config-section {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            margin-bottom: 1.5rem;
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Metric cards - FIXED ALIGNMENT */
+        .metric-card {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            padding: 1.25rem;
+            border-radius: 10px;
+            border-left: 4px solid #4299e1;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            margin: 0.75rem 0;
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .metric-value {
+            font-size: clamp(1.4rem, 3vw, 2rem);
+            font-weight: 700;
+            color: #2d3748;
+            margin: 0 0 0.5rem 0;
+            line-height: 1.1;
+        }
+        
+        .metric-label {
+            font-size: clamp(0.85rem, 2vw, 1rem);
+            color: #718096;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        
+        /* Fix Streamlit columns */
+        .stColumn {
+            padding: 0 0.5rem;
+        }
+        
+        .stColumn:first-child {
+            padding-left: 0;
+        }
+        
+        .stColumn:last-child {
+            padding-right: 0;
+        }
+        
+        /* Environment cards - FIXED */
+        .environment-card {
+            background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 2px solid #38b2ac;
+            margin: 1rem 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* AI insight cards - FIXED */
+        .ai-insight-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .ai-insight-card h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        
+        /* Risk level indicators */
+        .risk-high { 
+            border-left-color: #e53e3e !important; 
+            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+        }
+        .risk-medium { 
+            border-left-color: #d69e2e !important; 
+            background: linear-gradient(135deg, #fefcbf 0%, #faf089 100%);
+        }
+        .risk-low { 
+            border-left-color: #38a169 !important; 
+            background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+        }
+        
+        /* Strategy cards */
+        .strategy-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Fixed expander styling */
+        .streamlit-expanderHeader {
+            font-weight: 600;
+            font-size: 1.1rem;
+            background-color: #f7fafc;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+        }
+        
+        .streamlit-expanderContent {
+            padding: 1rem 0.5rem;
+            border-left: 3px solid #e2e8f0;
+            margin-left: 1rem;
+            padding-left: 1rem;
+        }
+        
+        /* Fixed dataframe styling */
+        .stDataFrame {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        .stDataFrame > div {
+            width: 100%;
+        }
+        
+        /* Fixed button styling */
+        .stButton > button {
+            width: 100%;
+            border-radius: 8px;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Fixed tabs */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 0.5rem;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            padding: 0.75rem 1.25rem;
+            white-space: nowrap;
+            font-size: 0.95rem;
+            border-radius: 8px 8px 0 0;
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            margin-right: 2px;
+        }
+        
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: white;
+            border-bottom: 1px solid white;
+            font-weight: 600;
+        }
+        
+        /* Fixed plotly charts */
+        .js-plotly-plot {
+            width: 100% !important;
+            margin: 0 auto;
+        }
+        
+        /* Fixed input fields */
+        .stSelectbox, .stNumberInput, .stTextInput, .stSlider {
+            margin-bottom: 1rem;
+        }
+        
+        .stSelectbox > div > div,
+        .stNumberInput > div > div,
+        .stTextInput > div > div {
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            transition: border-color 0.3s ease;
+        }
+        
+        .stSelectbox > div > div:focus-within,
+        .stNumberInput > div > div:focus-within,
+        .stTextInput > div > div:focus-within {
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+        
+        /* Fixed radio buttons */
+        .stRadio > div {
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .stRadio > div > label {
+            background-color: #f7fafc;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        
+        .stRadio > div > label:has(input:checked) {
+            background-color: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+        
+        /* Fixed file uploader */
+        .stFileUploader {
+            width: 100%;
+            border: 2px dashed #e2e8f0;
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: border-color 0.3s ease;
+        }
+        
+        .stFileUploader:hover {
+            border-color: #4299e1;
+            background-color: #f7fafc;
+        }
+        
+        /* Container alignment fixes */
+        div[data-testid="stVerticalBlock"] > div {
+            gap: 1rem;
+        }
+        
+        div[data-testid="stHorizontalBlock"] > div {
+            gap: 1rem;
+        }
+        
+        /* Element container fixes */
+        .element-container {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        /* Mobile responsiveness - ENHANCED */
+        @media (max-width: 768px) {
+            .main .block-container {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+                max-width: 100%;
+            }
+            
+            .enterprise-header {
+                padding: 1.5rem 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .config-section {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .metric-card {
+                padding: 1rem;
+                margin: 0.5rem 0;
+                min-height: 100px;
+            }
+            
+            .stColumn {
+                padding: 0 0.25rem;
+                margin-bottom: 1rem;
+            }
+            
+            .stTabs [data-baseweb="tab"] {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+            
+            .stButton > button {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .enterprise-header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .enterprise-header p {
+                font-size: 0.9rem;
+            }
+            
+            .metric-value {
+                font-size: 1.25rem;
+            }
+            
+            .stTabs [data-baseweb="tab-list"] {
+                flex-direction: column;
+            }
+            
+            .stTabs [data-baseweb="tab"] {
+                width: 100%;
+                text-align: center;
+            }
+        }
+        
+        /* Progress bar styling */
+        .stProgress > div > div > div {
+            background-color: #4299e1;
+            border-radius: 4px;
+        }
+        
+        /* Info, warning, error boxes */
+        .stAlert {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Sidebar fixes */
+        .css-1d391kg {
+            padding-top: 1rem;
+        }
+        
+        .css-1d391kg .stRadio > div {
+            flex-direction: column;
+        }
+        
+        /* Table improvements */
+        .dataframe {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Download button improvements */
+        .stDownloadButton > button {
+            background-color: #38a169;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .stDownloadButton > button:hover {
+            background-color: #2f855a;
+            transform: translateY(-1px);
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ===========================
+# FIXED LAYOUT FUNCTIONS
+# ===========================
+
+def create_aligned_container(content_func, title=None, description=None):
+    """Create a properly aligned container for content"""
+    with st.container():
+        if title:
+            st.markdown(f"### {title}")
+        if description:
+            st.info(description)
+        
+        # Apply the content function within the container
+        content_func()
+
+def create_metric_card(title, value, delta=None, help_text=None):
+    """Create a properly aligned metric card"""
+    if delta:
+        delta_html = f"<div style='font-size: 0.85rem; color: #718096; margin-top: 0.25rem;'>{delta}</div>"
+    else:
+        delta_html = ""
+    
+    help_html = f"<div style='font-size: 0.8rem; color: #a0aec0; margin-top: 0.5rem;'>{help_text}</div>" if help_text else ""
+    
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-value">{value}</div>
+        <div class="metric-label">{title}</div>
+        {delta_html}
+        {help_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+def create_aligned_columns(column_configs, content_functions):
+    """Create properly aligned columns with content"""
+    cols = st.columns(column_configs)
+    
+    for i, (col, content_func) in enumerate(zip(cols, content_functions)):
+        with col:
+            if content_func:
+                content_func()
+
+
+
 def show_simplified_data_configuration():
     """Simplified data size configuration with clear cost implications"""
     
-    st.markdown("## 💾 Data Size Configuration - Cost Estimation")
+    st.markdown("## 💾 Data Size Configuration")
     
-    # Main data size input with clear explanation
-    st.markdown("### 📊 Primary Data Size (What You're Migrating)")
-    
+    # Main data size input
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # Single primary input for actual data - ADD UNIQUE KEY
         actual_data_size_gb = st.number_input(
             "Current Database Size (GB)",
             min_value=1, 
             max_value=100000, 
             value=1000,
-            key="actual_data_size_gb_input",  # UNIQUE KEY ADDED
-            help="💡 This is your actual database size that needs to be migrated. This directly impacts migration time and transfer costs."
+            key="actual_data_size_gb_input",
+            help="This is your actual database size that needs to be migrated"
         )
         
         st.info(f"""
-        **This number is used for:**
+        **This will be used for:**
         - Migration time calculation
         - Data transfer costs
         - DMS sizing requirements
         """)
     
     with col2:
-        # Visual indicator
         st.metric(
             "Migration Data", 
             f"{actual_data_size_gb:,} GB",
             help="Actual data to migrate"
         )
+    
+    # Storage planning
+    with st.container():
+        st.markdown("### 🗄️ Target Storage Planning")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            sizing_strategy = st.selectbox(
+                "Storage Sizing Strategy",
+                ["Conservative (2x data)", "Standard (2.5x data)", "Growth-Ready (3x data)"],
+                index=1,
+                key="storage_sizing_strategy_select"
+            )
+            
+            multiplier = {
+                "Conservative (2x data)": 2.0,
+                "Standard (2.5x data)": 2.5,
+                "Growth-Ready (3x data)": 3.0
+            }[sizing_strategy]
+            
+            target_storage_gb = int(actual_data_size_gb * multiplier)
+        
+        with col2:
+            st.metric("Target Storage", f"{target_storage_gb:,} GB")
+            st.metric("Growth Buffer", f"{target_storage_gb - actual_data_size_gb:,} GB")
+    
+    return {
+        'actual_data_size_gb': actual_data_size_gb,
+        'target_storage_gb': target_storage_gb,
+        'sizing_strategy': sizing_strategy,
+        'migration_cost_estimate': actual_data_size_gb * 0.05,
+        'monthly_storage_cost_estimate': target_storage_gb * 0.08
+    }
     
     st.markdown("---")
     
@@ -8547,6 +9034,14 @@ def generate_executive_summary_pdf(analysis_results: Dict, migration_params: Dic
         "Establish comprehensive testing protocols for each environment",
         "Consider Aurora for production workloads to optimize performance and cost"
     ]
+    # Add this before line 9040
+    data_config = {
+        'actual_data_size_gb': 0,
+        'target_storage_gb': 0, 
+        'sizing_strategy': 'default',
+        'migration_cost_estimate': 0
+    }
+
     
     for rec in recommendations:
         story.append(Paragraph(f"• {rec}", styles['Normal']))
@@ -8894,70 +9389,156 @@ def main():
         st.markdown("## Welcome to the AWS Database Migration Tool")
         st.markdown("Please select a section from the sidebar to get started.")
             
-def show_migration_configuration():
-    """Show migration configuration interface with growth planning"""
+def show_migration_configuration_fixed():
+    """Fixed migration configuration interface"""
+    
+    # Apply CSS first
+    apply_comprehensive_css()
     
     st.markdown("## 🔧 Migration Configuration")
     
-    # Source and target engine selection
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 📥 Source Database")
-        source_engine = st.selectbox(
-            "Source Engine",
-            options=list(DatabaseEngine.ENGINES.keys()),
-            format_func=lambda x: DatabaseEngine.ENGINES[x]['name'],
-            key="source_engine"
-        )
+    # Use proper container structure
+    with st.container():
+        # Header section
+        st.markdown("""
+        <div class="config-section">
+            <h4>Database Migration Setup</h4>
+            <p>Configure your source and target database specifications for accurate migration analysis.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        # Source and target configuration
+    with st.container():
+        st.markdown("### 📊 Database Configuration")
         
-        if source_engine:
-            st.info(f"**Features:** {', '.join(DatabaseEngine.ENGINES[source_engine]['features'])}")
-    
-    with col2:
-        st.markdown("### 📤 Target AWS Database")
+       # Aligned columns for source and target
+        def source_config():
+            st.markdown("#### 📥 Source Database")
+            source_engine = st.selectbox(
+                "Source Engine",
+                options=['oracle-ee', 'oracle-se', 'postgres', 'mysql', 'sql-server', 'mariadb'],
+                index=0,
+                key="source_engine_select",
+                help="Select your current database engine"
+            )
+            return source_engine
         
-        if source_engine:
-            target_options = DatabaseEngine.ENGINES[source_engine]['aws_targets']
+        def target_config():
+            st.markdown("#### 📤 Target AWS Database")
             target_engine = st.selectbox(
                 "Target Engine",
-                options=target_options,
-                format_func=lambda x: DatabaseEngine.ENGINES.get(x, {'name': x.title()})['name'] if x in DatabaseEngine.ENGINES else x.replace('-', ' ').title(),
-                key="target_engine"
+                options=['aurora-postgresql', 'postgres', 'aurora-mysql', 'mysql'],
+                index=0,
+                key="target_engine_select",
+                help="Select your target AWS database engine"
             )
+            return target_engine
             
-            if target_engine:
-                migration_type = DatabaseEngine.get_migration_type(source_engine, target_engine)
-                complexity = DatabaseEngine.get_complexity_multiplier(source_engine, target_engine)
-                
-                st.markdown(f"""
-                **Migration Type:** {migration_type.title()}  
-                **Complexity Factor:** {complexity:.1f}x  
-                **Estimated Effort:** {'Low' if complexity < 1.5 else 'Medium' if complexity < 2.0 else 'High'}
-                """)
+          # Create aligned columns
+        source_engine, target_engine = None, None
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            source_engine = source_config()
+        
+        with col2:
+            target_engine = target_config()
     
-        # Migration Parameters Section
-    st.markdown("### ⚙️ Migration Parameters")
+    # Migration parameters section
+    with st.container():
+        st.markdown("### ⚙️ Migration Parameters")
     
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("#### 📱 Application Configuration")
-        num_applications = st.number_input("Connected Applications", min_value=1, max_value=50, value=3)
-        num_stored_procedures = st.number_input("Stored Procedures/Functions", min_value=0, max_value=10000, value=50)
+    def app_config():
+            st.markdown("#### 📱 Application Configuration")
+            num_applications = st.number_input(
+                "Connected Applications", 
+                min_value=1, max_value=50, value=3,
+                key="num_apps",
+                help="Number of applications connected to the database"
+            )
+            num_stored_procedures = st.number_input(
+                "Stored Procedures/Functions", 
+                min_value=0, max_value=10000, value=50,
+                key="num_procedures",
+                help="Number of stored procedures and functions to migrate"
+            )
+            return num_applications, num_stored_procedures
 
-    with col2:
-        st.markdown("#### ⏱️ Timeline & Resources")
-        migration_timeline_weeks = st.slider("Migration Timeline (weeks)", min_value=4, max_value=52, value=12)
-        team_size = st.number_input("Team Size", min_value=2, max_value=20, value=5)
-        team_expertise = st.selectbox("Team Expertise Level", ["low", "medium", "high"], index=1)
+        def timeline_config():
+            st.markdown("#### ⏱️ Timeline & Resources")
+            migration_timeline_weeks = st.slider(
+                "Migration Timeline (weeks)", 
+                min_value=4, max_value=52, value=12,
+                key="timeline_weeks",
+                help="Planned duration for the complete migration"
+            )
+            team_size = st.number_input(
+                "Team Size", 
+                min_value=2, max_value=20, value=5,
+                key="team_size_input",
+                help="Number of team members working on the migration"
+            )
+            return migration_timeline_weeks, team_size
 
-    with col3:
-        st.markdown("#### 🌐 Infrastructure")
-        region = st.selectbox("AWS Region", ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], index=0)
-        use_direct_connect = st.checkbox("Use AWS Direct Connect", value=True)
-        bandwidth_mbps = st.selectbox("Bandwidth (Mbps)", [100, 1000, 10000], index=1)
-        migration_budget = st.number_input("Migration Budget ($)", min_value=10000, max_value=5000000, value=500000)
+        def infra_config():
+            st.markdown("#### 🌐 Infrastructure")
+            region = st.selectbox(
+                "AWS Region", 
+                ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"], 
+                index=0,
+                key="aws_region",
+                help="Target AWS region for migration"
+            )
+            migration_budget = st.number_input(
+                "Migration Budget ($)", 
+                min_value=10000, max_value=5000000, value=500000,
+                key="migration_budget_input",
+                help="Total budget allocated for the migration project"
+            )
+            return region, migration_budget
+        
+       # Create aligned three-column layout
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            num_applications, num_stored_procedures = app_config()
+        
+        with col2:
+            migration_timeline_weeks, team_size = timeline_config()
+        
+        with col3:
+            region, migration_budget = infra_config()
+    
+    # Data configuration section
+    with st.container():
+        st.markdown("### 💾 Data Configuration")
+        data_config = show_simplified_data_configuration_fixed()
+    
+    # Growth planning section
+    with st.container():
+        st.markdown("### 📈 Growth Planning")
+        growth_config = show_growth_planning_fixed()
+    
+    # Save configuration
+    with st.container():
+        if st.button("💾 Save Configuration", type="primary", use_container_width=True):
+            st.session_state.migration_params = {
+                'source_engine': source_engine,
+                'target_engine': target_engine,
+                'data_size_gb': data_config.get('actual_data_size_gb', 0),
+                'target_storage_gb': data_config['target_storage_gb'],
+                'num_applications': num_applications,
+                'num_stored_procedures': num_stored_procedures,
+                'migration_timeline_weeks': migration_timeline_weeks,
+                'team_size': team_size,
+                'region': region,
+                'migration_budget': migration_budget,
+                **growth_config
+            }
+            
+            st.success("✅ Configuration saved! Proceed to Environment Setup.")
+            st.balloons()
+    
+    
 
     # Growth Planning Section
     st.markdown("### 📈 Growth Planning & Forecasting")
