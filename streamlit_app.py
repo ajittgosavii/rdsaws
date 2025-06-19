@@ -168,7 +168,7 @@ class EnhancedAWSPricingAPI:
             return total_cost
     
         
-def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
+    def get_rds_pricing(self, region: str, engine: str, instance_class: str, multi_az: bool = False) -> Dict:
         """Get RDS pricing for specific instance with Multi-AZ support"""
         cache_key = f"{region}_{engine}_{instance_class}_{multi_az}"
         
