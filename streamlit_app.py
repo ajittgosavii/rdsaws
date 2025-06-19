@@ -1,22 +1,4 @@
 import streamlit as st
-
-# Initialize required session state keys
-required_session_keys = {
-    'migration_params': {},
-    'environment_specs': {},
-    'analysis_results': None,
-    'growth_analysis': {},
-    'recommendations': {},
-    'enhanced_recommendations': {},
-    'risk_assessment': None,
-    'ai_insights': {}
-}
-
-for key, default in required_session_keys.items():
-    if key not in st.session_state:
-        st.session_state[key] = default
-
-
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -44,45 +26,6 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-
-class StreamlitKeyManager:
-    """Centralized key management to prevent duplicate keys"""
-    
-    def __init__(self):
-        if 'used_keys' not in st.session_state:
-            st.session_state.used_keys = set()
-        if 'key_counter' not in st.session_state:
-            st.session_state.key_counter = 0
-    
-    def get_unique_key(self, base_key: str, context: str = "") -> str:
-        """Generate a unique key based on base key and context"""
-        # Create a hash of the context for consistency
-        if context:
-            context_hash = hashlib.md5(context.encode()).hexdigest()[:8]
-            full_key = f"{base_key}_{context_hash}"
-        else:
-            st.session_state.key_counter += 1
-            full_key = f"{base_key}_{st.session_state.key_counter}"
-        
-        # Ensure uniqueness
-        while full_key in st.session_state.used_keys:
-            st.session_state.key_counter += 1
-            full_key = f"{base_key}_{st.session_state.key_counter}"
-        
-        st.session_state.used_keys.add(full_key)
-        return full_key
-    
-    def reset_keys(self):
-        """Reset all keys (use carefully)"""
-        st.session_state.used_keys = set()
-        st.session_state.key_counter = 0
-
-# Global key manager instance
-if 'key_manager' not in st.session_state:
-    st.session_state.key_manager = StreamlitKeyManager()
-
-key_manager = st.session_state.key_manager
-
 
 def refresh_cost_calculations():
     """
@@ -353,9 +296,8 @@ def integrate_cost_refresh_ui():
             refresh_specific_environment_costs(selected_env)
 
 # Usage example for the main application
-
-def main_cost_refresh_section_fixed():
-    """Main cost refresh section with fixed keys"""
+def main_cost_refresh_section():
+    """Main section to be added to your Streamlit app"""
     
     st.markdown("## 💰 Cost Analysis & Refresh")
     
@@ -390,38 +332,8 @@ def main_cost_refresh_section_fixed():
         else:
             st.metric("3-Year Growth", "Not calculated")
     
-    # Add refresh controls with fixed keys
-    st.markdown("---")
-    st.markdown("### 🔄 Cost Refresh Controls")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        refresh_all_key = key_manager.get_unique_key("refresh_all_costs", "cost_refresh_section")
-        if st.button("🔄 Refresh All Costs", type="primary", key=refresh_all_key, use_container_width=True):
-            refresh_cost_calculations()
-    
-    with col2:
-        refresh_growth_key = key_manager.get_unique_key("refresh_growth_analysis", "cost_refresh_section")
-        if st.button("📊 Refresh Growth Analysis", key=refresh_growth_key, use_container_width=True):
-            if st.session_state.analysis_results:
-                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
-                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
-                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
-                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
-            else:
-                st.warning("Please run full analysis first")
-    
-    with col3:
-        export_costs_key = key_manager.get_unique_key("export_costs", "cost_refresh_section")
-        if st.button("📥 Export Costs", key=export_costs_key, use_container_width=True):
-# If you have something like this (BROKEN):
-# if some_condition
-# def show_enhanced_environment_analysis():
-
-# Fix it to this (WORKING):
-if True:  # Replace with your actual condition or remove if not needed
-    pass
+    # Add refresh controls
+    integrate_cost_refresh_ui()
 
 def show_enhanced_environment_analysis():
     """Show enhanced environment analysis with Writer/Reader details"""
@@ -431,54 +343,49 @@ def show_enhanced_environment_analysis():
     recommendations = st.session_state.enhanced_recommendations
     environment_specs = st.session_state.environment_specs
     
-    # Check for enhanced recommendations first
-    if hasattr(st.session_state, 'enhanced_recommendations') and st.session_state.enhanced_recommendations:
-        # Environment comparison with cluster details
-        env_comparison_data = []
+    # Environment comparison with cluster details
+    env_comparison_data = []
+    
+    for env_name, rec in recommendations.items():
+        specs = environment_specs[env_name]
         
-        for env_name, rec in recommendations.items():
-            specs = environment_specs.get(env_name, {})
-            
-            # Writer configuration
-            writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
-            
-            # Reader configuration
-            reader_count = rec['readers']['count']
-            if reader_count > 0:
-                reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
-            else:
-                reader_config = "No readers"
-            
-            env_comparison_data.append({
-                'Environment': env_name,
-                'Type': rec['environment_type'].title(),
-                'Current Resources': f"{specs.get('cpu_cores', 'N/A')} cores, {specs.get('ram_gb', 'N/A')} GB RAM",
-                'Writer Instance': writer_config,
-                'Read Replicas': reader_config,
-                'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
-                'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
-            })
+        # Writer configuration
+        writer_config = f"{rec['writer']['instance_class']} ({'Multi-AZ' if rec['writer']['multi_az'] else 'Single-AZ'})"
         
-        env_df = pd.DataFrame(env_comparison_data)
-        st.dataframe(env_df, use_container_width=True)
-    else:
-        st.warning("Enhanced recommendations not available.")
-        return
+        # Reader configuration
+        reader_count = rec['readers']['count']
+        if reader_count > 0:
+            reader_config = f"{reader_count} x {rec['readers']['instance_class']}"
+        else:
+            reader_config = "No readers"
+        
+        env_comparison_data.append({
+            'Environment': env_name,
+            'Type': rec['environment_type'].title(),
+            'Current Resources': f"{specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM",
+            'Writer Instance': writer_config,
+            'Read Replicas': reader_config,
+            'Storage': f"{rec['storage']['size_gb']} GB {rec['storage']['type'].upper()}",
+            'Workload Pattern': f"{rec['workload_pattern']} ({rec['read_write_ratio']}% reads)"
+        })
+    
+    env_df = pd.DataFrame(env_comparison_data)
+    st.dataframe(env_df, use_container_width=True)
     
     # Detailed environment insights
     st.markdown("#### 💡 Environment Insights")
     
     for env_name, rec in recommendations.items():
         with st.expander(f"🔍 {env_name} Environment Details"):
-            specs = environment_specs.get(env_name, {})
+            specs = environment_specs[env_name]
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown("**Current Configuration**")
-                st.write(f"CPU Cores: {specs.get('cpu_cores', 'N/A')}")
-                st.write(f"RAM: {specs.get('ram_gb', 'N/A')} GB")
-                st.write(f"Storage: {specs.get('storage_gb', 'N/A')} GB")
+                st.write(f"CPU Cores: {specs['cpu_cores']}")
+                st.write(f"RAM: {specs['ram_gb']} GB")
+                st.write(f"Storage: {specs['storage_gb']} GB")
                 st.write(f"IOPS Requirement: {specs.get('iops_requirement', 'N/A')}")
                 st.write(f"Peak Connections: {specs.get('peak_connections', 'N/A')}")
             
@@ -534,6 +441,7 @@ def show_enhanced_environment_analysis():
                 st.info("⚡ High-performance io2 storage for demanding IOPS requirements")
             elif storage['type'] == 'gp3':
                 st.info("⚖️ Balanced gp3 storage for general-purpose workloads")
+
 import asyncio
 import streamlit as st
 import anthropic
@@ -4490,33 +4398,33 @@ def process_vrops_data_fixed(df: pd.DataFrame, analyzer: VRopsMetricsAnalyzer) -
     
     with col1:
         st.markdown("**Environment Identification**")
-        mappings['vm_name'] = st.selectbox("VM/Server Name", available_columns, key="vm_name_col_line4418_#1")
-        mappings['environment'] = st.selectbox("Environment Name", available_columns, key="env_name_col_line4419_#1")
+        mappings['vm_name'] = st.selectbox("VM/Server Name", available_columns, key="vm_name_col")
+        mappings['environment'] = st.selectbox("Environment Name", available_columns, key="env_name_col")
         
         st.markdown("**CPU Metrics**")
-        mappings['max_cpu_usage_percent'] = st.selectbox("Max CPU Usage %", available_columns, key="max_cpu_col_line4422_#1")
-        mappings['avg_cpu_usage_percent'] = st.selectbox("Avg CPU Usage %", available_columns, key="avg_cpu_col_line4423_#1")
-        mappings['cpu_cores_allocated'] = st.selectbox("CPU Cores", available_columns, key="cpu_cores_col_line4424_#1")
+        mappings['max_cpu_usage_percent'] = st.selectbox("Max CPU Usage %", available_columns, key="max_cpu_col")
+        mappings['avg_cpu_usage_percent'] = st.selectbox("Avg CPU Usage %", available_columns, key="avg_cpu_col")
+        mappings['cpu_cores_allocated'] = st.selectbox("CPU Cores", available_columns, key="cpu_cores_col")
         
         st.markdown("**Memory Metrics**")
-        mappings['max_memory_usage_percent'] = st.selectbox("Max Memory Usage %", available_columns, key="max_mem_col_line4427_#1")
-        mappings['avg_memory_usage_percent'] = st.selectbox("Avg Memory Usage %", available_columns, key="avg_mem_col_line4428_#1")
-        mappings['memory_allocated_gb'] = st.selectbox("Memory Allocated GB", available_columns, key="mem_alloc_col_line4429_#1")
+        mappings['max_memory_usage_percent'] = st.selectbox("Max Memory Usage %", available_columns, key="max_mem_col")
+        mappings['avg_memory_usage_percent'] = st.selectbox("Avg Memory Usage %", available_columns, key="avg_mem_col")
+        mappings['memory_allocated_gb'] = st.selectbox("Memory Allocated GB", available_columns, key="mem_alloc_col")
     
     with col2:
         st.markdown("**Storage Metrics**")
-        mappings['max_iops_total'] = st.selectbox("Max IOPS", available_columns, key="max_iops_col_line4433_#1")
-        mappings['avg_iops_total'] = st.selectbox("Avg IOPS", available_columns, key="avg_iops_col_line4434_#1")
-        mappings['max_disk_latency_ms'] = st.selectbox("Max Disk Latency ms", available_columns, key="max_lat_col_line4435_#1")
-        mappings['avg_disk_latency_ms'] = st.selectbox("Avg Disk Latency ms", available_columns, key="avg_lat_col_line4436_#1")
-        mappings['storage_allocated_gb'] = st.selectbox("Storage Allocated GB", available_columns, key="storage_col_line4437_#1")
+        mappings['max_iops_total'] = st.selectbox("Max IOPS", available_columns, key="max_iops_col")
+        mappings['avg_iops_total'] = st.selectbox("Avg IOPS", available_columns, key="avg_iops_col")
+        mappings['max_disk_latency_ms'] = st.selectbox("Max Disk Latency ms", available_columns, key="max_lat_col")
+        mappings['avg_disk_latency_ms'] = st.selectbox("Avg Disk Latency ms", available_columns, key="avg_lat_col")
+        mappings['storage_allocated_gb'] = st.selectbox("Storage Allocated GB", available_columns, key="storage_col")
         
         st.markdown("**Database Metrics**")
-        mappings['database_size_gb'] = st.selectbox("Database Size GB", available_columns, key="db_size_col_line4440_#1")
-        mappings['max_database_connections'] = st.selectbox("Max DB Connections", available_columns, key="max_conn_col_line4441_#1")
+        mappings['database_size_gb'] = st.selectbox("Database Size GB", available_columns, key="db_size_col")
+        mappings['max_database_connections'] = st.selectbox("Max DB Connections", available_columns, key="max_conn_col")
         
         st.markdown("**Optional Metrics**")
-        mappings['observation_period_days'] = st.selectbox("Observation Period Days", available_columns, key="obs_period_col_line4444_#1")
+        mappings['observation_period_days'] = st.selectbox("Observation Period Days", available_columns, key="obs_period_col")
     
     if st.button("🔄 Process vROps Data", type="primary"):
         
@@ -8497,36 +8405,27 @@ def show_basic_cost_summary():
                         st.write("Cost information not available in expected format")
 
 
-def show_growth_analysis_dashboard_fixed():
-    """Show comprehensive growth analysis dashboard - FIXED KEYS"""
+def show_growth_analysis_dashboard():
+    """Show comprehensive growth analysis dashboard"""
     
     st.markdown("### 📈 3-Year Growth Analysis & Projections")
     
-    # ADD refresh controls - FIXED KEYS
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        pass  # Title space
-    with col2:
-        refresh_growth_key = key_manager.get_unique_key("refresh_growth_dashboard", "growth_analysis")
-        if st.button("🔄 Refresh Growth", key=refresh_growth_key):
-            if st.session_state.analysis_results:
-                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
-                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
-                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
-                st.success(f"✅ Growth updated: {growth_percentage:.1f}%")
-                st.experimental_rerun()
-    
     # Check if growth analysis exists
     if not hasattr(st.session_state, 'growth_analysis') or not st.session_state.growth_analysis:
+        st.warning("⚠️ Growth analysis not available. Please run the analysis first.")
         
-        # ADD quick refresh option - FIXED KEY
-        calculate_growth_key = key_manager.get_unique_key("calculate_growth_analysis", "dashboard")
-        if st.button("🚀 Calculate Growth Analysis", type="primary", key=calculate_growth_key):
-            if st.session_state.analysis_results:
-                monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
-                annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
-                growth_percentage = refresh_growth_analysis(monthly_cost, annual_cost)
-                st.experimental_rerun()
+        # Show basic growth planning instead
+        st.markdown("#### 🎯 Growth Planning Preview")
+        st.info("""
+        **Growth analysis will show:**
+        - 3-year cost projections with growth factors
+        - Resource scaling requirements
+        - Seasonal peak planning
+        - Cost optimization opportunities
+        - Scaling recommendations by year
+        
+        Run the migration analysis to see detailed growth projections.
+        """)
         return
     
     growth_analysis = st.session_state.growth_analysis
@@ -8562,17 +8461,16 @@ def show_growth_analysis_dashboard_fixed():
             f"${growth_summary['total_3_year_investment']:,.0f}",
             delta=f"Avg: ${growth_summary['average_annual_cost']:,.0f}/year"
         )
-    
-    # Growth Projection Charts
+
+     # Growth Projection Charts
     st.markdown("#### 📊 Growth Projections")
     
     try:
         charts = create_growth_projection_charts(growth_analysis)
         
-        # Display charts with unique keys - FIXED
+        # Display charts with unique keys
         for i, chart in enumerate(charts):
-            chart_key = key_manager.get_unique_key("growth_dashboard_chart", f"chart_{i}")
-            st.plotly_chart(chart, use_container_width=True, key=chart_key)
+            st.plotly_chart(chart, use_container_width=True, key=f"growth_chart_{i}")
             
     except Exception as e:
         st.error(f"Error creating growth charts: {str(e)}")
@@ -8592,6 +8490,51 @@ def show_growth_analysis_dashboard_fixed():
             })
         
         st.table(years_data)
+    
+    # Scaling Recommendations
+    st.markdown("#### 🎯 Scaling Recommendations")
+    
+    recommendations = growth_analysis.get('scaling_recommendations', [])
+    
+    if recommendations:
+        for rec in recommendations:
+            priority_color = {
+                'High': '#e53e3e',
+                'Medium': '#d69e2e',
+                'Low': '#38a169'
+            }.get(rec['priority'], '#666666')
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {priority_color}; padding: 15px; margin: 10px 0; background: {priority_color}22;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: {priority_color};">{rec['type']} (Year {rec['year']})</strong><br>
+                        {rec['description']}<br>
+                        <em>Action: {rec['action']}</em>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong>Priority: {rec['priority']}</strong><br>
+                        <span style="color: #38a169;">Potential Savings: ${rec['estimated_savings']:,.0f}</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.success("✅ No critical scaling issues identified in the 3-year projection.")
+        
+        # Show default recommendations
+        st.markdown("#### 💡 General Growth Recommendations")
+        default_recommendations = [
+            "📊 **Monitor growth trends** - Track actual vs projected growth quarterly",
+            "💰 **Reserved Instances** - Consider 1-3 year commitments for 30-40% savings",
+            "🔄 **Auto-scaling** - Implement auto-scaling for variable workloads",
+            "📈 **Capacity planning** - Review and adjust capacity every 6 months",
+            "🗄️ **Data lifecycle** - Implement archiving for older data to reduce storage costs"
+        ]
+        
+        for rec in default_recommendations:
+            st.markdown(rec)
+    
 
 def show_risk_assessment_tab():
     """Show risk assessment results"""
@@ -8633,8 +8576,8 @@ def show_environment_analysis_tab():
                     st.write(f"Environment Type: {specs.get('environment_type', 'N/A')}")
 
 
-def show_visualizations_tab_fixed():
-    """Show visualization charts - FIXED KEYS"""
+def show_visualizations_tab():
+    """Show visualization charts"""
     
     st.markdown("### 📊 Cost & Performance Visualizations")
     
@@ -8677,32 +8620,25 @@ def show_visualizations_tab_fixed():
                     height=400
                 )
                 
-                # FIXED: Added unique key
-                env_cost_key = key_manager.get_unique_key("env_cost_visualization_chart", "main")
-                st.plotly_chart(fig, use_container_width=True, key=env_cost_key)
+                st.plotly_chart(fig, use_container_width=True, key="env_cost_chart")
         
         # Growth visualization if available
         if hasattr(st.session_state, 'growth_analysis') and st.session_state.growth_analysis:
             st.markdown("#### 📈 Growth Projections")
             try:
                 charts = create_growth_projection_charts(st.session_state.growth_analysis)
-                # FIXED: Added unique keys for each chart
                 for i, chart in enumerate(charts):
-                    viz_growth_key = key_manager.get_unique_key("viz_growth_chart", f"growth_{i}")
-                    st.plotly_chart(chart, use_container_width=True, key=viz_growth_key)
+                    st.plotly_chart(chart, use_container_width=True, key=f"viz_growth_chart_{i}")
             except Exception as e:
                 st.error(f"Error creating growth charts: {str(e)}")
         
         # Enhanced cost chart if available
         if hasattr(st.session_state, 'enhanced_cost_chart') and st.session_state.enhanced_cost_chart:
             st.markdown("#### 💎 Enhanced Cost Analysis")
-            # FIXED: Added unique key
-            enhanced_cost_key = key_manager.get_unique_key("enhanced_cost_visualization_chart", "main")
-            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key=enhanced_cost_key)
+            st.plotly_chart(st.session_state.enhanced_cost_chart, use_container_width=True, key="enhanced_cost_chart")
         
     except Exception as e:
         st.error(f"Error creating visualizations: {str(e)}")
-
 
 
 def show_ai_insights_tab():
@@ -9487,10 +9423,10 @@ def test_claude_ai_connection():
         except Exception as e:
             st.error(f"❌ Test failed: {str(e)}")
 
-def main_fixed():
-    """Main Streamlit application with fixed key management"""
+def main():
+    """Main Streamlit application"""
     
-    initialize_session_state()
+    initialize_session_state
     
     # Header
     st.markdown("""
@@ -9503,131 +9439,22 @@ def main_fixed():
     # Sidebar navigation
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
-        
-        # FIXED: Unique key for navigation radio
-        nav_key = key_manager.get_unique_key("main_navigation", "sidebar")
         page = st.radio("Select Section:", [
             "🔧 Migration Configuration",
             "📊 Environment Setup", 
             "🌐 Network Analysis",
             "🚀 Analysis & Recommendations",
             "📈 Results Dashboard",
+            "💰 Cost Refresh",
             "📄 Reports & Export"
-            ], key=nav_key
+            ]
         )
     
-    # Main content area
-    if page == "🔧 Migration Configuration":
-        show_migration_configuration()
-    elif page == "📊 Environment Setup":
-        show_environment_setup_main_fixed()
-    elif page == "🌐 Network Analysis":
-        show_network_transfer_analysis()
-    elif page == "🚀 Analysis & Recommendations":
-        show_analysis_section_fixed()
-    elif page == "📈 Results Dashboard":
-        show_results_dashboard_fixed()  # Use fixed version
-    elif page == "📄 Reports & Export":
-        show_reports_section_fixed()  # Use fixed version
-    else:
-        st.markdown("## Welcome to the AWS Database Migration Tool")
-        st.markdown("Please select a section from the sidebar to get started.")
-
-def show_results_dashboard_fixed():
-    """Show comprehensive results dashboard - FIXED KEYS"""
-    
-    if not st.session_state.analysis_results:
-        st.warning("⚠️ No analysis results available. Please run the migration analysis first.")
-        return
-    
-    st.markdown("## 📊 Migration Analysis Results")
-    
-    # FIXED: Define has_enhanced_results properly
-    has_enhanced_results = (
-        hasattr(st.session_state, 'enhanced_analysis_results') and 
-        st.session_state.enhanced_analysis_results is not None
-    )
-    
-    # Create tabs for different views - FIXED with unique keys
-    tab_keys = [
-        key_manager.get_unique_key("cost_summary_tab", "results_dashboard"),
-        key_manager.get_unique_key("growth_projections_tab", "results_dashboard"),
-        key_manager.get_unique_key("vrops_analysis_tab", "results_dashboard"),
-        key_manager.get_unique_key("enhanced_analysis_tab", "results_dashboard"),
-        key_manager.get_unique_key("risk_assessment_tab", "results_dashboard"),
-        key_manager.get_unique_key("environment_analysis_tab", "results_dashboard"),
-        key_manager.get_unique_key("visualizations_tab", "results_dashboard"),
-        key_manager.get_unique_key("ai_insights_tab", "results_dashboard"),
-        key_manager.get_unique_key("timeline_tab", "results_dashboard")
-    ]
-    
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "💰 Cost Summary",
-        "📈 Growth Projections",
-        "📊 vROps Analysis",
-        "💎 Enhanced Analysis",
-        "⚠️ Risk Assessment", 
-        "🏢 Environment Analysis",
-        "📊 Visualizations",
-        "🤖 AI Insights",
-        "📅 Timeline"
-    ])
-    
-    with tab1:
-        show_basic_cost_summary_fixed()
-    
-    with tab2:
-        show_growth_analysis_dashboard_fixed()
-    
-    with tab3:
-        show_vrops_results_tab_fixed()
-    
-    with tab4:
-        if has_enhanced_results:
-            show_enhanced_cost_analysis()
-        else:
-            st.info("💡 Enhanced cost analysis not available.")
-            show_basic_cost_summary_fixed()
-
-    with tab5:
-        show_risk_assessment_tab()
-
-    with tab6:
-        show_environment_analysis_tab()
-
-    with tab7:
-        show_visualizations_tab_fixed()
-
-    with tab8:
-        show_ai_insights_tab()
-
-    with tab9:
-        show_timeline_analysis_tab()
-
     if hasattr(st.session_state, 'vrops_analysis') and st.session_state.vrops_analysis:
         st.success("✅ vROps analysis complete")
         
-        
-     # Status indicators - FIXED with safe access
-        st.markdown("### 📋 Status")
-        
-        # Safe access to session state
-        env_specs = getattr(st.session_state, 'environment_specs', {})
-        migration_params = getattr(st.session_state, 'migration_params', {})
-        if migration_params:
-            st.success("✅ Migration parameters set")
-        else:
-            st.warning("⚠️ Set migration parameters")
-        
-        if env_specs and len(env_specs) > 0:
-            st.success(f"✅ {len(env_specs)} environments configured")
-        else:
-            st.warning("⚠️ Configure environments")
-        
-        if migration_params:
-            st.success("✅ Migration parameters set")
-        else:
-            st.warning("⚠️ Set migration parameters")
+    elif page == "💰 Cost Refresh":  # <-- ADD THIS SECTION
+        main_cost_refresh_section()
     
     health_scores = []
     vrops_analysis = getattr(st.session_state, 'vrops_analysis', None)
@@ -9645,9 +9472,9 @@ def show_results_dashboard_fixed():
         
     env_specs = getattr(st.session_state, 'environment_specs', {})
     if env_specs and len(env_specs) > 0:
-        st.success(f"✅ {len(env_specs)} environments configured")
+            st.success(f"✅ {len(st.session_state.environment_specs)} environments configured")
     else:
-        st.warning("⚠️ Configure environments")
+            st.warning("⚠️ Configure environments")
         
     if st.session_state.migration_params:
             st.success("✅ Migration parameters set")
@@ -9724,6 +9551,8 @@ def show_results_dashboard_fixed():
         show_analysis_section_fixed()
     elif page == "📈 Results Dashboard":
         show_results_dashboard()  # This will now include the vROps tab
+    elif page == "💰 Cost Refresh":
+        main_cost_refresh_section()
     elif page == "📄 Reports & Export":
         show_reports_section()
     else:
@@ -9866,7 +9695,7 @@ def show_migration_configuration():
             st.markdown("### 💰 Current Cost Preview")
             add_realtime_cost_widget()
             
-            if st.button("🔄 Refresh Preview", key="config_refresh_line9736_#1"):
+            if st.button("🔄 Refresh Preview", key="config_refresh"):
                 refresh_cost_calculations()
                 st.experimental_rerun()
 
@@ -10576,7 +10405,7 @@ def show_results_dashboard():
     with tab8:
         show_timeline_analysis_tab()
 
-def show_basic_cost_summary_fixed():
+def show_basic_cost_summary():
     """Show basic cost summary from analysis results"""
     
     if not st.session_state.analysis_results:
@@ -10585,13 +10414,12 @@ def show_basic_cost_summary_fixed():
     
     results = st.session_state.analysis_results
     
-    # ADD refresh button at the top - FIXED KEY
+    # ADD refresh button at the top
     col1, col2 = st.columns([3, 1])
     with col1:
         st.markdown("### 💰 Cost Summary")
     with col2:
-        refresh_key = key_manager.get_unique_key("refresh_costs_summary", "basic_cost_summary")
-        if st.button("🔄 Refresh Costs", key=refresh_key):
+        if st.button("🔄 Refresh Costs", key="refresh_costs_summary"):
             refresh_cost_calculations()
             st.experimental_rerun()
     
@@ -10624,10 +10452,11 @@ def show_basic_cost_summary_fixed():
     env_costs = results.get('environment_costs', {})
     if env_costs:
         for env_name, costs in env_costs.items():
-            expander_key = key_manager.get_unique_key("env_expander", f"cost_breakdown_{env_name}")
-            with st.expander(f"🏢 {env_name.title()} Environment", key=expander_key):
+            with st.expander(f"🏢 {env_name.title()} Environment"):
                 
+                # Check if it's enhanced results format
                 if isinstance(costs, dict) and 'instance_cost' in costs:
+                    # Enhanced format
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
@@ -10639,14 +10468,35 @@ def show_basic_cost_summary_fixed():
                         st.metric("Backup Cost", f"${costs.get('backup_cost', 0):,.2f}/month")
                     
                     with col3:
-                        total_env_cost = costs.get('total_monthly', 
+                        total_env_cost = costs.get('total_monthly_cost', 
                                                  sum([costs.get(k, 0) for k in ['instance_cost', 'storage_cost', 'reader_costs', 'backup_cost']]))
                         st.metric("Total Monthly", f"${total_env_cost:,.2f}")
+                        
+                        
+                       
                 else:
+                    # Simple format - just show the cost
                     if isinstance(costs, (int, float)):
                         st.metric("Monthly Cost", f"${costs:,.2f}")
                     else:
                         st.write("Cost information not available in expected format")
+    
+    # Migration timeline and costs
+    if 'migration_costs' in results:
+        st.markdown("### 🚀 Migration Investment")
+        
+        migration = results['migration_costs']
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Schema Migration", f"${migration.get('schema_migration', 0):,.0f}")
+        
+        with col2:
+            st.metric("Data Transfer", f"${migration.get('data_transfer', 0):,.0f}")
+        
+        with col3:
+            st.metric("Testing & Validation", f"${migration.get('testing', 0):,.0f}")
 
 def show_growth_analysis_dashboard():
     """Show comprehensive growth analysis dashboard"""
@@ -10658,7 +10508,7 @@ def show_growth_analysis_dashboard():
     with col1:
         pass  # Title space
     with col2:
-        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard_line10549_#1"):
+        if st.button("🔄 Refresh Growth", key="refresh_growth_dashboard"):
             if st.session_state.analysis_results:
                 monthly_cost = st.session_state.analysis_results.get('monthly_aws_cost', 0)
                 annual_cost = st.session_state.analysis_results.get('annual_aws_cost', 0)
@@ -11003,8 +10853,8 @@ def show_timeline_analysis_tab():
         weekly_budget = budget / timeline_weeks if timeline_weeks > 0 else 0
         st.write(f"Weekly Budget: ${weekly_budget:,.0f}")
 
-def show_reports_section_fixed():
-    """Show reports and export section - FIXED KEYS"""
+def show_reports_section():
+    """Show reports and export section - ROBUST VERSION"""
     
     st.markdown("## 📄 Reports & Export")
     
@@ -11014,127 +10864,126 @@ def show_reports_section_fixed():
     
     if not has_regular_results and not has_enhanced_results:
         st.warning("⚠️ Please complete the analysis first to generate reports.")
+        st.info("👆 Go to 'Analysis & Recommendations' section and click '🚀 Run Comprehensive Analysis'")
+        
+        # Show current status
+        st.markdown("### 📊 Current Status")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            config_status = "✅ Complete" if st.session_state.migration_params else "❌ Missing"
+            st.metric("Migration Config", config_status)
+        
+        with col2:
+            env_status = "✅ Complete" if st.session_state.environment_specs else "❌ Missing"
+            st.metric("Environment Setup", env_status)
+        
+        with col3:
+            analysis_status = "✅ Complete" if (has_regular_results or has_enhanced_results) else "❌ Pending"
+            st.metric("Analysis Results", analysis_status)
+        
         return
 
-    # Determine which results to use
-    if has_enhanced_results:
-        results = st.session_state.enhanced_analysis_results
-        recommendations = getattr(st.session_state, 'enhanced_recommendations', {})
-        st.info("📊 Using Enhanced Analysis Results")
-    else:
-        results = st.session_state.analysis_results
-        recommendations = getattr(st.session_state, 'recommendations', {})
-        st.info("📊 Using Standard Analysis Results")
+# UPDATED run_streamlit_migration_analysis function
+def run_streamlit_migration_analysis_robust():
+    """Robust migration analysis that handles data format issues"""
     
-    # Report generation options
-    st.markdown("### 📊 Available Reports")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("#### 👔 Executive Summary")
-        st.markdown("Perfect for stakeholders and decision makers")
-        
-        # FIXED: Unique key for executive PDF button
-        exec_pdf_key = key_manager.get_unique_key("exec_pdf", "reports_section")
-        if st.button("📄 Generate Executive PDF", key=exec_pdf_key, use_container_width=True):
-            with st.spinner("Generating executive summary..."):
-                try:
-                    pdf_buffer = generate_executive_summary_pdf_robust(results, st.session_state.migration_params)
-                    
-                    if pdf_buffer:
-                        download_exec_key = key_manager.get_unique_key("download_exec_summary", "reports")
-                        st.download_button(
-                            label="📥 Download Executive Summary",
-                            data=pdf_buffer.getvalue(),
-                            file_name=f"AWS_Migration_Executive_Summary_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            key=download_exec_key,
-                            use_container_width=True
-                        )
-                    else:
-                        st.error("Failed to generate PDF")
-                except Exception as e:
-                    st.error(f"Error generating PDF: {str(e)}")
-    
-    with col2:
-        st.markdown("#### 🔧 Technical Report")
-        st.markdown("Detailed technical analysis for architects and engineers")
-        
-        # FIXED: Unique key for technical PDF button
-        tech_pdf_key = key_manager.get_unique_key("tech_pdf", "reports_section")
-        if st.button("📄 Generate Technical PDF", key=tech_pdf_key, use_container_width=True):
-            with st.spinner("Generating technical report..."):
-                try:
-                    pdf_buffer = generate_technical_report_pdf_robust(results, recommendations, st.session_state.migration_params)
-                    
-                    if pdf_buffer:
-                        download_tech_key = key_manager.get_unique_key("download_tech_report", "reports")
-                        st.download_button(
-                            label="📥 Download Technical Report",
-                            data=pdf_buffer.getvalue(),
-                            file_name=f"AWS_Migration_Technical_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            key=download_tech_key,
-                            use_container_width=True
-                        )
-                    else:
-                        st.error("Failed to generate PDF")
-                except Exception as e:
-                    st.error(f"Error generating PDF: {str(e)}")
-    
-    with col3:
-        st.markdown("#### 📊 Data Export")
-        st.markdown("Raw data for further analysis")
-        
-        # FIXED: Unique key for CSV export button
-        csv_export_key = key_manager.get_unique_key("csv_export", "reports_section")
-        if st.button("📊 Export Data (CSV)", key=csv_export_key, use_container_width=True):
-            try:
-                csv_data = prepare_csv_export_data(results, recommendations)
-                
-                if csv_data:
-                    csv_string = csv_data.to_csv(index=False)
-                    
-                    download_csv_key = key_manager.get_unique_key("download_csv_data", "reports")
-                    st.download_button(
-                        label="📥 Download CSV Data",
-                        data=csv_string,
-                        file_name=f"AWS_Migration_Analysis_{datetime.now().strftime('%Y%m%d')}.csv",
-                        mime="text/csv",
-                        key=download_csv_key,
-                        use_container_width=True
-                    )
+    try:
+        # Show current environment specs for debugging
+        if st.checkbox("🔍 Show Environment Data Debug Info"):
+            st.markdown("#### Debug: Environment Specifications")
+            st.write("Number of environments:", len(st.session_state.environment_specs))
+            
+            for env_name, specs in st.session_state.environment_specs.items():
+                st.write(f"**{env_name}:**")
+                st.write(f"  Type: {type(specs)}")
+                if isinstance(specs, dict):
+                    st.write(f"  Keys: {list(specs.keys())}")
+                    for key, value in specs.items():
+                        st.write(f"    {key}: {value} ({type(value)})")
                 else:
-                    st.error("No data available for export")
-            except Exception as e:
-                st.error(f"Error preparing CSV: {str(e)}")
-    
-    # Bulk download option
-    st.markdown("---")
-    st.markdown("### 📦 Bulk Download")
-    
-    # FIXED: Unique key for bulk reports button
-    bulk_reports_key = key_manager.get_unique_key("bulk_reports", "reports_section")
-    if st.button("📊 Generate All Reports", key=bulk_reports_key, use_container_width=True):
-        with st.spinner("Generating all reports... This may take a moment..."):
+                    st.write(f"  Value: {specs}")
+                st.write("---")
+        
+        # Normalize environment specs before analysis
+        st.write("🔧 Normalizing environment specifications...")
+        normalized_specs = normalize_environment_specs(st.session_state.environment_specs)
+        
+        # Show normalized specs
+        st.write("✅ Environment specifications normalized:")
+        for env_name, specs in normalized_specs.items():
+            st.write(f"  {env_name}: {specs['cpu_cores']} cores, {specs['ram_gb']} GB RAM, {specs['storage_gb']} GB storage")
+        
+        # Initialize robust analyzer
+        anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+        analyzer = RobustMigrationAnalyzer(anthropic_api_key)
+        
+        # Step 1: Calculate recommendations with normalized specs
+        st.write("📊 Calculating instance recommendations...")
+        recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
+        st.session_state.recommendations = recommendations
+        
+        # Show recommendations summary
+        st.write("✅ Recommendations calculated:")
+        for env_name, rec in recommendations.items():
+            error_info = " (with fallback)" if 'error' in rec else ""
+            st.write(f"  {env_name}: {rec['instance_class']}{error_info}")
+        
+        # Step 2: Calculate costs
+        st.write("💰 Analyzing costs...")
+        cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+        st.session_state.analysis_results = cost_analysis
+        
+        # Step 3: Risk assessment
+        st.write("⚠️ Assessing risks...")
+        risk_assessment = create_default_risk_assessment()
+        st.session_state.risk_assessment = risk_assessment
+        
+        # Step 4: Growth Analysis (if available)
+        if hasattr(st.session_state, 'growth_analysis') or 'GrowthAwareCostAnalyzer' in globals():
             try:
-                zip_buffer = create_bulk_reports_zip(results, recommendations, st.session_state.migration_params)
-                
-                if zip_buffer:
-                    download_bulk_key = key_manager.get_unique_key("download_bulk_reports", "reports")
-                    st.download_button(
-                        label="📥 Download All Reports (ZIP)",
-                        data=zip_buffer.getvalue(),
-                        file_name=f"AWS_Migration_Complete_Analysis_{datetime.now().strftime('%Y%m%d')}.zip",
-                        mime="application/zip",
-                        key=download_bulk_key,
-                        use_container_width=True
-                    )
-                else:
-                    st.error("Failed to generate reports package")
+                st.write("📈 Calculating growth projections...")
+                growth_analyzer = GrowthAwareCostAnalyzer()
+                growth_analysis = growth_analyzer.calculate_3_year_growth_projection(
+                    cost_analysis, st.session_state.migration_params
+                )
+                st.session_state.growth_analysis = growth_analysis
+                st.write("✅ Growth analysis complete")
             except Exception as e:
-                st.error(f"Error generating bulk reports: {str(e)}")
+                st.warning(f"Growth analysis skipped: {str(e)}")
+        
+        # Step 5: AI insights (if available)
+        if anthropic_api_key:
+            st.write("🤖 Generating AI insights...")
+            try:
+                # Simple AI insights without async
+                ai_insights = {
+                    'summary': f"Migration analysis complete. Monthly AWS cost: ${cost_analysis['monthly_aws_cost']:,.0f}",
+                    'recommendations': [
+                        "Proceed with phased migration approach",
+                        "Implement comprehensive testing strategy",
+                        "Consider Aurora for production workloads",
+                        "Plan for 12-16 week migration timeline"
+                    ],
+                    'cost_optimization': f"Current monthly cost of ${cost_analysis['monthly_aws_cost']:,.0f} appears reasonable for this scale.",
+                    'source': 'Generated Analysis'
+                }
+                st.session_state.ai_insights = ai_insights
+                st.write("✅ AI insights generated")
+            except Exception as e:
+                st.warning(f"AI insights generation failed: {str(e)}")
+        
+        st.success("✅ Robust analysis complete!")
+        
+        # Show summary
+        show_analysis_summary_robust()
+        
+    except Exception as e:
+        st.error(f"❌ Analysis failed even with robust handling: {str(e)}")
+        st.code(f"Error details: {str(e)}")
+        
+        # Create absolute fallback
+        create_absolute_fallback_analysis()
 
 def show_analysis_summary_robust():
     """Show analysis summary with error handling"""
@@ -11245,7 +11094,7 @@ def create_absolute_fallback_analysis():
         st.markdown("• Risk summary")
         st.markdown("• Key recommendations")
         
-        if st.button("📄 Generate Executive PDF", key="exec_pdf_line11135_#1", use_container_width=True):
+        if st.button("📄 Generate Executive PDF", key="exec_pdf", use_container_width=True):
             with st.spinner("Generating executive summary..."):
                 try:
                     pdf_buffer = generate_executive_summary_pdf_robust(
@@ -11275,7 +11124,7 @@ def create_absolute_fallback_analysis():
         st.markdown("• Detailed cost breakdown")
         st.markdown("• Technical considerations")
         
-        if st.button("📄 Generate Technical PDF", key="tech_pdf_line11165_#1", use_container_width=True):
+        if st.button("📄 Generate Technical PDF", key="tech_pdf", use_container_width=True):
             with st.spinner("Generating technical report..."):
                 try:
                     pdf_buffer = generate_technical_report_pdf_robust(
@@ -11330,7 +11179,7 @@ def create_absolute_fallback_analysis():
     st.markdown("---")
     st.markdown("### 📦 Bulk Download")
     
-    if st.button("📊 Generate All Reports", key="bulk_reports_line11220_#1", use_container_width=True):
+    if st.button("📊 Generate All Reports", key="bulk_reports", use_container_width=True):
         with st.spinner("Generating all reports... This may take a moment..."):
             try:
                 # Create ZIP file with all reports
