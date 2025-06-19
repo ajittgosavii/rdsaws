@@ -9463,7 +9463,7 @@ def show_migration_configuration_fixed():
             )
             return num_applications, num_stored_procedures
 
-        def timeline_config():
+def timeline_config():
             st.markdown("#### ⏱️ Timeline & Resources")
             migration_timeline_weeks = st.slider(
                 "Migration Timeline (weeks)", 
@@ -9479,7 +9479,7 @@ def show_migration_configuration_fixed():
             )
             return migration_timeline_weeks, team_size
 
-        def infra_config():
+def infra_config():
             st.markdown("#### 🌐 Infrastructure")
             region = st.selectbox(
                 "AWS Region", 
