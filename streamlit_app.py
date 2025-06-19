@@ -235,7 +235,7 @@ class SafeMigrationAnalyzer:
                 create_emergency_fallback_analysis()
                 return False
 
-    def show_fixed_analysis_summary():
+def show_fixed_analysis_summary():
         """Show analysis summary with error handling"""
         
         st.markdown("#### 🎯 Analysis Summary")
