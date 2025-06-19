@@ -170,10 +170,7 @@ class StorageConfigurationManager:
             validation_result['recommendations'].append("Plan for 30% growth buffer in production environments")
         
         return validation_result
-
-    
-   import streamlit as st
-import pandas as pd
+   
 
 def show_storage_validation_widget():
     """Show storage validation widget in environment setup"""
