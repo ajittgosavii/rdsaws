@@ -1069,7 +1069,7 @@ def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict)
         return 'production'  # Default to production for safety
     
     def fix_environment_specs_access():
-    """Fix all environment specs access issues throughout the app"""
+        """Fix all environment specs access issues throughout the app"""
     
     # 1. FIXED normalize function with better error handling
     def safe_normalize_environment_specs(environment_specs):
