@@ -45,6 +45,295 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
+    class SafeMigrationAnalyzer:
+        """Migration analyzer with robust environment specs handling"""
+        
+        def __init__(self, anthropic_api_key=None):
+            self.pricing_api = EnhancedAWSPricingAPI()
+            self.anthropic_api_key = anthropic_api_key
+        
+        def calculate_instance_recommendations(self, environment_specs):
+            """Calculate AWS instance recommendations with robust error handling"""
+            
+            try:
+                # ALWAYS normalize specs first
+                normalized_specs = safe_normalize_environment_specs(environment_specs)
+                
+                if not normalized_specs:
+                    st.error("No valid environment specifications found")
+                    return self._create_fallback_recommendations()
+                
+                recommendations = {}
+                
+                for env_name, specs in normalized_specs.items():
+                    try:
+                        # Get values with guaranteed defaults
+                        cpu_cores = max(1, specs.get('cpu_cores', 4))
+                        ram_gb = max(4, specs.get('ram_gb', 16))
+                        storage_gb = max(20, specs.get('storage_gb', 500))
+                        daily_usage_hours = max(1, min(24, specs.get('daily_usage_hours', 24)))
+                        peak_connections = max(1, specs.get('peak_connections', 100))
+                        
+                        # Determine environment type
+                        environment_type = self._categorize_environment(env_name)
+                        
+                        # Calculate instance class
+                        instance_class = self._calculate_instance_class(cpu_cores, ram_gb, environment_type)
+                        
+                        # Multi-AZ recommendation
+                        multi_az = environment_type in ['production', 'staging']
+                        
+                        recommendations[env_name] = {
+                            'environment_type': environment_type,
+                            'instance_class': instance_class,
+                            'cpu_cores': cpu_cores,
+                            'ram_gb': ram_gb,
+                            'storage_gb': storage_gb,
+                            'multi_az': multi_az,
+                            'daily_usage_hours': daily_usage_hours,
+                            'peak_connections': peak_connections
+                        }
+                        
+                    except Exception as e:
+                        st.warning(f"Error processing environment {env_name}: {str(e)}")
+                        # Provide fallback recommendation
+                        recommendations[env_name] = self._create_single_fallback_recommendation(env_name)
+                
+                return recommendations
+                
+            except Exception as e:
+                st.error(f"Critical error in recommendations calculation: {str(e)}")
+                return self._create_fallback_recommendations()
+        
+        def _create_fallback_recommendations(self):
+            """Create fallback recommendations when analysis fails"""
+            return {
+                'Environment_1': {
+                    'environment_type': 'production',
+                    'instance_class': 'db.r5.large',
+                    'cpu_cores': 4,
+                    'ram_gb': 16,
+                    'storage_gb': 500,
+                    'multi_az': True,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100,
+                    'fallback': True
+                }
+            }
+        
+        def _create_single_fallback_recommendation(self, env_name):
+            """Create fallback for a single environment"""
+            return {
+                'environment_type': 'production' if 'prod' in env_name.lower() else 'development',
+                'instance_class': 'db.r5.large',
+                'cpu_cores': 4,
+                'ram_gb': 16,
+                'storage_gb': 500,
+                'multi_az': 'prod' in env_name.lower(),
+                'daily_usage_hours': 24,
+                'peak_connections': 100,
+                'fallback': True
+            }
+        
+        def _categorize_environment(self, env_name):
+            """Categorize environment type from name"""
+            env_lower = env_name.lower()
+            if any(term in env_lower for term in ['prod', 'production', 'prd']):
+                return 'production'
+            elif any(term in env_lower for term in ['stag', 'staging', 'preprod']):
+                return 'staging'
+            elif any(term in env_lower for term in ['qa', 'test', 'uat', 'sqa']):
+                return 'testing'
+            elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
+                return 'development'
+            return 'production'
+        
+        def _calculate_instance_class(self, cpu_cores, ram_gb, env_type):
+            """Calculate appropriate instance class"""
+            
+            try:
+                cpu_cores = int(cpu_cores)
+                ram_gb = int(ram_gb)
+                
+                if cpu_cores <= 2 and ram_gb <= 8:
+                    instance_class = 'db.t3.medium'
+                elif cpu_cores <= 4 and ram_gb <= 16:
+                    instance_class = 'db.t3.large'
+                elif cpu_cores <= 8 and ram_gb <= 32:
+                    instance_class = 'db.r5.large'
+                elif cpu_cores <= 16 and ram_gb <= 64:
+                    instance_class = 'db.r5.xlarge'
+                elif cpu_cores <= 32 and ram_gb <= 128:
+                    instance_class = 'db.r5.2xlarge'
+                elif cpu_cores <= 64 and ram_gb <= 256:
+                    instance_class = 'db.r5.4xlarge'
+                else:
+                    instance_class = 'db.r5.8xlarge'
+                
+                # Environment-specific adjustments
+                if env_type == 'development' and 'r5' in instance_class:
+                    downsized = {
+                        'db.r5.8xlarge': 'db.r5.4xlarge',
+                        'db.r5.4xlarge': 'db.r5.2xlarge',
+                        'db.r5.2xlarge': 'db.r5.xlarge',
+                        'db.r5.xlarge': 'db.r5.large',
+                        'db.r5.large': 'db.t3.large'
+                    }
+                    instance_class = downsized.get(instance_class, instance_class)
+                
+                return instance_class
+                
+            except Exception as e:
+                # Fallback to a safe default
+                return 'db.r5.large'
+        def run_fixed_migration_analysis():
+        """Run migration analysis with comprehensive error handling"""
+        
+        try:
+            # Step 1: Validate inputs
+            if not st.session_state.migration_params:
+                st.error("❌ Migration parameters required")
+                return False
+            
+            if not st.session_state.environment_specs:
+                st.error("❌ Environment specifications required")
+                return False
+            
+            # Step 2: Initialize analyzer
+            anthropic_api_key = st.session_state.migration_params.get('anthropic_api_key')
+            analyzer = SafeMigrationAnalyzer(anthropic_api_key)
+            
+            # Step 3: Normalize environment specs BEFORE analysis
+            st.write("🔄 Normalizing environment specifications...")
+            normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
+            
+            if not normalized_specs:
+                st.error("❌ Failed to normalize environment specifications")
+                return False
+            
+            # Update session state with normalized specs
+            st.session_state.environment_specs = normalized_specs
+            
+            # Step 4: Calculate recommendations
+            st.write("📊 Calculating instance recommendations...")
+            recommendations = analyzer.calculate_instance_recommendations(normalized_specs)
+            st.session_state.recommendations = recommendations
+            
+            # Step 5: Calculate costs
+            st.write("💰 Analyzing costs...")
+            cost_analysis = analyzer.calculate_migration_costs(recommendations, st.session_state.migration_params)
+            st.session_state.analysis_results = cost_analysis
+            
+            # Step 6: Risk assessment
+            st.write("⚠️ Assessing risks...")
+            risk_assessment = create_default_risk_assessment()
+            st.session_state.risk_assessment = risk_assessment
+            
+            st.success("✅ Analysis completed successfully!")
+            
+            # Show summary
+            show_fixed_analysis_summary()
+            
+            return True
+            
+        except Exception as e:
+            st.error(f"❌ Analysis failed: {str(e)}")
+            st.code(f"Error details: {str(e)}")
+            
+            # Create emergency fallback
+            create_emergency_fallback_analysis()
+            return False
+
+    def show_fixed_analysis_summary():
+        """Show analysis summary with error handling"""
+        
+        st.markdown("#### 🎯 Analysis Summary")
+        
+        try:
+            results = st.session_state.analysis_results
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                monthly_cost = results.get('monthly_aws_cost', 0)
+                st.metric("Monthly Cost", f"${monthly_cost:,.0f}")
+            
+            with col2:
+                migration_cost = results.get('migration_costs', {}).get('total', 0)
+                st.metric("Migration Cost", f"${migration_cost:,.0f}")
+            
+            with col3:
+                env_count = len(st.session_state.environment_specs)
+                st.metric("Environments", env_count)
+            
+            # Check for any fallback recommendations
+            fallback_count = sum(1 for rec in st.session_state.recommendations.values() 
+                               if rec.get('fallback', False))
+            
+            if fallback_count > 0:
+                st.warning(f"⚠️ {fallback_count} environment(s) used fallback configurations due to data issues")
+            
+            st.info("📈 View detailed results in the 'Results Dashboard' section")
+            
+        except Exception as e:
+            st.error(f"Error displaying summary: {str(e)}")
+
+    # 6. Emergency fallback when everything fails
+    def create_emergency_fallback_analysis():
+        """Create minimal working analysis when everything else fails"""
+        
+        st.warning("🛡️ Creating emergency fallback analysis...")
+        
+        try:
+            # Get environment count
+            env_count = len(st.session_state.environment_specs) if st.session_state.environment_specs else 1
+            env_names = list(st.session_state.environment_specs.keys()) if st.session_state.environment_specs else ['Environment_1']
+            
+            # Create minimal recommendations
+            recommendations = {}
+            for i, env_name in enumerate(env_names):
+                recommendations[env_name] = {
+                    'environment_type': 'production' if i == 0 else 'development',
+                    'instance_class': 'db.r5.large',
+                    'cpu_cores': 4,
+                    'ram_gb': 16,
+                    'storage_gb': 500,
+                    'multi_az': i == 0,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100,
+                    'emergency_fallback': True
+                }
+            
+            st.session_state.recommendations = recommendations
+            
+            # Create minimal cost analysis
+            total_monthly_cost = env_count * 500  # $500 per environment
+            st.session_state.analysis_results = {
+                'monthly_aws_cost': total_monthly_cost,
+                'annual_aws_cost': total_monthly_cost * 12,
+                'environment_costs': {env: {'total_monthly': 500} for env in env_names},
+                'migration_costs': {'total': 100000, 'dms_instance': 40000, 'data_transfer': 20000, 'professional_services': 40000}
+            }
+            
+            # Create minimal risk assessment
+            st.session_state.risk_assessment = get_fallback_risk_assessment()
+            
+            st.success("✅ Emergency fallback analysis created")
+            st.info("💡 This is a basic estimate. Please check your environment configuration for more accurate results.")
+            
+        except Exception as e:
+            st.error(f"❌ Even emergency fallback failed: {str(e)}")
+
+    return {
+        'safe_normalize_environment_specs': safe_normalize_environment_specs,
+        'safe_get_spec_value': safe_get_spec_value,
+        'SafeMigrationAnalyzer': SafeMigrationAnalyzer,
+        'run_fixed_migration_analysis': run_fixed_migration_analysis,
+        'show_fixed_analysis_summary': show_fixed_analysis_summary,
+        'create_emergency_fallback_analysis': create_emergency_fallback_analysis
+    }
+  
+        
 class StreamlitKeyManager:
     """Centralized key management to prevent duplicate keys"""
     
@@ -797,6 +1086,105 @@ def generate_ai_insights_sync(self, cost_analysis: Dict, migration_params: Dict)
         elif any(term in env_lower for term in ['dev', 'development', 'sandbox']):
             return 'development'
         return 'production'  # Default to production for safety
+    
+    def fix_environment_specs_access():
+    """Fix all environment specs access issues throughout the app"""
+    
+    # 1. FIXED normalize function with better error handling
+    def safe_normalize_environment_specs(environment_specs):
+        """Safely normalize environment specifications with comprehensive error handling"""
+        
+        if not environment_specs:
+            return {}
+        
+        normalized_specs = {}
+        
+        for env_name, specs in environment_specs.items():
+            try:
+                if not isinstance(specs, dict):
+                    # Handle non-dict specs
+                    normalized_specs[env_name] = {
+                        'cpu_cores': 4,
+                        'ram_gb': 16,
+                        'storage_gb': 500,
+                        'daily_usage_hours': 24,
+                        'peak_connections': 100
+                    }
+                    continue
+                
+                # Normalize field names and get values safely
+                normalized = {}
+                
+                # CPU cores - check multiple possible field names
+                cpu_keys = ['cpu_cores', 'CPU_Cores', 'cores', 'vCPUs', 'vcpu', 'cpu', 'CPU']
+                normalized['cpu_cores'] = safe_get_spec_value(specs, cpu_keys, 4)
+                
+                # RAM - check multiple possible field names  
+                ram_keys = ['ram_gb', 'RAM_GB', 'memory_gb', 'memory', 'ram', 'Memory_GB', 'Memory']
+                normalized['ram_gb'] = safe_get_spec_value(specs, ram_keys, 16)
+                
+                # Storage - check multiple possible field names
+                storage_keys = ['storage_gb', 'Storage_GB', 'disk_gb', 'storage', 'disk', 'Storage']
+                normalized['storage_gb'] = safe_get_spec_value(specs, storage_keys, 500)
+                
+                # Daily usage hours
+                usage_keys = ['daily_usage_hours', 'Daily_Usage_Hours', 'usage_hours', 'hours', 'daily_hours']
+                normalized['daily_usage_hours'] = safe_get_spec_value(specs, usage_keys, 24)
+                
+                # Peak connections
+                conn_keys = ['peak_connections', 'Peak_Connections', 'connections', 'max_connections', 'Connections']
+                normalized['peak_connections'] = safe_get_spec_value(specs, conn_keys, 100)
+                
+                # Copy any additional fields that might exist
+                additional_fields = [
+                    'workload_pattern', 'read_write_ratio', 'environment_type',
+                    'multi_az_writer', 'multi_az_readers', 'num_readers',
+                    'iops_requirement', 'storage_encrypted', 'backup_retention'
+                ]
+                
+                for field in additional_fields:
+                    if field in specs:
+                        normalized[field] = specs[field]
+                
+                normalized_specs[env_name] = normalized
+                
+            except Exception as e:
+                st.warning(f"Error normalizing environment {env_name}: {str(e)}")
+                # Provide fallback
+                normalized_specs[env_name] = {
+                    'cpu_cores': 4,
+                    'ram_gb': 16,
+                    'storage_gb': 500,
+                    'daily_usage_hours': 24,
+                    'peak_connections': 100,
+                    'error': str(e)
+                }
+        
+        return normalized_specs
+    
+    def safe_get_spec_value(specs, possible_keys, default=0):
+        """Safely get specification value from multiple possible key names"""
+        for key in possible_keys:
+            if key in specs:
+                value = specs[key]
+                # Convert to appropriate type
+                if isinstance(value, (int, float)):
+                    return max(0, value)  # Ensure positive values
+                elif isinstance(value, str):
+                    if value.isdigit():
+                        return max(0, int(value))
+                    else:
+                        try:
+                            return max(0, float(value))
+                        except (ValueError, TypeError):
+                            continue
+                elif value:  # Non-empty value
+                    try:
+                        return max(0, float(value))
+                    except (ValueError, TypeError):
+                        continue
+        return default
+
     
     def _calculate_instance_class(self, cpu_cores: int, ram_gb: int, env_type: str) -> str:
         """Calculate appropriate instance class"""
