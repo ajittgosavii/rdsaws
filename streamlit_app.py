@@ -270,7 +270,7 @@ def show_fixed_analysis_summary():
             st.error(f"Error displaying summary: {str(e)}")
 
     # 6. Emergency fallback when everything fails
-    def create_emergency_fallback_analysis():
+def create_emergency_fallback_analysis():
         """Create minimal working analysis when everything else fails"""
         
         st.warning("🛡️ Creating emergency fallback analysis...")
