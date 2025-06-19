@@ -27,7 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from vrops_ui import show_enhanced_environment_setup_with_vrops, show_vrops_results_tab
-from reader_writer_optimizer import OptimizedReaderWriterAnalyzer, display_optimization_results
+#from reader_writer_optimizer import OptimizedReaderWriterAnalyzer, display_optimization_results
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Any, Optional
 
