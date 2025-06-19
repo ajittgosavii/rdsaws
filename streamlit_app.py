@@ -604,10 +604,10 @@ class OptimizedReaderWriterAnalyzer:
         return min(100, score)
     
     def _optimize_reader_configuration(self, writer_optimization: Dict, workload_analysis: Dict, environment_type: str) -> Dict:
-        """Optimize Reader configuration based on writer and workload"""
-    
-    recommended_count = workload_analysis['recommended_reader_count']
-    
+    """Optimize Reader configuration based on writer and workload"""
+
+    recommended_count = workload_analysis['recommended_reader_count']  # Now indented (inside function)
+
     if recommended_count == 0:
         return {
             'count': 0,
@@ -624,7 +624,7 @@ class OptimizedReaderWriterAnalyzer:
     # Determine optimal reader instance size
     writer_specs = writer_optimization['specs']
     reader_instance_class = self._calculate_optimal_reader_size(writer_specs, workload_analysis, environment_type)
-    reader_specs = self.instance_specs[reader_instance_class]
+    reader_specs = self.instance_specs[reader_instance_class]  # Also indented
     
     # Calculate costs
     single_reader_monthly_cost = self._calculate_instance_monthly_cost(reader_specs, environment_type, is_reader=True)
