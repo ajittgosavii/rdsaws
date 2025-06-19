@@ -204,7 +204,7 @@ class SafeMigrationAnalyzer:
                     analyzer = SafeMigrationAnalyzer(anthropic_api_key)
             
 # Step 3: Normalize environment specs BEFORE analysis
-    try:
+        try:
         st.write("🔄 Normalizing environment specifications...")
         normalized_specs = safe_normalize_environment_specs(st.session_state.environment_specs)
 
