@@ -9764,7 +9764,7 @@ def show_results_dashboard():
         show_timeline_analysis_tab()
     
     with tab9:
-        show_enhanced_recommendations_dashboard
+        show_enhanced_recommendations_dashboard()
 
 def show_basic_cost_summary():
     """Show basic cost summary from analysis results"""
