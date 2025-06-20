@@ -9731,7 +9731,7 @@ def show_results_dashboard():
         "🏢 Environment Analysis",
         "📊 Visualizations",
         "🤖 AI Insights",
-        "📅 Timeline"
+        "📅 Timeline",
         "📊 Enhanced Recommendations"
     ])
     
