@@ -39,6 +39,396 @@ from typing import Dict, List, Tuple, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+# Add these enhanced recommendation display functions to your streamlit_app.py
+
+def show_clear_recommendations_summary():
+    """Show clear, actionable Reader/Writer recommendations"""
+    
+    st.markdown("## 🎯 Reader/Writer Recommendations Summary")
+    
+    if not hasattr(st.session_state, 'optimization_results') or not st.session_state.optimization_results:
+        st.warning("⚠️ Please run the AI Optimizer to get Reader/Writer recommendations.")
+        return
+    
+    optimization_results = st.session_state.optimization_results
+    
+    # Executive Summary Cards
+    total_environments = len(optimization_results)
+    total_writers = total_environments
+    total_readers = sum([env['reader_optimization']['count'] for env in optimization_results.values()])
+    total_monthly_cost = sum([env['cost_analysis']['monthly_breakdown']['total'] for env in optimization_results.values()])
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("📊 Environments", total_environments)
+    
+    with col2:
+        st.metric("✍️ Writer Instances", total_writers)
+        
+    with col3:
+        st.metric("📖 Read Replicas", total_readers)
+        
+    with col4:
+        st.metric("💰 Total Monthly Cost", f"${total_monthly_cost:,.0f}")
+    
+    # Detailed Recommendations Table
+    st.markdown("### 📋 Detailed Recommendations")
+    
+    recommendations_data = []
+    for env_name, optimization in optimization_results.items():
+        writer = optimization['writer_optimization']
+        reader = optimization['reader_optimization']
+        
+        recommendations_data.append({
+            'Environment': env_name,
+            'Current Status': '🔧 To Be Migrated',
+            'Writer Instance': writer['instance_class'],
+            'Writer Specs': f"{writer['specs'].vcpu} vCPU, {writer['specs'].memory_gb} GB RAM",
+            'Reader Count': reader['count'],
+            'Reader Instance': reader['instance_class'] if reader['count'] > 0 else 'None',
+            'Multi-AZ': '✅ Yes' if writer['multi_az'] else '❌ No',
+            'Monthly Cost': f"${optimization['cost_analysis']['monthly_breakdown']['total']:,.0f}",
+            'Optimization Score': f"{optimization['optimization_score']:.0f}/100"
+        })
+    
+    recommendations_df = pd.DataFrame(recommendations_data)
+    st.dataframe(recommendations_df, use_container_width=True)
+    
+    # Action Items for Each Environment
+    st.markdown("### 🚀 Implementation Action Items")
+    
+    for env_name, optimization in optimization_results.items():
+        with st.expander(f"📋 {env_name} - Action Plan", expanded=False):
+            writer = optimization['writer_optimization']
+            reader = optimization['reader_optimization']
+            
+            st.markdown("#### ✅ Implementation Checklist")
+            
+            # Writer tasks
+            st.markdown("**Writer Instance Setup:**")
+            st.markdown(f"- [ ] Create {writer['instance_class']} RDS instance")
+            st.markdown(f"- [ ] Configure {writer['specs'].vcpu} vCPUs and {writer['specs'].memory_gb} GB RAM")
+            if writer['multi_az']:
+                st.markdown("- [ ] Enable Multi-AZ deployment for high availability")
+            st.markdown(f"- [ ] Estimated monthly cost: ${writer['monthly_cost']:,.0f}")
+            
+            # Reader tasks
+            if reader['count'] > 0:
+                st.markdown("**Read Replica Setup:**")
+                st.markdown(f"- [ ] Create {reader['count']} read replica(s)")
+                st.markdown(f"- [ ] Use {reader['instance_class']} instance type for each replica")
+                st.markdown(f"- [ ] Estimated monthly cost for all replicas: ${reader['total_monthly_cost']:,.0f}")
+                
+                if reader['count'] > 1:
+                    st.markdown("- [ ] Distribute replicas across different AZs for load balancing")
+                st.markdown("- [ ] Configure application read traffic routing to replicas")
+            else:
+                st.markdown("**Read Replicas:** Not needed for this workload pattern")
+            
+            # Cost optimization tasks
+            st.markdown("**Cost Optimization:**")
+            ri_savings_1yr = optimization['cost_analysis']['reserved_instance_options']['1_year']['total_savings']
+            ri_savings_3yr = optimization['cost_analysis']['reserved_instance_options']['3_year']['total_savings']
+            
+            if ri_savings_1yr > 1000:
+                st.markdown(f"- [ ] Consider 1-year Reserved Instance (saves ${ri_savings_1yr:,.0f})")
+            if ri_savings_3yr > 2000:
+                st.markdown(f"- [ ] Consider 3-year Reserved Instance (saves ${ri_savings_3yr:,.0f})")
+            
+            # Monitoring tasks
+            st.markdown("**Monitoring & Optimization:**")
+            st.markdown("- [ ] Set up CloudWatch monitoring")
+            st.markdown("- [ ] Configure performance alerts")
+            st.markdown("- [ ] Review performance after 30 days")
+            
+            if reader['count'] > 0:
+                st.markdown("- [ ] Monitor read replica lag")
+                st.markdown("- [ ] Set up read traffic distribution monitoring")
+
+def show_single_vs_bulk_comparison():
+    """Show comparison between single instance and cluster recommendations"""
+    
+    st.markdown("### ⚖️ Single Instance vs Cluster Comparison")
+    
+    if not st.session_state.environment_specs:
+        st.warning("Please configure environments first.")
+        return
+    
+    # Create comparison for each environment
+    for env_name, specs in st.session_state.environment_specs.items():
+        with st.expander(f"🔍 {env_name} - Single vs Cluster Analysis"):
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🖥️ Single Instance Approach")
+                
+                # Calculate single instance recommendation
+                total_cpu = specs.get('cpu_cores', 4)
+                total_ram = specs.get('ram_gb', 16)
+                
+                if total_cpu <= 4 and total_ram <= 16:
+                    single_instance = 'db.r5.large'
+                    single_cost = 350
+                elif total_cpu <= 8 and total_ram <= 32:
+                    single_instance = 'db.r5.xlarge'
+                    single_cost = 700
+                elif total_cpu <= 16 and total_ram <= 64:
+                    single_instance = 'db.r5.2xlarge'
+                    single_cost = 1400
+                else:
+                    single_instance = 'db.r5.4xlarge'
+                    single_cost = 2800
+                
+                st.info(f"""
+                **Recommended Instance:** {single_instance}  
+                **Configuration:** All-in-one  
+                **Monthly Cost:** ${single_cost:,.0f}  
+                **Pros:** Simple setup, lower cost  
+                **Cons:** Single point of failure, limited read scaling
+                """)
+            
+            with col2:
+                st.markdown("#### 🔗 Writer/Reader Cluster Approach")
+                
+                # Get cluster recommendation if available
+                if (hasattr(st.session_state, 'optimization_results') and 
+                    st.session_state.optimization_results and 
+                    env_name in st.session_state.optimization_results):
+                    
+                    opt = st.session_state.optimization_results[env_name]
+                    writer = opt['writer_optimization']
+                    reader = opt['reader_optimization']
+                    total_cluster_cost = opt['cost_analysis']['monthly_breakdown']['total']
+                    
+                    st.success(f"""
+                    **Writer:** {writer['instance_class']}  
+                    **Readers:** {reader['count']} x {reader['instance_class'] if reader['count'] > 0 else 'None'}  
+                    **Monthly Cost:** ${total_cluster_cost:,.0f}  
+                    **Pros:** High availability, read scaling, better performance  
+                    **Cons:** More complex, potentially higher cost
+                    """)
+                    
+                    # Cost comparison
+                    cost_diff = total_cluster_cost - single_cost
+                    if cost_diff > 0:
+                        st.warning(f"💰 Cluster costs ${cost_diff:,.0f} more per month (+{(cost_diff/single_cost)*100:.1f}%)")
+                    else:
+                        st.success(f"💰 Cluster saves ${abs(cost_diff):,.0f} per month ({abs(cost_diff/single_cost)*100:.1f}% savings)")
+                else:
+                    st.info("Run AI Optimizer to see cluster recommendations")
+            
+            # Recommendation
+            st.markdown("#### 🎯 Our Recommendation")
+            
+            workload_pattern = specs.get('workload_pattern', 'balanced')
+            env_type = specs.get('environment_type', 'production')
+            
+            if env_type == 'production' and workload_pattern in ['read_heavy', 'analytics']:
+                st.success("✅ **Recommend Cluster Approach** - Production workload with read-heavy pattern benefits from read replicas")
+            elif env_type == 'development':
+                st.info("💡 **Recommend Single Instance** - Development environment prioritizes cost savings")
+            else:
+                st.warning("⚖️ **Evaluate Both Options** - Weigh cost vs performance benefits for your specific use case")
+
+def show_performance_impact_analysis():
+    """Show how recommendations will impact performance"""
+    
+    st.markdown("### 📈 Performance Impact Analysis")
+    
+    if not hasattr(st.session_state, 'optimization_results') or not st.session_state.optimization_results:
+        st.info("Run AI Optimizer to see performance impact analysis.")
+        return
+    
+    for env_name, optimization in st.session_state.optimization_results.items():
+        with st.expander(f"📊 {env_name} - Performance Analysis"):
+            
+            workload = optimization['workload_analysis']
+            writer = optimization['writer_optimization']
+            reader = optimization['reader_optimization']
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.markdown("#### 🔍 Workload Analysis")
+                st.metric("Complexity Score", f"{workload['complexity_score']:.0f}/100")
+                st.metric("CPU Intensity", f"{workload['cpu_intensity']:.0f}%")
+                st.metric("Memory Intensity", f"{workload['memory_intensity']:.0f}%")
+                st.metric("I/O Intensity", f"{workload['io_intensity']:.0f}%")
+            
+            with col2:
+                st.markdown("#### ⚡ Performance Gains")
+                
+                # Calculate performance improvements
+                current_cpu = st.session_state.environment_specs[env_name].get('cpu_cores', 4)
+                recommended_cpu = writer['specs'].vcpu
+                cpu_gain = (recommended_cpu / current_cpu - 1) * 100
+                
+                if cpu_gain > 0:
+                    st.success(f"🚀 +{cpu_gain:.0f}% CPU performance")
+                else:
+                    st.info(f"💡 {abs(cpu_gain):.0f}% CPU optimization")
+                
+                current_ram = st.session_state.environment_specs[env_name].get('ram_gb', 16)
+                recommended_ram = writer['specs'].memory_gb
+                ram_gain = (recommended_ram / current_ram - 1) * 100
+                
+                if ram_gain > 0:
+                    st.success(f"🧠 +{ram_gain:.0f}% memory capacity")
+                else:
+                    st.info(f"💡 {abs(ram_gain):.0f}% memory optimization")
+                
+                if reader['count'] > 0:
+                    st.success(f"📖 {reader['count']}x read scaling capacity")
+                
+                if writer['multi_az']:
+                    st.success("🛡️ 99.95% uptime SLA")
+            
+            with col3:
+                st.markdown("#### 📋 Performance Recommendations")
+                
+                if workload['complexity_score'] > 70:
+                    st.warning("⚠️ High complexity workload - monitor performance closely")
+                else:
+                    st.success("✅ Workload complexity manageable")
+                
+                if reader['count'] > 0:
+                    st.info(f"💡 Route {workload['read_scaling_factor']:.1f}x read traffic to replicas")
+                
+                if workload['workload_type'] == 'read_heavy':
+                    st.success("📈 Read replicas will significantly improve performance")
+                elif workload['workload_type'] == 'write_heavy':
+                    st.info("✍️ Focus on writer instance optimization")
+                
+                st.markdown("**Next Steps:**")
+                st.markdown("- Set up performance monitoring")
+                st.markdown("- Establish performance baselines")
+                st.markdown("- Plan performance testing")
+
+def show_migration_strategy_recommendations():
+    """Show step-by-step migration strategy for Reader/Writer setup"""
+    
+    st.markdown("### 🗺️ Migration Strategy for Reader/Writer Architecture")
+    
+    if not hasattr(st.session_state, 'optimization_results') or not st.session_state.optimization_results:
+        st.info("Run AI Optimizer to see migration strategy recommendations.")
+        return
+    
+    # Migration phases
+    phases = [
+        {
+            "phase": "Phase 1: Foundation Setup",
+            "duration": "Week 1-2",
+            "description": "Set up AWS infrastructure and prepare for migration",
+            "tasks": [
+                "Create VPC and subnets across multiple AZs",
+                "Set up security groups and NACLs",
+                "Configure parameter groups for target database engine",
+                "Set up CloudWatch monitoring and alerting",
+                "Create SNS topics for notifications"
+            ]
+        },
+        {
+            "phase": "Phase 2: Writer Instance Migration", 
+            "duration": "Week 3-4",
+            "description": "Migrate primary database to AWS as writer instance",
+            "tasks": [
+                "Create writer instance in primary AZ",
+                "Use DMS for initial data migration",
+                "Set up continuous replication",
+                "Perform initial testing and validation",
+                "Configure backup and maintenance windows"
+            ]
+        },
+        {
+            "phase": "Phase 3: Read Replica Deployment",
+            "duration": "Week 5-6", 
+            "description": "Add read replicas for scaling and availability",
+            "tasks": [
+                "Create read replicas in designated AZs",
+                "Configure application connection strings for read traffic",
+                "Implement read/write splitting logic",
+                "Test read replica lag and performance",
+                "Set up monitoring for replica health"
+            ]
+        },
+        {
+            "phase": "Phase 4: Application Migration",
+            "duration": "Week 7-10",
+            "description": "Migrate applications to use new database architecture", 
+            "tasks": [
+                "Update application configurations",
+                "Test application functionality with new database",
+                "Perform load testing with read/write splitting",
+                "Validate data consistency across replicas",
+                "Train team on new architecture"
+            ]
+        },
+        {
+            "phase": "Phase 5: Go-Live & Optimization",
+            "duration": "Week 11-12",
+            "description": "Complete cutover and optimize performance",
+            "tasks": [
+                "Execute final cutover during maintenance window",
+                "Monitor performance and adjust as needed",
+                "Optimize read traffic distribution",
+                "Implement additional monitoring and alerting",
+                "Document new architecture and procedures"
+            ]
+        }
+    ]
+    
+    for i, phase in enumerate(phases, 1):
+        with st.expander(f"📅 {phase['phase']} ({phase['duration']})", expanded=i<=2):
+            st.markdown(f"**Duration:** {phase['duration']}")
+            st.markdown(f"**Objective:** {phase['description']}")
+            
+            st.markdown("**Key Tasks:**")
+            for task in phase['tasks']:
+                st.markdown(f"- [ ] {task}")
+            
+            # Add environment-specific recommendations
+            if i == 2:  # Writer setup phase
+                st.markdown("**Environment-Specific Writer Setup:**")
+                for env_name, optimization in st.session_state.optimization_results.items():
+                    writer = optimization['writer_optimization']
+                    st.markdown(f"• **{env_name}**: {writer['instance_class']} ({'Multi-AZ' if writer['multi_az'] else 'Single-AZ'})")
+            
+            elif i == 3:  # Reader setup phase
+                st.markdown("**Environment-Specific Reader Setup:**")
+                for env_name, optimization in st.session_state.optimization_results.items():
+                    reader = optimization['reader_optimization']
+                    if reader['count'] > 0:
+                        st.markdown(f"• **{env_name}**: {reader['count']} x {reader['instance_class']}")
+                    else:
+                        st.markdown(f"• **{env_name}**: No read replicas needed")
+
+# Add this to your main navigation or results dashboard
+def show_enhanced_recommendations_dashboard():
+    """Enhanced dashboard for Reader/Writer recommendations"""
+    
+    st.markdown("## 🎯 Complete Reader/Writer Recommendations")
+    
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📋 Summary & Action Items",
+        "⚖️ Single vs Cluster",
+        "📈 Performance Impact", 
+        "🗺️ Migration Strategy"
+    ])
+    
+    with tab1:
+        show_clear_recommendations_summary()
+    
+    with tab2:
+        show_single_vs_bulk_comparison()
+    
+    with tab3:
+        show_performance_impact_analysis()
+    
+    with tab4:
+        show_migration_strategy_recommendations()
+
 @dataclass
 class InstanceSpecs:
     """Instance specifications with performance metrics"""
@@ -8517,7 +8907,8 @@ def main():
                 "🚀 Analysis & Recommendations",
                 "📈 Results Dashboard",
                 "🔄 Cost Reconciliation",  # ADD THIS LINE
-                "📄 Reports & Export"
+                "📄 Reports & Export",
+                "📊 Enhanced Recommendations"
             ]
         )
         
@@ -8635,6 +9026,8 @@ def main():
         show_cost_reconciliation_page()
     elif page == "📄 Reports & Export":
         show_reports_section()
+    elif page == "📊 Enhanced Recommendations":
+        show_enhanced_recommendations_dashboard()
     else:
         # Default page
         st.markdown("## Welcome to the AWS Database Migration Tool")
@@ -9330,7 +9723,7 @@ def show_results_dashboard():
     )
     
     # FIXED: Match the number of variables with the number of tabs
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8,tab9 = st.tabs([
         "💰 Cost Summary",
         "📈 Growth Projections",
         "💎 Enhanced Analysis",
@@ -9339,6 +9732,7 @@ def show_results_dashboard():
         "📊 Visualizations",
         "🤖 AI Insights",
         "📅 Timeline"
+        "📊 Enhanced Recommendations"
     ])
     
     with tab1:
@@ -9368,6 +9762,9 @@ def show_results_dashboard():
 
     with tab8:
         show_timeline_analysis_tab()
+    
+    with tab9:
+        show_enhanced_recommendations_dashboard
 
 def show_basic_cost_summary():
     """Show basic cost summary from analysis results"""
